@@ -7,9 +7,7 @@
 //
 //   export default { ..., Content: scoped(MyContent) }   wraps an app's Content
 //   useUITime(), useLive()
-import { createContext, memo, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react'
-import { now, onFrame } from '../core/clock.js'
-import { RUNNING_AT_LOGIN } from '../os/wm.js'
+import { createContext, memo, useContext, useMemo } from 'react'
 import { useTime } from '../core/time.jsx'
 import { lastRelevant } from './state.js'
 
@@ -49,9 +47,6 @@ export function scoped(Inner, opts) {
       const le = Math.max(win.openedAt, lastRelevant(t, win.id, watch))
       if (t - le > settle) tt = le + settle
     }
-    const seq = useSeq(win)
-    const ready = useMountGate(win, seq)
-    if (!ready) return null
     return (
       <UIScope t={tt} live={live}>
         <M {...props} t={tt} live={live} />
@@ -72,46 +67,4 @@ function sameProps(a, b) {
   // (PlexWindow staggers those by copy), so a change never re-renders every copy in one frame
   if (b.live === false && a.live === false) return true
   return winSame(a.win, b.win)
-}
-
-// ---- staggered mounting of windows nobody has seen yet ----------------------------------------
-// The apps already running at login exist minimised from the login frame, each with all its
-// motion-blur copies. Mounting all of them in the login transition's frames is a 30 ms spike, so
-// the content of a window that has never been shown mounts one copy at a time, a few frames
-// apart, in the quiet frames after the desktop has appeared. Anything shown mounts at once.
-const GATE_START = 0.7 // s after the window's creation (the login)
-const GATE_STEP = 0.07 // s between two mounts (about two video frames)
-const seqs = new Map()
-function useSeq(win) {
-  // window slot (the login order) * 9 + the order this copy was mounted in (copy 0 first)
-  const [s] = useState(() => {
-    if (!win) return 0
-    const k = win.id + '@' + win.openedAt
-    const n = seqs.get(k) || 0
-    seqs.set(k, n + 1)
-    const slot = Math.max(0, RUNNING_AT_LOGIN.findIndex((r) => r.id === win.id))
-    return slot * 9 + n
-  })
-  return s
-}
-// the clock, read only while `on` (a waiting gate), so idle instances cost nothing per frame
-function useTimeWhile(on) {
-  const [t, setT] = useState(() => now())
-  useEffect(() => (on ? onFrame((tt) => setT(tt)) : undefined), [on])
-  return t
-}
-function useMountGate(win, seq) {
-  const hidden = !!win && win.lastAction === 'initial' && win.state === 'minimized'
-  const at = win ? win.openedAt + GATE_START + seq * GATE_STEP : 0
-  const [ready, setReady] = useState(() => !hidden)
-  const due = hidden && !ready
-  return useGateClock(due, at, ready, setReady, hidden)
-}
-function useGateClock(due, at, ready, setReady, hidden) {
-  // read the clock only while waiting
-  const t = useTimeWhile(due)
-  useLayoutEffect(() => {
-    if (!ready && (!hidden || t >= at)) setReady(true)
-  })
-  return ready || !hidden
 }
