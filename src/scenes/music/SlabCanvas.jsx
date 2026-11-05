@@ -9,7 +9,8 @@ import { renderSlabs, SlabScene } from '../../gl/slab.js'
 // renders, the others copy its pixels (a cheap 2D copy instead of another GPU readback).
 const shared = new Map() // cacheKey -> { key, canvas }
 
-export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, phase = -0.5, P = 1000, origin, style, cacheKey }) {
+// skip: keep the last pixels (the canvas is on an invisible layer)
+export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, phase = -0.5, P = 1000, origin, style, cacheKey, skip }) {
   const ref = useRef(null)
   const scene = useMemo(() => new SlabScene(), [])
   useEffect(() => () => scene.dispose(), [scene])
@@ -17,7 +18,7 @@ export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, 
   const scale = Math.min(3, s * (window.devicePixelRatio || 1))
   useLayoutEffect(() => {
     const c = ref.current
-    if (!c) return
+    if (!c || skip) return
     const key = cacheKey && `${t}:${samples}:${scale}`
     const hit = cacheKey && shared.get(cacheKey)
     if (hit && hit.key === key && hit.canvas !== c && hit.canvas.isConnected) {

@@ -218,7 +218,7 @@ const albumSlab = {
 }
 
 // The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache }) {
+function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip }) {
   return (
     <>
       {reflection && <SlabCanvas
@@ -231,8 +231,9 @@ function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache })
         P={900}
         style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask }}
         cacheKey={cache && 'refl'}
+        skip={skip}
       />}
-      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} cacheKey={cache && 'main'} />
+      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} cacheKey={cache && 'main'} skip={skip} />
     </>
   )
 }
@@ -312,7 +313,7 @@ function TrackList({ hrel, sel, hover }) {
 // once per frame and the copies share it)
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs; real-time
 // playback draws them on their own layer above the window copies)
-export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1, slabT = t, slabs = 'all' }) {
+export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1, slabT = t, slabs = 'all', cache = false, skip = false }) {
   const rel = toRel(t, openT)
   const hrel = pageT == null ? -1e9 : toRel(t, pageT)
   const fadeOut = 1 - smoothRamp(hrel, 1.5, 8.5)
@@ -333,7 +334,7 @@ export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = 
   const fast = rel < 24 || (hrel > 0 && hrel < 21)
   const slabEl =
     items.length > 0 && slabs !== 'none' ? (
-      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection={CAPTURE || !copy} cache={copy && !CAPTURE} />
+      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} />
     ) : null
   if (slabs === 'only') return slabEl
   return (
