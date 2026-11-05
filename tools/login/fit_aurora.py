@@ -15,6 +15,7 @@ args = sys.argv[1:]
 outdir = args[0]
 os.makedirs(outdir, exist_ok=True)
 ROUNDS = int(args[args.index('--rounds') + 1]) if '--rounds' in args else 2
+REFINE_LAST = '--refine-last' in args
 STEP = 4
 KEYS = list(range(1, 510, STEP))  # video frames 1..509 (the loop wraps 505 -> 110)
 if '--keys' in args:
@@ -246,7 +247,7 @@ def greedy_add(R, T, W, max_new, thr):
     return added
 
 
-def fit_key(n, R, coarse_grid, prior_R):
+def fit_key(n, R, coarse_grid, prior_R, grow=True):
     f = np.asarray(half[n - 1], np.float32)
     W = mask_half(n).astype(np.float32)
     base = eval_coarse(coarse_grid)
@@ -266,6 +267,9 @@ def fit_key(n, R, coarse_grid, prior_R):
             R[i] = [P2, A2, s2, True]
             T_all = Ti - render_one(P2, A2, s2)
     # new ribbons
+    if not grow:
+        e = np.sqrt(((T_all ** 2) * W[..., None]).sum() / (W.sum() * 3))
+        return R, 0, e
     # drop dead / duplicate ribbons (frees slots for new ones)
     for i, r in enumerate(R):
         if r[3] and np.abs(BXH @ r[1].T).max() < 2.5:
@@ -295,12 +299,17 @@ def main():
     for n in KEYS:
         coarse[n] = fit_coarse(np.asarray(half[n - 1], np.float32), mask_half(n))
     print('coarse0 done %.1fs' % (time.time() - t0), flush=True)
+    hist = {}
     for rnd in range(ROUNDS):
         R = [[np.zeros(KX), np.zeros((3, KX)), 3.0, False] for _ in range(NS)]
-        hist = {}
         prior = None
         for n in KEYS:
-            R, added, e = fit_key(n, R, coarse[n], prior)
+            # earlier rounds grow ribbons from scratch on the refined coarse field; the last round
+            # (with --refine-last) refines the previous round's ribbons, keeping their identities
+            refine = REFINE_LAST and rnd == ROUNDS - 1 and rnd > 0
+            if refine:
+                R = [[r[0].copy(), r[1].copy(), r[2], r[3]] for r in hist[n]]
+            R, added, e = fit_key(n, R, coarse[n], prior, grow=not refine)
             hist[n] = [[r[0].copy(), r[1].copy(), r[2], r[3]] for r in R]
             prior = hist[n]
             if n % 40 == 1:
