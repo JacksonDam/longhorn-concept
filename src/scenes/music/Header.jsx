@@ -180,10 +180,10 @@ const deviceSlab = (canvas) => ({
   radius: 8,
   canvas,
   canvasVersion: deviceVersion,
-  edgeColor: [0.1, 0.32, 0.42],
-  edgeMix: 0.5,
+  edgeColor: [0.32, 0.64, 0.78],
+  edgeMix: 0.35,
   spec: 0.35,
-  rim: 0.45,
+  rim: 0.6,
   backFlip: false,
 })
 const albumSlab = {
