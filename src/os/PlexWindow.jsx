@@ -513,6 +513,11 @@ const PARKED = { transform: 'translateX(-4000px)', opacity: 1e-4 }
 // painted and rasterised and the next blur only composites (at opacity 0, Blink and the compositor
 // let it go and the minimise re-paints and re-rasterises it mid-animation, a 15-60 ms frame)
 const REST = { opacity: 1e-4 }
+// except a window running at login that has never been shown: its idle layers rest at opacity 0,
+// painted (will-change: opacity) but neither drawn nor rasterised, so the four windows in the
+// taskbar don't cost their full-size copies' GPU memory and fill every frame (their first restore
+// rasterises them, as a first open does)
+const REST_UNSHOWN = { opacity: 0 }
 
 // A window that shows nothing and has nothing scheduled (minimised, closed, running at login,
 // prewarmed) renders the same every frame: this key changes only when its layers would change
@@ -555,7 +560,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'ghost' && (win.lastAction !== 'initial' || mounted >= N)
   // (an opening window's layers wait parked until their turn to be rasterised before it shows,
   // so a window whose trees were pre-built doesn't reveal them all on its open's frame)
-  const rest = shown && !m.warm ? REST : PARKED
+  const rest = shown && !m.warm ? (win.lastAction === 'initial' ? REST_UNSHOWN : REST) : PARKED
   // (a window running at login rasterises its copies one by one as they mount, each a mount step
   // after it, not all on the step its last copy mounts)
   const atLogin = win.lastAction === 'initial' && win.state === 'minimized'
@@ -592,7 +597,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       // invisible (spread over the four frames after the open's own, N / 4 a frame), so the first
       // blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
-    } else style = rest === PARKED && atLogin && k < mounted - 1 ? REST : rest
+    } else style = rest === PARKED && atLogin && k < mounted - 1 ? REST_UNSHOWN : rest
     // (an idle copy keeps the size its window settled at: see settledSize)
     const rr = blur && k < nEff ? m.rect(tt) : k > 0 ? settledSize(win, app, t, r, k) : r
     const mk = m.maxK(blur && k < nEff ? tt : t)

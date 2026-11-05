@@ -92,8 +92,10 @@ OS in the same style. Everything still derives from (time, event log).
   windows costs nothing per frame for them; a window running at login rasterises its copies one
   per step of the background mount queue, not all at once; a closed window also lets its
   compositing layers go. Idle copies of a shown window rest on its rect at opacity 1e-4 (drawn,
-  so they stay painted and rasterised; at opacity 0 Chrome lets them go), and keep the size the
-  window settled at while it is resized or maximised. Each window's layers sit in one group
+  so they stay painted and rasterised; at opacity 0 Chrome lets them go); the windows running at
+  login rest at opacity 0 until their first restore (painted, not drawn: no GPU memory or fill
+  for their full-size copies). Idle copies keep the size the window settled at while it is
+  resized or maximised. Each window's layers sit in one group
   positioned by a transform, so a drag moves one transform. `usesActive: true` marks Content
   that draws differently when the window isn't active (otherwise focus changes don't re-render
   it).
