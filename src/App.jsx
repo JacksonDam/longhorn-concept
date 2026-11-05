@@ -17,6 +17,7 @@ import { emit } from './core/events.js'
 import { frameTime } from './core/clock.js'
 import { sessionScenario } from './demo/session.js'
 import { shellScenario } from './demo/shell.js'
+import { windowsScenario } from './demo/windows.js'
 import { boot, bootStats } from './core/boot.js'
 
 const params = new URLSearchParams(location.search)
@@ -24,7 +25,8 @@ const DEMO = CAPTURE || params.has('demo')
 // ?scenario=session replaces the video's input with the scripted session flows (demo/session.js),
 // for stepping and benchmarking the log off / switch user / shut down / boot transitions
 // ?scenario=shell: the desktop shell's own scripted input (demo/shell.js)
-const SCENARIO = { session: sessionScenario, shell: shellScenario }[params.get('scenario')] || null
+// ?scenario=windows: my Music, then fifteen windows left open (demo/windows.js: memory checks)
+const SCENARIO = { session: sessionScenario, shell: shellScenario, windows: windowsScenario }[params.get('scenario')] || null
 const hiddenCursor = () => ({ hidden: true })
 
 // the log the clock starts with: the demo's input, or the real OS, which boots (its login screen
