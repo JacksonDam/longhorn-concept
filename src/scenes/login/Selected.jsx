@@ -68,7 +68,7 @@ function Halo({ t, rec, submitT }) {
   const k = (t - rec.t0) * FPS
   let a = clamp((k - 26) / 8)
   if (rec.back != null) a *= 1 - clamp(((t - rec.back) * FPS) / 3)
-  if (submitT != null) a *= 1 - clamp(((t - submitT) * FPS - 1) / 4)
+  if (submitT != null) a *= 1 - clamp(((t - submitT) * FPS - 0.5) / 1.5)
   if (a <= 0) return null
   const p = slabPose(k, rec.index, t, rec.from)
   const w = p.size * Math.abs(Math.cos(p.ry)) + 30 * (p.size / BASE) * Math.abs(Math.sin(p.ry)) - 8

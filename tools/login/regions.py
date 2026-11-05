@@ -19,32 +19,38 @@ REGIONS = {
     'slab': (280, 240, 200, 200),
     'panel': (505, 290, 210, 105),
 }
-args = sys.argv[1:]
-cap = os.path.join(ROOT, 'out', 'cap')
-if '--cap' in args:
-    i = args.index('--cap'); cap = args[i + 1]; del args[i:i + 2]
-only = None
-if '--only' in args:
-    i = args.index('--only'); only = args[i + 1].split(','); del args[i:i + 2]
-frames = []
-for part in args[0].split(','):
-    a, _, b = part.partition('-')
-    frames += list(range(int(a), int(b or a) + 1))
-names = only or list(REGIONS)
-print('frame ' + ' '.join(f'{n:>8}' for n in names))
-acc = {n: [] for n in names}
-for f in frames:
-    r = Image.open(os.path.join(ROOT, 'ref', 'frames', f'f{f:05d}.png')).convert('RGB').filter(ImageFilter.GaussianBlur(1))
-    p = os.path.join(cap, f'f{f:05d}.png')
-    if not os.path.exists(p):
-        continue
-    c = Image.open(p).convert('RGB').filter(ImageFilter.GaussianBlur(1))
-    R, C = np.asarray(r, np.float32), np.asarray(c, np.float32)
-    row = []
-    for n in names:
-        x, y, w, h = REGIONS[n]
-        e = float(np.sqrt(((R[y:y + h, x:x + w] - C[y:y + h, x:x + w]) ** 2).mean()))
-        acc[n].append(e); row.append(e)
-    print(f'{f:5d} ' + ' '.join(f'{v:8.2f}' for v in row))
-if len(frames) > 1:
-    print('mean  ' + ' '.join(f'{np.mean(acc[n]):8.2f}' for n in names))
+def main():
+    args = sys.argv[1:]
+    cap = os.path.join(ROOT, 'out', 'cap')
+    if '--cap' in args:
+        i = args.index('--cap'); cap = args[i + 1]; del args[i:i + 2]
+    only = None
+    if '--only' in args:
+        i = args.index('--only'); only = args[i + 1].split(','); del args[i:i + 2]
+    frames = []
+    for part in args[0].split(','):
+        a, _, b = part.partition('-')
+        frames += list(range(int(a), int(b or a) + 1))
+    names = only or list(REGIONS)
+    print('frame ' + ' '.join(f'{n:>8}' for n in names))
+    acc = {n: [] for n in names}
+    for f in frames:
+        r = Image.open(os.path.join(ROOT, 'ref', 'frames', f'f{f:05d}.png')).convert('RGB').filter(ImageFilter.GaussianBlur(1))
+        p = os.path.join(cap, f'f{f:05d}.png')
+        if not os.path.exists(p):
+            continue
+        c = Image.open(p).convert('RGB').filter(ImageFilter.GaussianBlur(1))
+        R, C = np.asarray(r, np.float32), np.asarray(c, np.float32)
+        row = []
+        for n in names:
+            x, y, w, h = REGIONS[n]
+            e = float(np.sqrt(((R[y:y + h, x:x + w] - C[y:y + h, x:x + w]) ** 2).mean()))
+            acc[n].append(e); row.append(e)
+        print(f'{f:5d} ' + ' '.join(f'{v:8.2f}' for v in row))
+    if len(frames) > 1:
+        print('mean  ' + ' '.join(f'{np.mean(acc[n]):8.2f}' for n in names))
+
+
+
+if __name__ == '__main__':
+    main()

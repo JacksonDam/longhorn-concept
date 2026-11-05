@@ -97,15 +97,15 @@ const PanelBody = memo(function PanelBody({ id, len }) {
   const u = userById[id]
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: P.width, height: P.height }}>
-      <div style={{ ...text, left: 521 - P.left, top: 298.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 600, fontSize: 16.5, color: '#f4f7ff', textShadow: '0 1px 2px rgba(0,20,90,0.4)' }}>
+      <div style={{ ...text, left: 521 - P.left, top: 299 - P.top, fontFamily: 'Libre Franklin', fontWeight: 600, fontSize: 15.4, color: '#f4f7ff', textShadow: '0 1px 2px rgba(0,20,90,0.4)' }}>
         {u.name}
       </div>
       {u.email && (
-        <div style={{ ...text, left: 521.5 - P.left, top: 321.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 500, fontSize: 10.5, letterSpacing: 0.25, color: '#e6ebff' }}>
+        <div style={{ ...text, left: 521.5 - P.left, top: 322.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 500, fontSize: 10.5, letterSpacing: 0.06, color: '#e6ebff' }}>
           {u.email}
         </div>
       )}
-      <div style={{ ...text, left: 521.5 - P.left, top: 348.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 400, fontSize: 8.6, color: '#9fbcf5' }}>
+      <div style={{ ...text, left: 521.5 - P.left, top: 349.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 400, fontSize: 7.8, color: '#9fbcf5' }}>
         Enter Password to begin
       </div>
       <Field />
@@ -131,7 +131,7 @@ export function Panel({ t, row, submitT }) {
     <MotionBlur
       t={t}
       moving={moving}
-      samples={14}
+      samples={32}
       shutter={1 / FPS}
       style={{ left: P.left, top: P.top, width: P.width, height: P.height, opacity: ex.opacity }}
       pose={(tt) => {

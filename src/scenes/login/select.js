@@ -119,8 +119,8 @@ export function slabPose(k, i, t, from) {
 }
 
 // sway after landing, measured from the slab's apparent width and which glass edge shows
-// (deg, + = right side toward the viewer), keyed in frames since select; after k 250 the
-// k 130-250 stretch repeats (it starts and ends at rest).
+// (deg, + = right side toward the viewer), keyed in frames since select (video frames
+// 198-418); after that it rests for ~4 s, then repeats the k 172-250 turn, every 200 frames.
 const SWAY = [
   [30, 0], [36, 20], [42, 38], [48, 40], [54, 32], [60, 12], [66, 3], [72, 1],
   [82, -20], [88, -26], [94, -26], [102, -23], [112, -24], [120, -10], [128, 2],
@@ -130,7 +130,11 @@ const SWAY = [
 export const REST_RZ = -4 // deg, the slab rests slightly tilted (top right raised)
 function idlePose(t, k) {
   if (k < 29) return { x: 0, y: 0, ry: 0, rx: 0, sway: 0 }
-  const kk = k <= 250 ? k : 130 + ((k - 130) % 120)
+  let kk = k
+  if (k > 250) {
+    const c = (k - 250) % 200
+    kk = c < 122 ? 128 : 172 + (c - 122)
+  }
   const sway = cr(SWAY, kk)
   return { x: 0, y: 0, ry: -sway, rx: 0, sway }
 }

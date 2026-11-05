@@ -56,25 +56,33 @@ function handlers(id, selected) {
   }
 }
 
-// white light pooling under the pressed tile (frames ~173-186)
+// white light pooling under the pressed tile (frames ~173-186): a bright core and a wide halo
 function PressGlow({ x, k }) {
-  const a = clamp((k - 4.5) / 3) * (1 - clamp((k - 16.5) / 3))
+  const a = clamp((k - 4.5) / 2) * (1 - clamp((k - 16.5) / 2.5))
   if (a <= 0) return null
-  const w = 70 + 30 * clamp((k - 4.5) / 4)
-  return (
+  const g = clamp((k - 4.5) / 6)
+  const core = 64 + 36 * g
+  const wide = 100 + 40 * g
+  const ell = (w, h, y, bg, op) => (
     <div
       style={{
         position: 'absolute',
         left: x - w / 2,
-        top: 652,
+        top: y - h / 2,
         width: w,
-        height: 34,
+        height: h,
         borderRadius: '50%',
-        background: 'radial-gradient(closest-side, rgba(255,255,255,0.95), rgba(220,240,255,0.55) 55%, rgba(200,230,255,0) 100%)',
-        opacity: a,
+        background: bg,
+        opacity: op,
         pointerEvents: 'none',
       }}
     />
+  )
+  return (
+    <>
+      {ell(wide, 34, 668, 'radial-gradient(closest-side, rgba(225,242,255,0.75), rgba(200,230,255,0.35) 60%, rgba(200,230,255,0) 100%)', a)}
+      {ell(core, 16, 667, 'radial-gradient(closest-side, rgba(255,255,255,1), rgba(255,255,255,0.75) 50%, rgba(255,255,255,0) 100%)', a)}
+    </>
   )
 }
 
@@ -97,7 +105,8 @@ export function TileRow({ t, row, submitT }) {
           look = { ...look, label: Math.max(look.label, clamp((k - 1) / 1.5)) }
           opacity = 1 - clamp((k - 1.5) / 1)
           labelGlow = clamp((k - 4) / 2)
-          labelOpacity = 1 - clamp((k - 16.5) / 2.5)
+          // washed out by the glow, then back as a white bold label before the launch
+          labelOpacity = (1 - 0.7 * clamp((k - 5) / 2) * (1 - clamp((k - 11) / 3))) * (1 - clamp((k - 17) / 2.5))
         } else if (st.slab) opacity = 0
         const exit = submitT != null ? tileExit(t - submitT, i, sel) : null
         // the blur layer is the tile's own box (so exit flips pivot on the tile)

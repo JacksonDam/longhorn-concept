@@ -13,7 +13,7 @@ import { Selected } from './Selected.jsx'
 import { Panel } from './Panel.jsx'
 import { rowState } from './select.js'
 import { currentSelection, submitEvent, passwordLength } from './state.js'
-import { LOGIN_EXIT, layerOpacity } from './exit.js'
+import { LOGIN_EXIT, layerOpacity, chromeExit } from './exit.js'
 
 export { LOGIN_EXIT }
 
@@ -22,6 +22,7 @@ const DEMO = CAPTURE || params.has('demo')
 // local verification aid: ?capture&refbg puts the reference video frame behind the UI instead of
 // the aurora, so element-wise RMSE isolates the UI elements (ref/ is local only)
 const REFBG = params.has('refbg')
+const NOBAR = params.has('nobar') // local fitting aid: the aurora without the bar band
 const refFrame = (t) => `${import.meta.env.BASE_URL}ref/frames/f${String(Math.round(t * (30000 / 1001)) + 1).padStart(5, '0')}.png`
 
 function useKeys() {
@@ -70,11 +71,13 @@ export function LoginScene() {
       ) : (
         <Aurora />
       )}
-      {!REFBG && <BarBand />}
+      {!REFBG && !NOBAR && <BarBand />}
       <Logo t={t} submitT={submitT} />
-      <ShutDown />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
+        <ShutDown />
+        <Clock text={clockText(DEMO)} />
+      </div>
       <TileRow t={t} row={row} submitT={submitT} />
-      <Clock text={clockText(DEMO)} />
       <Panel t={t} row={row} submitT={submitT} />
       <Selected t={t} records={row.records} submitT={submitT} />
     </div>
