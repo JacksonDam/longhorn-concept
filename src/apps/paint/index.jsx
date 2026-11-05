@@ -3,9 +3,9 @@
 // 'paint.undo' { id }, 'paint.clear' { id }) and redrawn onto a canvas from the log.
 import { memo, useLayoutEffect, useRef } from 'react'
 import { emit } from '../../core/events.js'
-import { scoped, wid, valueOf, find, pt, stageRect, ToolButton, Tooltip, C } from '../../ui/index.js'
+import { scoped, wid, valueOf, find, pt, stageRect, ToolButton, Tooltip, DropMenu, dropBelow, C } from '../../ui/index.js'
 import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
-import { closeWin, messageBox } from '../lib/common.js'
+import { closeWin, messageBox, openWin } from '../lib/common.js'
 
 const COLORS = ['#000000', '#808080', '#c0272d', '#e67e22', '#f5c542', '#4dbb3a', '#2e7d32', '#38b6d8', '#2c6cc4', '#1f3f7a', '#8e44ad', '#d85fa4', '#8a5a2b', '#ffffff']
 const TOOLS = [
@@ -71,6 +71,8 @@ function Paint({ win, t, w, h, live }) {
   const cw = w - 70
   const ch = h - top - 70
   const size = TOOLS.find((x) => x[0] === tool)?.[2] ?? 5
+  const NAMES = ['Black', 'Gray', 'Red', 'Orange', 'Yellow', 'Green', 'Dark Green', 'Teal', 'Blue', 'Navy', 'Purple', 'Pink', 'Brown', 'White']
+  const colorItems = COLORS.map((c, i) => ({ label: NAMES[i], radio: c === color, icon: <div style={{ width: 12, height: 12, margin: 2, background: c, boxShadow: '0 0 0 1px #8a9bb8' }} />, onClick: () => emit('ui.value', { id: id('color'), value: c }) }))
   const menus = [
     { key: 'file', label: 'File', items: [{ label: 'New', onClick: () => emit('paint.clear', { id: win.id }) }, { label: 'Save', onClick: () => messageBox({ title: 'Paint', icon: 'info', text: 'The picture was saved as untitled.bmp in my Pictures.' }) }, '-', { label: 'Exit', onClick: () => closeWin(win.id) }] },
     { key: 'edit', label: 'Edit', items: [{ label: 'Undo', shortcut: 'Ctrl+Z', disabled: !strokes.length, onClick: () => emit('paint.undo', { id: win.id }) }] },
@@ -114,11 +116,12 @@ function Paint({ win, t, w, h, live }) {
         <Canvas w={cw} h={ch} strokes={strokes} version={strokes.length + ':' + strokes.reduce((n, s) => n + s.pts.length, 0)} />
       </div>
       {/* palette */}
-      <div style={{ position: 'absolute', left: 62, top: h - 54, width: 30, height: 30, borderRadius: 4, background: color, boxShadow: '0 0 0 1px #4d5a70, inset 0 0 0 2px #fff' }} />
+      <div onPointerDown={(e) => e.button === 0 && dropBelow(id('dd.color'), e.currentTarget, colorItems)} style={{ position: 'absolute', left: 62, top: h - 54, width: 30, height: 30, borderRadius: 4, background: color, boxShadow: '0 0 0 1px #4d5a70, inset 0 0 0 2px #fff' }} />
+      <DropMenu id={id('dd.color')} items={colorItems} />
       {COLORS.map((c, i) => (
         <div key={c} style={{ position: 'absolute', left: 100 + (i % 7) * 18, top: h - 56 + Math.floor(i / 7) * 17, width: 15, height: 14, background: c, borderRadius: 2, boxShadow: c === color ? '0 0 0 2px #fff, 0 0 0 3px #2c6cc4' : '0 0 0 1px #4d5a70' }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('color'), value: c })} />
       ))}
-      <StatusBar y={h - 20} w={w} left={<span>{strokes.length ? `${strokes.length} stroke${strokes.length > 1 ? 's' : ''}` : 'For Help, click Help Topics on the Help Menu.'}</span>} />
+      <StatusBar y={h - 20} w={w} left={<span onPointerDown={(e) => e.button === 0 && !strokes.length && openWin('help', 'help')}>{strokes.length ? `${strokes.length} stroke${strokes.length > 1 ? 's' : ''}` : 'For Help, click Help Topics on the Help Menu.'}</span>} />
     </div>
   )
 }
