@@ -261,25 +261,44 @@ export function PageIcon({ kind }) {
   )
 }
 
+// "my music": two glass eighth notes (stems and flags are tubes, dark rim around a lit core; the
+// heads are glossy with a specular spot), fitted to the median of frames 800-1348.
 export const NotesIcon = () =>
   svg(
     26,
     30,
     <>
       <defs>
-        <linearGradient id="mw-note" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#2a5fb0" />
-          <stop offset="1" stopColor="#0a2a66" />
+        <linearGradient id="mn-fl" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#38b9f5" />
+          <stop offset="1" stopColor="#1a70be" />
         </linearGradient>
+        <radialGradient id="mn-h" cx="0.4" cy="0.19" r="0.8">
+          <stop offset="0" stopColor="#9ee0ff" />
+          <stop offset="0.3" stopColor="#5ebeff" />
+          <stop offset="0.41" stopColor="#0f4992" />
+          <stop offset="1" stopColor="#58b0f5" />
+        </radialGradient>
+        <radialGradient id="mn-p">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="0.45" stopColor="#f0fbff" stopOpacity="0.8" />
+          <stop offset="1" stopColor="#e0f4ff" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      <path d="M8 3 L9 21" stroke="#0c2c66" strokeWidth="2.4" />
-      <path d="M18 5 L18.5 21" stroke="#0c2c66" strokeWidth="2.4" />
-      <path d="M8 3 C10 4 13 8 13 12 C12 9 10 8 8.5 8" fill="#0f3a7a" stroke="#0c2c66" strokeWidth="1" />
-      <path d="M18 5 C21 6 24 9 23 13 C22 10 20 9 18.5 9" fill="#0f3a7a" stroke="#0c2c66" strokeWidth="1" />
-      <ellipse cx="6" cy="22" rx="5" ry="4" fill="url(#mw-note)" stroke="#071f4f" strokeWidth="1.2" />
-      <ellipse cx="15.5" cy="22.5" rx="5" ry="4" fill="url(#mw-note)" stroke="#071f4f" strokeWidth="1.2" />
-      <ellipse cx="5" cy="21" rx="2.2" ry="1.4" fill="#9fc4ff" opacity="0.8" />
-      <ellipse cx="14.5" cy="21.5" rx="2.2" ry="1.4" fill="#9fc4ff" opacity="0.8" />
+      <path d="M7.86 4.22 C11.1 4.62 13.74 7.97 12.86 14.94 C12.27 10.65 9.92 7.61 7.86 8.21 Z" fill="url(#mn-fl)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M7.86 4.52 L7.86 21.11" stroke="#0c3a87" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M7.86 4.52 L7.86 21.11" stroke="#40b3ee" strokeWidth="0.97" strokeLinecap="round" />
+      <g transform="rotate(-7.81 5.82 22.11)">
+        <ellipse cx="5.82" cy="22.11" rx="6.05" ry="4.9" fill="url(#mn-h)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+        <ellipse cx="4.35" cy="20.36" rx="1.69" ry="1.3" fill="url(#mn-p)" />
+      </g>
+      <path d="M18.02 6.52 C20.9 6.92 23.26 9.59 22.48 15.28 C21.95 11.78 19.85 10.11 18.02 10.71 Z" fill="url(#mn-fl)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M18.02 6.82 L18.02 22.52" stroke="#0c3a87" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M18.02 6.82 L18.02 22.52" stroke="#40b3ee" strokeWidth="0.97" strokeLinecap="round" />
+      <g transform="rotate(-16.44 15.77 23.52)">
+        <ellipse cx="15.77" cy="23.52" rx="5.75" ry="5.03" fill="url(#mn-h)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+        <ellipse cx="14.86" cy="21.74" rx="1.69" ry="1.3" fill="url(#mn-p)" />
+      </g>
     </>,
   )
 
