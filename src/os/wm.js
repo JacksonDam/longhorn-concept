@@ -18,7 +18,7 @@
 //
 // Session start ('login.submit'): the apps that are already running in the video's taskbar
 // exist minimised from the first frame (no animation): see RUNNING_AT_LOGIN.
-import { getLog, getVersion } from '../core/events.js'
+import { getLog, getVersion, getEpoch, countAt } from '../core/events.js'
 
 export const RUNNING_AT_LOGIN = [
   { id: 'inbox', app: 'outlook' },
@@ -40,24 +40,23 @@ function normalise(e) {
 //   changedAt (time of the last open/minimize/restore/close), lastAction ('open' | 'minimize' | 'restore' | 'close' | 'initial'),
 //   maximized, maximizedAt, focusedAt, initial (true for RUNNING_AT_LOGIN windows never shown yet),
 //   w, h (resized size, absent = the app's default) }
-function reduce(events) {
-  const wins = new Map()
-  let z = 0
-  let session = null // time of the current login.submit
+// folds log[from..to) into st = { wins: Map, z, session (time of the current login.submit) }
+function foldInto(st, log, from, to) {
+  const wins = st.wins
   const touch = (w, t) => {
-    w.z = ++z
+    w.z = ++st.z
     w.focusedAt = t
   }
-  for (const raw of events) {
-    const e = normalise(raw)
+  for (let i = from; i < to; i++) {
+    const e = normalise(log[i])
     const t = e.t
     switch (e.type) {
       case 'login.submit':
         wins.clear()
-        session = t
+        st.session = t
         for (const r of RUNNING_AT_LOGIN) {
           wins.set(r.id, {
-            id: r.id, app: r.app, props: { ...(r.props || {}) }, x: null, y: null, z: ++z,
+            id: r.id, app: r.app, props: { ...(r.props || {}) }, x: null, y: null, z: ++st.z,
             openedAt: t, state: 'minimized', changedAt: t, lastAction: 'initial', maximized: false,
             maximizedAt: null, focusedAt: -Infinity, initial: true,
           })
@@ -66,7 +65,7 @@ function reduce(events) {
       case 'session.logoff':
       case 'session.shutdown':
         wins.clear()
-        session = null
+        st.session = null
         break
       case 'win.open': {
         const w = wins.get(e.id)
@@ -160,22 +159,24 @@ function reduce(events) {
       }
     }
   }
-  return { wins, session }
+  return st
 }
+const freshState = () => ({ wins: new Map(), z: 0, session: null })
+// a copy of a fold state (records are replaced, never their props objects mutated, so a shallow
+// copy of each record is enough)
+const cloneState = (st) => ({ wins: new Map([...st.wins].map(([k, w]) => [k, { ...w }])), z: st.z, session: st.session })
 
-// cached by (log version, number of events at or before t); a few entries, so looking back in
-// time (os/focus.js evaluates the focus at recent change times during a cross-fade) doesn't evict
-// the current frame's state
+// The state after the first n events, cached per n (a few entries, so looking back in time, as
+// os/focus.js does during a cross-fade, doesn't evict the current frame's state). While the log
+// only grows at its end (core/events.js epoch), the fold continues from where it got to, with
+// checkpoints every CHECK events for looking back: an event costs O(1) however long the log is.
+const CHECK = 256
+let fold = { epoch: -1, n: 0, st: freshState(), checks: [] }
 let cacheV = -1
 const cache = new Map() // n -> value
 function stateAt(t) {
   const log = getLog()
-  let lo = 0, hi = log.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if (log[mid].t <= t) lo = mid + 1
-    else hi = mid
-  }
+  const lo = countAt(t)
   const v = getVersion()
   if (cacheV !== v) {
     cache.clear()
@@ -183,7 +184,22 @@ function stateAt(t) {
   }
   const hit = cache.get(lo)
   if (hit) return hit
-  const r = reduce(log.slice(0, lo))
+  const ep = getEpoch()
+  if (fold.epoch !== ep || fold.n > log.length) fold = { epoch: ep, n: 0, st: freshState(), checks: [{ n: 0, st: freshState() }] }
+  if (lo < fold.n) {
+    // back in time: from the last checkpoint at or before lo
+    let c = fold.checks[0]
+    for (const k of fold.checks) if (k.n <= lo) c = k
+    fold.n = c.n
+    fold.st = cloneState(c.st)
+  }
+  while (fold.n < lo) {
+    const to = Math.min(lo, (Math.floor(fold.n / CHECK) + 1) * CHECK)
+    foldInto(fold.st, log, fold.n, to)
+    fold.n = to
+    if (to % CHECK === 0 && !fold.checks.some((k) => k.n === to)) fold.checks.push({ n: to, st: cloneState(fold.st) })
+  }
+  const r = fold.st
   // freeze copies so callers can't mutate the cache
   const list = [...r.wins.values()].map((w) => Object.freeze({ ...w, props: Object.freeze({ ...w.props }) }))
   const value = { list, byId: new Map(list.map((w) => [w.id, w])), session: r.session }

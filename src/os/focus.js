@@ -12,7 +12,7 @@
 // The look cross-fades over FOCUS_FADE frames after each change (activeLevels), except for a
 // window that turns active by its own open or restore: it isn't visible yet, so it starts active.
 import { FPS } from '../core/clock.js'
-import { getLog, getVersion } from '../core/events.js'
+import { eventsOf } from './logIndex.js'
 import { focusedWindow } from './wm.js'
 import { CLOSE_END, MIN_END } from './windowAnim.js'
 
@@ -45,24 +45,29 @@ export function activeIds(list, t) {
   return ids
 }
 
-// times at which activeIds can change (sorted): window-manager and session events, and the ends
-// of the hand-over rules above; built once per log version
-const WM = new Set(['win.open', 'win.focus', 'win.minimize', 'win.restore', 'win.close', 'win.maximize', 'win.unmaximize', 'music.open', 'music.minimize', 'music.restore', 'music.close', 'login.submit', 'session.logoff', 'session.shutdown'])
-let cand = { v: -1, times: [] }
-function candidates() {
-  const v = getVersion()
-  if (cand.v === v) return cand.times
-  const times = []
-  for (const e of getLog()) {
-    if (!WM.has(e.type)) continue
-    times.push(e.t)
-    if (e.type === 'win.close' || e.type === 'music.close') times.push(e.t + (CLOSE_END + 1) / FPS)
-    else if (e.type === 'win.minimize' || e.type === 'music.minimize') times.push(e.t + (MIN_END + 1) / FPS)
-    else if (e.type === 'win.open' || e.type === 'music.open') times.push(e.t + 2 / FPS)
+// times in (t0, t] at which activeIds can change (sorted): window-manager and session events,
+// and the ends of the hand-over rules above (from the log index: O(log n) however long the log)
+const WM = ['win.open', 'win.focus', 'win.minimize', 'win.restore', 'win.close', 'win.maximize', 'win.unmaximize', 'music.open', 'music.minimize', 'music.restore', 'music.close', 'login.submit', 'session.logoff', 'session.shutdown']
+const MAX_DELAY = (Math.max(CLOSE_END, MIN_END) + 2) / FPS
+function candidates(t0, t) {
+  const out = []
+  for (const type of WM) {
+    const a = eventsOf(type)
+    let lo = 0, hi = a.length
+    while (lo < hi) {
+      const m = (lo + hi) >> 1
+      if (a[m].t <= t0 - MAX_DELAY) lo = m + 1
+      else hi = m
+    }
+    for (let i = lo; i < a.length && a[i].t <= t; i++) {
+      const e = a[i]
+      out.push(e.t)
+      if (type === 'win.close' || type === 'music.close') out.push(e.t + (CLOSE_END + 1) / FPS)
+      else if (type === 'win.minimize' || type === 'music.minimize') out.push(e.t + (MIN_END + 1) / FPS)
+      else if (type === 'win.open' || type === 'music.open') out.push(e.t + 2 / FPS)
+    }
   }
-  times.sort((a, b) => a - b)
-  cand = { v, times }
-  return times
+  return out.filter((x) => x > t0 && x <= t).sort((a, b) => a - b)
 }
 
 // Map id -> level of the active look at time t (1 active, 0 inactive): the share of the last
@@ -73,16 +78,8 @@ export function activeLevels(windowsAt, t) {
   const now = activeIds(list, t)
   const span = FOCUS_FADE / FPS
   const t0 = t - span
-  const times = candidates()
-  // candidate change times in (t0, t]
-  let lo = 0, hi = times.length
-  while (lo < hi) {
-    const m = (lo + hi) >> 1
-    if (times[m] <= t0) lo = m + 1
-    else hi = m
-  }
   const cs = []
-  for (let i = lo; i < times.length && times[i] <= t; i++) if (!cs.length || times[i] > cs[cs.length - 1]) cs.push(times[i])
+  for (const x of candidates(t0, t)) if (!cs.length || x > cs[cs.length - 1]) cs.push(x)
   const levels = new Map()
   for (const w of list) levels.set(w.id, now.has(w.id) ? 1 : 0)
   if (!cs.length) return levels

@@ -13,7 +13,8 @@
 // sit outside the memoised content.
 import { memo, useRef } from 'react'
 import { ErrorBoundary } from './ErrorBoundary.jsx'
-import { emit, getLog, getVersion } from '../core/events.js'
+import { emit, getLog, getVersion, getEpoch } from '../core/events.js'
+import { eventsOf } from './logIndex.js'
 import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
@@ -42,21 +43,19 @@ export function normalRect(win, app) {
 }
 
 // sub-frame window position while dragging: interpolate the 'win.move' events of this window
-let moveCache = { version: -1, id: null, list: null }
-function moves(id) {
-  const log = getLog()
-  if (moveCache.log === log && moveCache.id === id) return moveCache.list
-  const list = log.filter((e) => e.type === 'win.move' && e.id === id)
-  moveCache = { log, id, list }
-  return list
-}
+// (from the incremental log index: a long session's moves cost nothing per frame)
 function rectAt(win, app, tt) {
   const r = normalRect(win, app)
-  const ms = moves(win.id)
+  const ms = eventsOf('win.move', win.id)
   if (ms.length && win.x != null) {
     // position at time tt from the move trail (the latest move <= tt, eased towards the next)
-    let i = ms.length - 1
-    while (i >= 0 && ms[i].t > tt) i--
+    let lo = 0, hi = ms.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (ms[mid].t <= tt) lo = mid + 1
+      else hi = mid
+    }
+    const i = lo - 1
     if (i >= 0) {
       const a = ms[i], b = ms[i + 1]
       if (b && b.t - a.t < 0.12) {
@@ -396,24 +395,32 @@ const STAGGER = 4 // frames between copy snapshot updates (copy k updates 4k fra
 // times of the events that concern a window's content (sorted), cached per log version:
 // its ui-kit ids (`${id}@${openedAt}/...`), events of its app ('<app>.*', hovers on '<app>.*'),
 // and anything app.relevant(e, win) accepts
-const relCache = new Map() // key -> { version, times }
+const relCache = new Map() // key -> { version, epoch, n, times }
 // window management (the window system animates those itself; they don't change the content)
 const WM_TYPES = new Set(['music.open', 'music.minimize', 'music.restore', 'music.close', 'win.open', 'win.minimize', 'win.restore', 'win.close', 'win.move', 'win.focus', 'win.maximize', 'win.unmaximize'])
+// (incremental while the log only grows at its end: each new event is looked at once)
 function relevantTimes(win, app) {
   const key = win.id + '@' + win.openedAt
   const v = getVersion()
-  const c = relCache.get(key)
+  let c = relCache.get(key)
   if (c && c.version === v) return c.times
+  const log = getLog()
+  const ep = getEpoch()
+  if (!c || c.epoch !== ep || c.n > log.length) {
+    c = { version: v, epoch: ep, n: 0, times: [] }
+    relCache.set(key, c)
+  }
   const pre = key + '/'
   const ap = app.id + '.'
-  const times = []
-  for (const e of getLog()) {
+  for (let i = c.n; i < log.length; i++) {
+    const e = log[i]
     if (e.t <= win.openedAt || WM_TYPES.has(e.type)) continue
     const id = e.id == null ? '' : String(e.id)
-    if (id.startsWith(pre) || e.type.startsWith(ap) || id.startsWith(ap) || (app.relevant && app.relevant(e, win))) times.push(e.t)
+    if (id.startsWith(pre) || e.type.startsWith(ap) || id.startsWith(ap) || (app.relevant && app.relevant(e, win))) c.times.push(e.t)
   }
-  relCache.set(key, { version: v, times })
-  return times
+  c.n = log.length
+  c.version = v
+  return c.times
 }
 // the latest relevant event time at or before t (binary search)
 function lastEventT(win, app, t) {

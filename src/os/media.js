@@ -12,7 +12,7 @@
 //   'media.seek'  { pos }                position in seconds within the current track
 // A track is { title, duration (s), display? (longer label for the sidebar strip) }.
 // Playback advances to the next track at the end and stops after the last one.
-import { getLog, getVersion } from '../core/events.js'
+import { allOfTypes, countOfTypes, typesKey } from './logIndex.js'
 
 const mmss = (s) => {
   const [m, x] = s.split(':').map(Number)
@@ -118,21 +118,17 @@ function reduce(events, t) {
   return advance(s, t)
 }
 
-// cached on the events at or before t (the state between events is a cheap advance)
-let cache = { version: -1, n: -1, base: null }
+// cached on the media events at or before t (the state between events is a cheap advance; other
+// events, e.g. window moves, don't touch it: os/logIndex)
+const TYPE_LIST = [...TYPES]
+let cache = { key: '', n: -1, base: null }
 export function mediaState(t) {
-  const log = getLog()
-  let lo = 0, hi = log.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if (log[mid].t <= t) lo = mid + 1
-    else hi = mid
-  }
-  const v = getVersion()
-  if (!(cache.version === v && cache.n === lo)) {
-    const evs = log.slice(0, lo)
+  const key = typesKey(TYPE_LIST)
+  const n = countOfTypes(t, TYPE_LIST)
+  if (!(cache.key === key && cache.n === n)) {
+    const evs = allOfTypes(t, TYPE_LIST)
     const lastT = evs.length ? evs[evs.length - 1].t : -Infinity
-    cache = { version: v, n: lo, base: reduce(evs, lastT) }
+    cache = { key, n, base: reduce(evs, lastT) }
   }
   const s = advance(cache.base, t)
   const track = s.playlist[s.index]

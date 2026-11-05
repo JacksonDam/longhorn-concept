@@ -1,6 +1,6 @@
 // my Music state from the event log (window session = since it opened): selection, hover, the
 // album page shown in the header and its transition, the selected track.
-import { last, all, getVersion } from '../../core/events.js'
+import { lastOfTypes, allOfTypes, typesKey } from '../../os/logIndex.js'
 import { FPS } from '../../core/clock.js'
 import { PAGE_DELAY } from './timeline.js'
 import { albumOf, albumKey } from './library.js'
@@ -8,6 +8,7 @@ import { albumOf, albumKey } from './library.js'
 // Clicking an album selects it and, PAGE_DELAY frames later, turns the header to its page (the
 // video: Tweet at 945.5, page from 968). 'music.home' (Back) returns to the device header at once.
 // -> { album | null, t, prev | null, prevSince } of the latest started page, or null
+const PAGE_TYPES = ['music.album', 'music.home', 'explorer.nav']
 export function pageAt(t, t0) {
   let cur = null
   let nextOnly = null
@@ -15,7 +16,7 @@ export function pageAt(t, t0) {
   const isHome = (e) => e.type === 'music.home' || (e.type === 'explorer.nav' && e.id === 'music' && e.dir === 'back')
   const isFwd = (e) => e.type === 'explorer.nav' && e.id === 'music' && e.dir === 'forward'
   let leftByBack = null
-  for (const e of all(t, (e) => (e.type === 'music.album' || isHome(e) || isFwd(e)) && e.t >= t0)) {
+  for (const e of allOfTypes(t, PAGE_TYPES, (e) => e.type === 'music.album' || isHome(e) || isFwd(e), t0)) {
     if (e.type === 'music.album' && e.id == null) continue
     if (isFwd(e) && !leftByBack) continue
     if (isHome(e) && cur && cur.album) leftByBack = cur.album
@@ -36,11 +37,13 @@ export function pageAt(t, t0) {
   return cur
 }
 
-// cached per (t, t0, log version): the live layer, overlays and copy keys ask for the same times
+// cached per (t, t0) while no event of the types it reads is added (other events, e.g. window
+// moves, leave it valid): the live layer, overlays and copy keys ask for the same times
+const VIEW_TYPES = ['music.album', 'music.home', 'explorer.nav', 'hover', 'music.track']
 const vcache = new Map()
-let vver = -1
+let vver = ''
 export function viewState(t, t0) {
-  const v = getVersion()
+  const v = typesKey(VIEW_TYPES)
   if (v !== vver) {
     vcache.clear()
     vver = v
@@ -55,13 +58,12 @@ export function viewState(t, t0) {
   return r
 }
 function computeViewState(t, t0) {
-  const after = (e) => e.t >= t0
-  const s = last(t, (e) => e.type === 'music.album' && after(e))
-  const h = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.album.'))
-  const th = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.track.'))
+  const s = lastOfTypes(t, ['music.album'], null, t0)
+  const h = lastOfTypes(t, ['hover'], (e) => String(e.id).startsWith('music.album.'), t0)
+  const th = lastOfTypes(t, ['hover'], (e) => String(e.id).startsWith('music.track.'), t0)
   const pa = pageAt(t, t0)
   const page = pa && !pa.none ? pa : null
-  const tr = page && page.album ? last(t, (e) => e.type === 'music.track' && after(e) && e.t >= page.t - PAGE_DELAY / FPS && (e.album == null || e.album === page.album.key)) : null
+  const tr = page && page.album ? lastOfTypes(t, ['music.track'], (e) => e.album == null || e.album === page.album.key, Math.max(t0, page.t - PAGE_DELAY / FPS)) : null
   const isTweet = page && page.album && page.album.artist === 'Tweet'
   return {
     sel: s && s.id != null ? { key: albumKey(s.id), t: s.t } : null,
