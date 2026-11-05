@@ -5,7 +5,7 @@ import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, Button, C, FONT, HEAVY } from '../../ui/index.js'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, messageBox } from '../lib/common.js'
 
 const S0 = { d: '0', acc: null, op: null, fresh: true, mem: 0, err: false }
@@ -114,6 +114,7 @@ export default {
   size: { w: 270, h: 268 },
   position: { x: 380, y: 200 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#f6f9fe',
   Content: scoped(Calc, {}),
 }

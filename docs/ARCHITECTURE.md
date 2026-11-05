@@ -40,6 +40,24 @@ semi-transparent copies. Reproduce it the same way:
   glassy rounded slabs (picture face, glass edges, softbox reflection, fresnel rim) rendered by
   one shared three.js renderer, accumulated in half float, copied into a DOM canvas.
 
+## Glass (sidebar, clock foot, taskbar)
+The Plex glass is live, so it shows whatever is behind it: the wallpaper choice, windows dragged
+under it, the Refresh dim.
+- Sidebar panel and clock foot (`scenes/desktop/Sidebar.jsx` `Glass`):
+  `out = k(x) * blur(backdrop) + tint(x, y)`. One element blurs (`backdrop-filter:
+  blur(GLASS_BLUR)`, 2.4 stage px) under a black layer of alpha 1 - k(x) (a CSS gradient through
+  the stops in `glassFit.js`, k 0.32-0.75 left to right); a second element adds the tint
+  (`glass-tint.webp`, 102x720) with `mix-blend-mode: plus-lighter`. Both are fitted by
+  `tools/desktop/fit_glass.py` against the empty panel of video frames 521-523 and the clock foot
+  of the later frames (docs/desktop-spec.md has the numbers and how to refit).
+- Taskbar (`Taskbar.jsx` `Bar`): its per-row colours at alpha 0.55 over the same blur.
+- Rules: the glass elements carry their own opacity and transform. An ancestor with opacity < 1,
+  a filter, mask, clip-path, blend mode or isolation becomes the backdrop root (the blur then
+  sees nothing and the tint adds to nothing), and a transformed or isolated wrapper isolates the
+  tint's plus-lighter blend. So never wrap them in a fade or slide group; and anything that should
+  show through the glass must be drawn before it in the same stacking context (windows are:
+  `WindowLayer` sits under the sidebar and the taskbar).
+
 ## Verifying against the video
 - Dev server: `npx vite --port <port> --strictPort` (main tree uses 5299 on 127.0.0.1; another project uses 5199).
 - `node tools/capture.mjs "180-200,300" --out out/cap --url http://localhost:<port>/longhorn-concept/?capture`
@@ -65,6 +83,18 @@ OS in the same style. Everything still derives from (time, event log).
   toolbar block, `src/os/WindowLayer.jsx` renders all windows. Blur copies render `app.Proxy`
   (a cheap stand-in) when the app has one. `src/os/ErrorBoundary.jsx` keeps a crash inside its
   window.
+- Window chrome rules (details in docs/briefs/os.md, "Window chrome rules"): only the window's
+  outline is rounded (title bar top corners, bottom corners, radii in `src/os/frame.js`; the
+  client area is clipped to them);
+  every bar and edge panel inside runs square and flush. `src/os/shadow.jsx`: the drop shadow
+  fitted on the video (pre-rendered nine-slice strips on one layer per window that follows the
+  window, during motion blur at the shutter's middle pose; blur copies carry none; nothing is
+  blurred per frame); maximised windows are square with no shadow.
+  `src/os/focus.js`: which windows look active (`activeIds`: hand-over rules for open, close and
+  minimise) and the 4-frame cross-fade of the look (`activeLevels`), pure functions of the log;
+  `src/os/look.jsx`: the inactive look (a wash over the window's top chrome, `app.chromeTop` px,
+  in one small layer per window whose opacity alone cross-fades; a lighter shadow). Blur copies
+  always draw the active look.
 - `src/os/media.js`: the silent media player shared by the sidebar strip, flyout, my Music, Winamp.
 - `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
   tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
@@ -106,7 +136,8 @@ emits into the event log, which the boot replaces.
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
 http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
-`?apps=opens&`, `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
+`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?scenario=shell&`,
+`?scenario=session&` with frames past the video's end).
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
 

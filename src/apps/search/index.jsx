@@ -9,7 +9,7 @@ import { iconOf } from '../lib/Explorer.jsx'
 import { allFiles, openFile, openMusic, kb, typeName } from '../lib/fs.js'
 import { docFor } from '../word/docs.js'
 import { openWin, messageBox } from '../lib/common.js'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 
 const KINDS = [
   ['media', 'Pictures, music, or video', 'picture', (n) => ['picture', 'video', 'music'].includes(n.kind)],
@@ -129,6 +129,7 @@ export default {
   position: { x: 110, y: 90 },
   minSize: { w: 560, h: 320 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#ffffff',
   Content: scoped(Search, { watch: ['fs'] }),
 }

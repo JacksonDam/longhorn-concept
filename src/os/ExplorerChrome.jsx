@@ -180,17 +180,17 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
   const Search = cfg.Search
   return (
     <>
-      {/* glass toolbar (title bar + favourites row) */}
-      <div style={abs(1, 0, w - 1, 75, { background: grad(toolbarStops, w) })} />
+      {/* glass toolbar (title bar + favourites row); every band runs square to the window's edges */}
+      <div style={abs(0, 0, w, 75, { background: grad(toolbarStops, w) })} />
       <div
-        style={abs(1, 0, w - 1, 75, {
+        style={abs(0, 0, w, 75, {
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 64px, rgba(255,255,255,0.06) 68px, rgba(255,255,255,0.1) 70px, rgba(0,0,0,0) 72px)',
         })}
       />
       <img alt="" src={toolImg(w >= 760).src} width={toolImg(w >= 760).w} height={TOOL_IMG_H} style={abs(0, 0, toolImg(w >= 760).w, TOOL_IMG_H)} />
       {!copy && <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />}
-      {!copy && <div data-hit="nav:forward" style={abs(46, 30, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
+      {!copy && <div data-hit="nav:forward" style={abs(50, 32, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
       <Texts style={label.style} items={toolsFor(w).map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
       {!copy &&
         toolsFor(w).map((it) => (
@@ -199,9 +199,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
 
       {/* menu / address band and command row */}
       <div
-        style={abs(1, 72, w - 2, 50, {
+        style={abs(0, 72, w, 50, {
           background: grad(bandStops, w),
-          borderRadius: '8px 8px 0 0',
           boxShadow: 'inset 0 1px 0 rgba(20,60,130,0.6), inset 0 2px 0 rgba(140,190,255,0.12)',
         })}
       />

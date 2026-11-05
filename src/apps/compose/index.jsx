@@ -5,7 +5,7 @@
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, TextField, textOf, C, FONT } from '../../ui/index.js'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, messageBox, openWin } from '../lib/common.js'
 import { mailState, INBOX } from '../outlook/mail.js'
 import { userName } from '../lib/user.js'
@@ -112,6 +112,7 @@ export default {
   position: { x: 150, y: 90 },
   minSize: { w: 420, h: 300 },
   explorer: false,
+  chromeTop: chromeTop(),
   background: '#f6f9fe',
   Content: scoped(Compose, { watch: ['mail'] }),
 }

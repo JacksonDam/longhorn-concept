@@ -15,13 +15,40 @@ with projection/coverage fits; scripts were throwaway Python in the scratchpad.
   `public/img/desktop/wallpaper.webp`, placed at (0.16, 0.58) size 959.8x720.04.
 
 ## Sidebar glass (x 858-960, y 0-720)
-- Only ever has the wallpaper behind it (the music window never passes under it), so the
-  backdrop is precomputed from the graded wallpaper at 2x: `out = k(x) * blur2(bg) + t(x) + g(y)`
-  per channel. k(x) is an alpha-like gain shared by the channels, 0.33 at the left edge
-  to 0.72 at the right; t(x) a bluer-left tint; g(y) carries the tile bands and the 1-2 px
-  separators (y ~23, 61, 257, 307, 517, 593, 620, 697). Fitted on the empty panel of
-  frames 521-523 (RMSE 2.7) and on the clock foot rows 700-720. `glass.webp` 204x1440.
+Live: it blurs and tints whatever is behind it (the wallpaper choice, windows dragged under the
+sidebar, the Refresh dim), `out = k(x) * blur(backdrop) + t(x) + g(y)` per channel.
+- Blur: CSS `backdrop-filter: blur(2.4px)` (`GLASS_BLUR`, stage px, so 3.6 device px at 1.5x).
+  Chrome mirrors the backdrop at the element's edges (scipy `reflect`); its blur matches a
+  Gaussian of the same sigma to within 1 grey level. Sigma sweep of the panel fit (simulated
+  backdrop, `fit_glass.py --sweep`): 0 -> 3.47, 1 -> 3.08, 2 -> 2.84, 2.2 -> 2.83, **2.4 -> 2.83**,
+  2.6 -> 2.84, 3 -> 2.87, 4 -> 3.03. That includes the video's own softness (~0.85 px on
+  uncovered wallpaper).
+- k(x): transmission shared by the channels (a per-channel k only gets 2.81 -> 2.72), drawn as
+  a black layer with alpha 1 - k(x) on the blurring element, a CSS gradient through stops every
+  5 columns (`glassFit.js`): 0.32 at x 858, 0.23-0.26 under the bright border line (859-861),
+  then 0.34 at 862 rising to 0.47 at 908 and 0.75 at 958 (0.66 in the last column).
+- t(x) + g(y): an additive tint, `glass-tint.webp` (102x720 RGB, lossless) drawn over the blur
+  with `mix-blend-mode: plus-lighter`. t is bluish and fades to the right ((61,95,136) at 863,
+  (47,76,113) at 908, (22,38,60) at 958; the border line (102,121,148)); g carries the tile bands
+  and the 1-2 px separators (y ~23, 61, 257, 307, 517, 593, 620, 697) and darkens the bottom
+  rows (~-25 at 664-693). A single alpha overlay can't hold it: on the right the glass passes
+  ~70 % of the backdrop and still adds more blue than the remaining 30 % alpha allows (it would
+  clip 4 % of the pixels, RMSE 2.81 -> 3.00).
+- Fitted by `tools/desktop/fit_glass.py` against Chrome's own blur of the wallpaper (frame 522
+  captured with the glass layers emptied): the empty panel of frames 521-523 (header picture
+  masked, Seattle rows from 521-522), RMSE 2.81; the clock foot (rows 700-719) on the median of
+  frames 580-1528 with the clock text and chevron masked, sharing the panel's k(x), its own t(x)
+  interpolated under them (RMSE 3.44 on the visible columns). The foot reads as the taskbar band
+  running on under the clock: no border line, darker to the right.
+- Compositing rules: the glass layers carry their own opacity (entrance fade) and their own
+  translateX (chevron slide). Any ancestor with opacity < 1, a filter, mask, clip-path, blend
+  mode or isolation (or a transform around the plus-lighter layer, which isolates its blend)
+  becomes the backdrop root: the blur then sees nothing and the tint adds to nothing.
 - Left border: bright line at x 859-860.
+- Result vs the precomputed image it replaced (all 1529 frames, blur 1): sidebar x 858-960
+  20.11 -> 20.07 (desktop frames 515-1529: 28.02 -> 27.98), clock foot 14.36 -> 14.22,
+  taskbar 12.72 -> 12.71, full frame 17.58 -> 17.57; no frame worse by more than 0.3 (foot,
+  entrance frame 518).
 
 ## Sidebar tiles (text: Libre Franklin 500, white 90 %; baselines)
 | tile | contents |
@@ -39,14 +66,38 @@ with projection/coverage fits; scripts were throwaway Python in the scratchpad.
 Row pitches were fitted by template alignment (all labels within +-0.75 px).
 
 ## Taskbar (y 699-720)
-- Bar: per-row colour at alpha 0.55 over the wallpaper (top highlight rows 700-701), fitted
-  on frames 575-592 / 1150-1350. Start end slightly darker.
-- Start: flag (XP flag SVG, monochrome white-blue) 7,702 17x15; "start" Plex 600 13 px at x 29.
+- Bar: per-row colour at alpha 0.55 over the blurred backdrop (top highlight rows 700-701),
+  fitted on frames 575-592 / 1150-1350. Start end slightly darker. The bar blurs what is behind
+  it with the glass's radius (`backdrop-filter`, opacity on the bar itself): the video's grass
+  texture under it is attenuated more than the 0.45 transmission explains (amplitude 0.73 vs
+  1.06; uncovered wallpaper of that amplitude survives the compression at ratio ~1.0), and its
+  correlation with the wallpaper's texture peaks at blur 2.5-3 where the regression slope reaches
+  the bar's 0.45 (x 75-180; the plain bar right of the task group agrees, weaker). Row fit
+  RMSE: blur 0 -> 2.95, 2 -> 2.71, 3 -> 2.68.
+- Start: flag (XP flag, white-blue; settled: icons/flag-start.webp) 8,702.25 17x15; "start" Plex 600 13 px at x 29.
 - Task group: light blue band (top 2 rows 172,214,223; body 110,180,250), sticks up 1 px.
   Libre Franklin 600 9.9 px white, faded on the right edge of each button.
   4 buttons: group 248-675.5, separators 379.5, 481.5, 589.5.
   5 buttons: group 185.5-730.5, separators 312.5, 412.5, 644.5 (none between My Music and
   Document, as in the video). Icon/text offsets per button in `Taskbar.jsx`.
+
+## Icons (redrawn and fitted 2026-11-05; scenes/desktop/icons.jsx, appIcons.jsx, public/img/desktop/icons)
+- Sources in assets-src/SOURCES.md section 9. Real art: the taskbar My Music button is XP
+  shell32 icon 237 (16 px on the taskbar, 48 px in the Start menu); the settled Start flag is
+  the XP flag (Commons, CC0) recoloured white-blue, pre-rendered to WebP at 4x (the pastel
+  entrance flag is still flag.svg). Everything else is redrawn as layered-gradient SVG files
+  (no filters) fitted to medians of the video: sidebar 1100-1400, taskbar 1200-1395, flyout
+  612-688.
+- Icons are placed on whole pixels with the fitted sub-pixel remainder as a translate (Chrome
+  snaps an <img> box to whole pixels); the task button layers sit on whole pixels too
+  (TaskGroup.jsx), which had pushed every taskbar icon 1 px right. Row offsets the video shows
+  (mail rows up to 2 px, Kathy's away icon 4 px high) live in the icon components.
+- RMSE (1 px blur, before -> after): mail list 11.0 -> 8.4 (closed 13.6 -> 9.5, hot 18.7 ->
+  15.4, open 10.3 -> 7.7), away buddies 25.6-30.1 -> 14.1-15.4, media strip 21.9 -> 13.0,
+  Go Online 24.6 -> 13.5, thumbnails 19.7 / 20.6 / 44.1 / 20.7 -> 10.6 / 12.0 / 18.6 / 14.2,
+  clock chevron 35.0 -> 10.5, Start flag 25.4 -> 16.4, taskbar Outlook 22.1 -> 20.2, IE
+  17.4 -> 13.0, My Music 23.3 -> 16.9, Word 44.5 -> 15.5, Winamp 22.4 -> 19.0, flyout note
+  13.5 -> 11.0, flyout title buttons 10.9 -> 7.3, footer arrow 15.3 -> 14.9.
 
 ## Entrance (absolute frames; each tile fades in over ~1 frame)
 Measured by projecting each tile's pixels onto (final - glass): every tile reads 0.5 on its
@@ -132,11 +183,17 @@ Files (src/scenes/desktop unless noted):
 - `src/os/session.js` (shared with the session builder): currentUser / userInfo / wallpaper;
   `src/os/media.js`: the silent player; `src/os/logIndex.js`: indexed event lookups.
 - `src/apps/display`: Display Properties (Stonehenge, the leaf stand-in, plain colours).
-- `src/demo/shell.js` + `?scenario=shell`: scripted shell input for bench/capture (frames 1-520).
+- `src/demo/shell.js` + `?scenario=shell`: scripted shell input for bench/capture (frames 1-720;
+  520-720: a window dragged under the sidebar glass, the sidebar hidden and shown over it,
+  Refresh, the window dragged back out, the leaf, blue, black and photo wallpapers).
 - Details: task buttons show their full label as a tooltip and have a Restore / Minimize /
   Maximize / Close menu on right-click; the calendar pages through months and selects days;
   a mail row moves the sidebar's selection, marks the mail read and opens it; Windows Tour and
   Top 10 Tasks open Help on their pages; the Start header opens Control Panel > User Accounts.
 
-Bench (prod build, ?scenario=shell, 1-520): p50 0.6 ms, p95 3.5 ms, max 6.1 ms. The video
+Bench (prod build, ?scenario=shell, 1-520): p50 0.6 ms, p95 3.5 ms, max 6.1 ms.
+Glass section (520-720, machine load ~8, 4 repeats): window drag under the glass p50 2.8 / max
+5.0 ms, sidebar hide and show over it max 3.4, Refresh max 2.6, wallpapers max 2.6. Its task
+button insertion frame (528, 8 frames after the window opens) costs ~8 ms, as its twin frame 128
+does on the build without live glass at the same load. The video
 replay's RMSE is unchanged by the shell (every segment within 0.01 of the pre-shell capture).

@@ -7,7 +7,7 @@ import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { asset } from '../../core/preload.js'
 import { scoped, wid, valueOf, TextField, textOf, setText, Button, ScrollView, scrollTo, find, C, FONT, HEAVY } from '../../ui/index.js'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { closeWin, messageBox, openWin } from '../lib/common.js'
 import { userName } from '../lib/user.js'
@@ -126,6 +126,7 @@ export default {
   position: { x: 440, y: 150 },
   minSize: { w: 320, h: 320 },
   explorer: false,
+  chromeTop: chromeTop(),
   background: '#f6f9fe',
   Content: scoped(IM, { watch: ['im'] }),
   Proxy: AppProxy,

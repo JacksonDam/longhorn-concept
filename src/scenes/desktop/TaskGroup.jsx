@@ -29,7 +29,7 @@ const INSERT_END = 15
 const N = 12
 const STRIP_TOP = 690
 
-const box = (b) => ({ left: b.x - 2, top: STRIP_TOP, width: b.w + 4, height: 30 })
+const box = (b) => ({ left: Math.floor(b.x) - 2, top: STRIP_TOP, width: b.w + 5, height: 30 }) // whole-pixel layer: images inside stay unsnapped
 
 // side offsets of a transition at frame r after its start
 function offsets(tr, r) {

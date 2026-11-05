@@ -7,7 +7,7 @@ import { scoped, wid, valueOf, TextField, textOf, Button, Scrollbar, hoverKeys, 
 import { photoById, TAGS } from '../lib/pictures.jsx'
 import { visibleGroups, CAL0 } from '../pictures/state.js'
 import { Calendar } from '../pictures/Calendar.jsx'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, openWin } from '../lib/common.js'
 
 const colHead = (x, y, n, a) => (
@@ -160,6 +160,7 @@ export default {
   size: { w: 690, h: 560 },
   position: { x: 95, y: 40 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#f6f9fe',
   Content: scoped(Album, { watch: ['pics'] }),
 }

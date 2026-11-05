@@ -10,7 +10,7 @@ import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, lastOf, find, useLive, focusAt, setFocus, ScrollView, DropMenu, dropBelow, ToolButton, Tooltip, stageRect, pt, C, FONT } from '../../ui/index.js'
 import { CaretBlink } from '../../ui/TextField.jsx'
-import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
 import { docFor } from './docs.js'
@@ -519,6 +519,7 @@ export default {
   position: { x: 70, y: 30 },
   minSize: { w: 600, h: 360 },
   explorer: false,
+  chromeTop: chromeTop({ row2: 24 }),
   background: '#9fb1cc',
   Content: scoped(Word, { watch: ['word'] }),
   Proxy: AppProxy,

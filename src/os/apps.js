@@ -36,9 +36,14 @@
 // frame, its Content on the next frame and one copy per frame after that, while the beam plays
 // (it shows from 5 frames in). Explorer chrome is cheap in copies by itself (one toolbar image,
 // grouped labels, no hit areas or menus); an explorer `Search` component gets `copy` there.
-// `active` follows the focus, except that a closing window keeps it while it animates out (the
-// next window gets it after the close) and the window an open takes the focus from loses it two
-// frames into the open.
+// `active` follows the focus, except that a closing or minimising window keeps it while it
+// animates out (the next window gets it after the animation) and the window an open takes the
+// focus from loses it two frames into the open (os/focus.js). The window's look (title bar and top
+// chrome, shadow) cross-fades to match (os/look.jsx).
+// More optional fields: `chromeTop: px | (win, w) => px`: how far the window's top chrome reaches
+// from its top (title bar + the app's own bars; an inactive window's wash covers it; default the
+// title bar or the explorer chrome; apps using lib/chrome.jsx AppTop use its chromeTop(opts));
+// `shadow: false` turns the window's drop shadow off.
 const mods = import.meta.glob('../apps/*/index.{js,jsx}', { eager: true })
 const APPS = new Map()
 for (const m of Object.values(mods)) {
