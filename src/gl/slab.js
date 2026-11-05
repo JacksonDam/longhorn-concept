@@ -50,6 +50,23 @@ export function loadTexture(url) {
   }
   return tex
 }
+// optional: a live 2D canvas as the picture (slab.canvas); bump slab.canvasVersion after redrawing it
+const canvasTex = new WeakMap()
+function canvasTexture(canvas, version = 0) {
+  let tex = canvasTex.get(canvas)
+  if (!tex) {
+    tex = new THREE.CanvasTexture(canvas)
+    tex.colorSpace = THREE.NoColorSpace
+    tex.anisotropy = 8
+    tex.minFilter = THREE.LinearMipmapLinearFilter
+    tex.userData.version = version
+    canvasTex.set(canvas, tex)
+  } else if (tex.userData.version !== version) {
+    tex.userData.version = version
+    tex.needsUpdate = true
+  }
+  return tex
+}
 export const textureReady = (url) => !url || !!texCache.get(url)?.userData.ready
 export function texturesReady() {
   return new Promise((resolve) => {
@@ -224,7 +241,7 @@ function applySlab(obj, slab, pose) {
   mesh.geometry = geometry(w, h, d, r)
   const u = m.uniforms
   u.uSize.value.set(w, h, d)
-  const tex = loadTexture(slab.map)
+  const tex = slab.canvas ? canvasTexture(slab.canvas, slab.canvasVersion) : loadTexture(slab.map)
   u.uMap.value = tex
   u.uHasMap.value = tex ? 1 : 0
   if (slab.tint) u.uTint.value.setRGB(...slab.tint)
