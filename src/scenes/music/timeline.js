@@ -66,14 +66,14 @@ export const openMoving = (rel) => rel > 4.5 && rel < OPEN_END + 1
 
 // lighting while the window swings in (measured against the settled window, f700-710): the
 // toolbar's left part is lit (additive, peak ~+75 at stage x 100-200, zero by x 360) and its
-// right part shaded (x 0.55 from x 500); the white body is shaded towards rgb(60, 90, 140)
-// from x 350 to 550; the content on the body (covers, text) is not affected.
+// right part shaded (x 0.55 from x 500); the body is shaded towards rgb(60, 90, 140) to the
+// right (stage x 400 -> 575) and downwards (local y 400 -> 600), covers and text included.
 // [rel, toolbar light (x75), body shade alpha, toolbar shade alpha]
 const OPEN_LIGHT = table([
-  [5, 1.1, 0.6, 0.5],
-  [7, 1.05, 0.58, 0.48],
-  [8, 1, 0.53, 0.45],
-  [9, 0.82, 0.4, 0.35],
+  [5, 1.4, 0.6, 0.5],
+  [7, 1.35, 0.58, 0.48],
+  [8, 1.3, 0.53, 0.45],
+  [9, 1.0, 0.4, 0.35],
   [10, 0.6, 0.23, 0.22],
   [11, 0.45, 0.13, 0.15],
   [12, 0.3, 0.08, 0.08],

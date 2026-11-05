@@ -88,7 +88,6 @@ function WindowContent({ t, st, vs, copy = false, slabT, slabs = 'all' }) {
     >
       <Chrome />
       <BodyBg />
-      <OpenLight rel={rel} part="body" />
       <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} slabT={slabT ?? t} slabs={slabs} />
       <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
       <TaskPane />
@@ -96,7 +95,7 @@ function WindowContent({ t, st, vs, copy = false, slabT, slabs = 'all' }) {
       <AlbumGrid t={t} hover={vs.hover} sel={vs.sel && t >= vs.sel.t ? vs.sel : null} />
       <Scrollbar />
       <StatusBar />
-      <OpenLight rel={rel} part="top" />
+      <OpenLight rel={rel} />
     </div>
     <Frame />
     </>
@@ -127,8 +126,8 @@ const Frame = memo(function Frame() {
   )
 })
 
-// the open's lighting (timeline.OPEN_LIGHT): `part` 'body' draws the body shade under the
-// content, 'top' the toolbar light and shade over the chrome rows. Real time uses fixed
+// the open's lighting (timeline.OPEN_LIGHT), over the whole window: the chrome rows lit on the
+// left and shaded on the right, the body shaded right and downwards. Real time uses fixed
 // gradients faded by opacity on their own layers, kept mounted (no repaint per frame).
 const TOP_H = 122
 const lightBg = (k) => `linear-gradient(90deg, rgb(${75 * k},${75 * k},${75 * k}) 0px, rgb(${75 * k},${75 * k},${75 * k}) 155px, rgb(0,0,0) 315px)`
@@ -136,38 +135,29 @@ const topShadeBg = (a) => `linear-gradient(90deg, rgba(10,25,60,0) 355px, rgba(1
 const bodyShadeBg = (a) => `linear-gradient(90deg, rgba(60,90,140,0) 355px, rgba(60,90,140,${a}) 530px, rgba(60,90,140,${a}) 777px)`
 // and downwards (the light comes from the top left): local y 400 -> 600, i.e. 278 -> 478 below TOP_H
 const bodyShadeYBg = (a) => `linear-gradient(180deg, rgba(60,90,140,0) 278px, rgba(60,90,140,${a}) 478px, rgba(60,90,140,${a}) 532px)`
-function OpenLight({ rel, part }) {
+function OpenLight({ rel }) {
   const l = openLight(rel)
   const [k, ab, at] = l && rel >= 4 ? l : [0, 0, 0]
-  const base = { position: 'absolute', left: 0, width: WIN.w, pointerEvents: 'none' }
+  const top = { position: 'absolute', left: 0, top: 0, width: WIN.w, height: TOP_H, pointerEvents: 'none' }
+  const body = { position: 'absolute', left: 0, top: TOP_H, width: WIN.w, height: WIN.h - TOP_H, pointerEvents: 'none' }
   if (!CAPTURE) {
-    const lay = { ...base, willChange: 'opacity' }
-    if (part === 'body')
-      return (
-        <>
-          <div style={{ ...lay, top: TOP_H, height: WIN.h - TOP_H, opacity: ab / 0.6, background: bodyShadeBg(0.6) }} />
-          <div style={{ ...lay, top: TOP_H, height: WIN.h - TOP_H, opacity: ab / 0.6, background: bodyShadeYBg(0.6) }} />
-        </>
-      )
+    const lay = { willChange: 'opacity' }
     return (
       <>
-        <div style={{ ...lay, top: 0, height: TOP_H, opacity: Math.min(1, k / 1.1), mixBlendMode: 'plus-lighter', background: lightBg(1.1) }} />
-        <div style={{ ...lay, top: 0, height: TOP_H, opacity: at / 0.5, background: topShadeBg(0.5) }} />
+        <div style={{ ...top, ...lay, opacity: Math.min(1, k / 1.4), mixBlendMode: 'plus-lighter', background: lightBg(1.4) }} />
+        <div style={{ ...top, ...lay, opacity: at / 0.5, background: topShadeBg(0.5) }} />
+        <div style={{ ...body, ...lay, opacity: ab / 0.6, background: bodyShadeYBg(0.6) }} />
+        <div style={{ ...body, ...lay, opacity: ab / 0.6, background: bodyShadeBg(0.6) }} />
       </>
     )
   }
   if (!l || rel < 4) return null
-  if (part === 'body')
-    return (
-      <>
-        <div style={{ ...base, top: TOP_H, height: WIN.h - TOP_H, background: bodyShadeBg(ab) }} />
-        <div style={{ ...base, top: TOP_H, height: WIN.h - TOP_H, background: bodyShadeYBg(ab) }} />
-      </>
-    )
   return (
     <>
-      <div style={{ ...base, top: 0, height: TOP_H, mixBlendMode: 'plus-lighter', background: lightBg(k) }} />
-      <div style={{ ...base, top: 0, height: TOP_H, background: topShadeBg(at) }} />
+      <div style={{ ...top, mixBlendMode: 'plus-lighter', background: lightBg(k) }} />
+      <div style={{ ...top, background: topShadeBg(at) }} />
+      <div style={{ ...body, background: bodyShadeYBg(ab) }} />
+      <div style={{ ...body, background: bodyShadeBg(ab) }} />
     </>
   )
 }
