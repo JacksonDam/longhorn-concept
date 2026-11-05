@@ -68,7 +68,7 @@ function viewState(t, openT) {
 }
 
 // One rendering of the whole window at time t (motion-blur copies each get their own t).
-function WindowContent({ t, st, vs, copy = false, slabT }) {
+function WindowContent({ t, st, vs, copy = false, slabT, slabs = 'all' }) {
   const rel = toRel(t, st.openedAt)
   const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
   return (
@@ -88,7 +88,7 @@ function WindowContent({ t, st, vs, copy = false, slabT }) {
     >
       <Chrome />
       <BodyBg />
-      <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} slabT={slabT ?? t} />
+      <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} slabT={slabT ?? t} slabs={slabs} />
       <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
       <TaskPane />
       <GridBar />
@@ -128,6 +128,18 @@ const Frame = memo(function Frame() {
 
 function OpenLight({ rel }) {
   const l = openLight(rel)
+  if (!CAPTURE) {
+    // (stays mounted at opacity 0 afterwards: removing a full-window layer forces a repaint)
+    const [a, d] = l && rel >= 4 ? l : [0, 0]
+    // real time: fixed gradients faded by opacity on their own layers (no repaint per frame)
+    const base = { position: 'absolute', inset: 0, pointerEvents: 'none', willChange: 'opacity' }
+    return (
+      <>
+        <div style={{ ...base, opacity: a / 0.55, background: 'linear-gradient(90deg, rgba(255,255,255,0.55) 0px, rgba(255,255,255,0.55) 300px, rgba(255,255,255,0) 405px)' }} />
+        <div style={{ ...base, opacity: d / 0.45, background: 'linear-gradient(90deg, rgba(10,25,60,0) 405px, rgba(10,25,60,0.45) 505px, rgba(10,25,60,0.45) 777px)' }} />
+      </>
+    )
+  }
   if (!l || rel < 4) return null
   const [a, d] = l
   return (
@@ -154,11 +166,25 @@ function openBlur(rel) {
 // the window drawn n times at sub-frame times, averaged (plus-lighter in an isolated group)
 // frozen: render the content as at this time (e.g. while closing). Inside a copy the slabs
 // render one sample each: the copies already provide the temporal samples.
-// Real-time playback uses fewer copies (each copy is a full window DOM); ?capture uses all.
+// Real-time playback uses fewer copies (each copy is a full window DOM); ?capture uses all
+// and renders every copy at its own sub-frame time. In real time the copies all show one
+// memoised content snapshot (`snap`), so per frame only their wrapper transforms change and
+// the browser re-composites cached layers instead of re-rendering and repainting n windows.
 const MAX_COPIES = CAPTURE ? 64 : 7
+const RT_OPEN_SHARP = 9
 
-function Blurred({ t, n: nWanted, shutter = 0, phase = -0.5, pose, st, vs, frozen, hidden = false }) {
+const contentKey = (t, st, vs) => `${t}|${st.openedAt}|${vs.pageT}|${vs.sel?.id}|${vs.sel?.t}|${vs.hover}|${vs.track}|${vs.trackHover}`
+const Content = memo(
+  function Content({ t, st, vs, copy, slabT, slabs }) {
+    return <WindowContent t={t} st={st} vs={vs} copy={copy} slabT={slabT} slabs={slabs} />
+  },
+  (a, b) => a.copy === b.copy && a.slabT === b.slabT && a.slabs === b.slabs && contentKey(a.t, a.st, a.vs) === contentKey(b.t, b.st, b.vs),
+)
+
+function Blurred({ t, n: nWanted, shutter = 0, phase = -0.5, pose, st, vs, frozen, hidden = false, snap }) {
   const n = Math.min(nWanted, MAX_COPIES)
+  const rt = !CAPTURE && n > 1 // real-time blur: shared snapshot content
+  const ct = frozen ?? (rt ? snap ?? t : null)
   const layers = []
   for (let k = 0; k < n; k++) {
     if (n === 1) {
@@ -166,8 +192,11 @@ function Blurred({ t, n: nWanted, shutter = 0, phase = -0.5, pose, st, vs, froze
       const p = pose ? pose(t) : null
       const vis = !hidden && (!p || p.op > 0)
       layers.push(
-        <div key={k} style={{ ...winBox, ...(p ? poseCss(p) : null), visibility: vis ? 'visible' : 'hidden' }}>
-          <WindowContent t={frozen ?? t} st={st} vs={vs} />
+        <div
+          key={k}
+          style={{ ...winBox, ...(p ? poseCss(p) : null), visibility: vis ? 'visible' : 'hidden', willChange: CAPTURE ? undefined : 'transform' }}
+        >
+          <Content t={frozen ?? t} st={st} vs={vs} copy={false} />
         </div>,
       )
       continue
@@ -178,14 +207,90 @@ function Blurred({ t, n: nWanted, shutter = 0, phase = -0.5, pose, st, vs, froze
     layers.push(
       <div
         key={k}
-        style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter', visibility: vis ? 'visible' : 'hidden' }}
+        style={{
+          ...winBox,
+          ...poseCss(p),
+          opacity: p.op / n,
+          mixBlendMode: 'plus-lighter',
+          visibility: vis ? 'visible' : 'hidden',
+          willChange: rt ? 'transform, opacity' : undefined,
+        }}
       >
-        <WindowContent t={frozen ?? tt} st={st} vs={vs} copy slabT={CAPTURE ? undefined : (frozen ?? t)} />
+        <Content t={ct ?? tt} st={st} vs={vs} copy slabT={rt ? ct : undefined} />
       </div>,
     )
   }
   return <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: n === 1 && !hidden ? 'auto' : 'none' }}>{layers}</div>
 }
+
+// Real-time window (not ?capture): MAX_COPIES window layers stay mounted for the whole life of
+// the window, so an animation never mounts DOM. Copy 0 is the live window; copies 1.. hold
+// memoised snapshots of the content that only change at settle points (staggered by 2 frames per
+// copy, so a change never re-renders them all in one frame) and sit at opacity 0 until a blur
+// needs them. The 3D slabs render once per frame on their own layer above the copies, posed
+// with the central blur sample, instead of once per copy.
+const SNAP_STAGGER = 2
+function copySnap(tk, st, vk) {
+  const pts = [st.openedAt + RT_OPEN_SHARP / FPS, st.openedAt + 74 / FPS]
+  if (vk.sel) pts.push(vk.sel.t + 10 / FPS)
+  if (vk.pageT != null) pts.push(vk.pageT + 21 / FPS)
+  let best = pts[0]
+  for (const p of pts) if (p <= tk && p > best) best = p
+  return best
+}
+
+function SlabLayer({ t, st, vs }) {
+  const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
+  return <Header t={t} openT={st.openedAt} pageT={pageT} slabs="only" />
+}
+
+// mount: how many layers to mount (the open mounts them one per ~half frame while it is still
+// hidden, so the first blurred frame finds them ready)
+function RealtimeWindow({ t, n = 1, shutter = 0, phase = -0.5, pose, st, vs, frozen, hidden = false, mount = MAX_COPIES }) {
+  const N = Math.max(1, Math.min(MAX_COPIES, mount))
+  const blur = n > 1
+  const nEff = Math.min(n, N)
+  const live = frozen ?? t
+  const layers = []
+  for (let k = 0; k < N; k++) {
+    let style
+    if (blur && k < nEff) {
+      const p = pose(t + shutter * ((k + 0.5) / nEff + phase))
+      style = { ...poseCss(p), opacity: Math.max(0, p.op) / nEff }
+    } else if (!blur && k === 0) {
+      const p = pose ? pose(t) : null
+      style = { ...(p ? poseCss(p) : null), opacity: hidden || (p && p.op <= 0) ? 0 : p ? p.op : 1 }
+    } else style = { opacity: 0 }
+    let content
+    if (k === 0 || frozen != null) {
+      content = <Content t={live} st={st} vs={vs} copy={k > 0} slabs="none" />
+    } else {
+      const tk = t - (k * SNAP_STAGGER) / FPS
+      const vk = { ...viewState(tk, st.openedAt), hover: -1, trackHover: -1 }
+      content = <Content t={copySnap(tk, st, vk)} st={st} vs={vk} copy slabs="none" />
+    }
+    const interactive = k === 0 && !blur && style.opacity > 0
+    layers.push(
+      <div
+        key={k}
+        style={{ ...winBox, ...style, mixBlendMode: 'plus-lighter', willChange: 'transform, opacity', pointerEvents: interactive ? 'auto' : 'none' }}
+      >
+        {content}
+      </div>,
+    )
+  }
+  const sp = pose ? pose(blur ? t + shutter * (0.5 + phase) : t) : null
+  const slabOp = hidden ? 0 : sp ? Math.max(0, sp.op) : 1
+  return (
+    <>
+      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>{layers}</div>
+      <div style={{ ...winBox, ...(sp ? poseCss(sp) : null), opacity: slabOp, pointerEvents: 'none', willChange: 'transform, opacity' }}>
+        <SlabLayer t={live} st={st} vs={vs} />
+      </div>
+    </>
+  )
+}
+const Win = CAPTURE ? Blurred : RealtimeWindow
 
 // Dev-only comparison aid (?plate): a clean desktop frame of the reference video behind the
 // window, so captures of semi-transparent effects can be diffed against the video.
@@ -225,7 +330,7 @@ function MusicWindowLayer({ t }) {
     const back = (tt) => OPEN_END - toRel(tt, st.closedAt) * CLOSE_SPEED
     return (
       <>
-        <Blurred t={t} st={st} vs={vs} n={10} shutter={0.8 / FPS} pose={(tt) => openPose(back(tt))} frozen={st.closedAt} hidden={crel >= CLOSE_END} />
+        <Win t={t} st={st} vs={vs} n={10} shutter={0.8 / FPS} pose={(tt) => openPose(back(tt))} frozen={st.closedAt} hidden={crel >= CLOSE_END} />
         <Beam rel={OPEN_END - crel * CLOSE_SPEED} fan={[3.2, 6, 8.2]} spark={[-1, -1, -1]} />
       </>
     )
@@ -243,19 +348,35 @@ function MusicWindowLayer({ t }) {
     blur =
       mrel >= MIN_END
         ? { n: 1, hidden: true }
-        : { n: fall ? 16 : 6, shutter: (fall ? 1.32 : 1) / FPS, phase: mrel > 5.8 ? 0 : -0.5, pose: (tt) => minimizePose(toRel(tt, st.changedAt)) }
+        : {
+            n: fall ? 16 : 6,
+            shutter: (fall ? 1.32 : 1) / FPS,
+            phase: mrel > 5.8 ? 0 : -0.5,
+            pose: (tt) => minimizePose(toRel(tt, st.changedAt)),
+            snap: st.changedAt,
+          }
     beam = <Beam rel={mrel} fan={[5, 6.8, 8.6]} spark={[6, 7.5, 9.5]} rise={false} />
   } else if (st.changedAt !== st.openedAt && mrel < RESTORE_END) {
-    blur = { n: 16, shutter: (mrel > 4.5 ? 1.36 : 1) / FPS, phase: mrel < 2 ? -1 : -0.5, pose: (tt) => restorePose(toRel(tt, st.changedAt)) }
+    blur = {
+      n: 16,
+      shutter: (mrel > 4.5 ? 1.36 : 1) / FPS,
+      phase: mrel < 2 ? -1 : -0.5,
+      pose: (tt) => restorePose(toRel(tt, st.changedAt)),
+      snap: st.changedAt + RESTORE_END / FPS,
+    }
     beam = <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
   } else if (st.changedAt === st.openedAt) {
     beam = <Beam rel={rel} haze fanOp={0.6} />
-    if (rel < 5) blur = { n: 1, hidden: true }
-    else if (openMoving(rel)) blur = { ...openBlur(rel), pose: (tt) => openPose(toRel(tt, st.openedAt)) }
+    if (rel < 5) blur = { n: 1, hidden: true, mount: 1 + Math.floor(Math.max(0, rel) / 0.6) }
+    else if (openMoving(rel)) {
+      const pose = (tt) => openPose(toRel(tt, st.openedAt))
+      // real time: the settle after rel 9 moves only a few px per frame, so it plays unblurred
+      blur = !CAPTURE && rel >= RT_OPEN_SHARP ? { n: 1, pose } : { ...openBlur(rel), pose, snap: st.openedAt + RT_OPEN_SHARP / FPS }
+    }
   }
   return (
     <>
-      <Blurred {...props} {...blur} />
+      <Win {...props} {...blur} />
       {beam}
     </>
   )

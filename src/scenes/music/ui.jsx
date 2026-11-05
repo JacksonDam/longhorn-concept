@@ -33,4 +33,9 @@ export function Txt({ x, y, size = 12, w = 400, c = '#000', f = FONT, ls = 0, sx
   )
 }
 
+import { CAPTURE } from '../../core/clock.js'
+// real-time playback only: promote elements that change every frame to their own compositor
+// layers (?capture keeps the default rasterisation, so its output is unchanged)
+export const LAYER = CAPTURE ? undefined : 'transform, opacity'
+
 export const abs = (x, y, w, h, extra) => ({ position: 'absolute', left: x, top: y, width: w, height: h, ...extra })
