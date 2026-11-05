@@ -1,8 +1,8 @@
 // Light from the taskbar that the window rises out of (open / restore) and falls into (minimise):
 // a fan of soft rays from a point on the taskbar and a small sparkle. Stage px.
 import { memo } from 'react'
-import { clamp } from '../../core/anim.js'
-import { table } from './timeline.js'
+import { clamp } from '../core/anim.js'
+import { table } from './table.js'
 
 const RAYS = [
   [-58, 560, 34, 0.5],
@@ -98,14 +98,15 @@ function Haze({ rel }) {
 // rel: frames since the trigger; fan: [start, peak, end]; spark: [start, peak, end]
 const env = (rel, [a, b, c]) => (rel <= a || rel >= c ? 0 : rel < b ? (rel - a) / (b - a) : 1 - (rel - b) / (c - b))
 
-export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true, haze = false, fanOp = 1 }) {
+// dx: horizontal shift of the whole effect (taskbar button x relative to the video's my Music slot)
+export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true, haze = false, fanOp = 1, dx = 0 }) {
   const f = clamp(env(rel, fan)) * fanOp
   const s = clamp(env(rel, spark))
   if (f <= 0 && s <= 0 && !(haze && rel > 3.4 && rel < 7)) return null
   // the fan grows upwards while it brightens
   const grow = rise ? clamp((rel - fan[0]) / (fan[1] - fan[0] + 1.5), 0.35, 1) : 1
   return (
-    <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, pointerEvents: 'none' }}>
+    <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, pointerEvents: 'none', transform: dx ? `translateX(${dx}px)` : undefined }}>
       {haze && <Haze rel={rel} />}
       {f > 0 && (
         <div style={{ position: 'absolute', inset: 0, opacity: f, transform: `scaleY(${grow})`, transformOrigin: '455px 704px' }}>
