@@ -10,7 +10,7 @@ import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
 import { TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
-import { FPS, CAPTURE } from '../../core/clock.js'
+import { FPS } from '../../core/clock.js'
 import { ease } from '../../core/anim.js'
 
 // slab canvas: window-local box that holds the device and its floor reflection

@@ -11,11 +11,17 @@ import { albumOf, albumKey } from './library.js'
 export function pageAt(t, t0) {
   let cur = null
   let nextOnly = null
+  // Back returns to the device header; Forward goes to the page Back left
   const isHome = (e) => e.type === 'music.home' || (e.type === 'explorer.nav' && e.id === 'music' && e.dir === 'back')
-  for (const e of all(t, (e) => (e.type === 'music.album' || isHome(e)) && e.t >= t0)) {
+  const isFwd = (e) => e.type === 'explorer.nav' && e.id === 'music' && e.dir === 'forward'
+  let leftByBack = null
+  for (const e of all(t, (e) => (e.type === 'music.album' || isHome(e) || isFwd(e)) && e.t >= t0)) {
     if (e.type === 'music.album' && e.id == null) continue
-    const album = isHome(e) ? null : albumOf(e.id)
-    const start = e.t + (isHome(e) ? 0 : PAGE_DELAY / FPS)
+    if (isFwd(e) && !leftByBack) continue
+    if (isHome(e) && cur && cur.album) leftByBack = cur.album
+    const album = isHome(e) ? null : isFwd(e) ? leftByBack : albumOf(e.id)
+    if (isFwd(e)) leftByBack = null
+    const start = e.t + (isHome(e) || isFwd(e) ? 0 : PAGE_DELAY / FPS)
     const curAlbum = cur ? cur.album : null
     if (album === curAlbum && (cur || album == null)) continue
     if (start > t) {

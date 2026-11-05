@@ -36,7 +36,7 @@ export function musicActions(win) {
       play: () => a.playSelected(),
       createPlaylist: () => openWin('playlist'),
       burn: () => openWin('burncd'),
-      share: () => openWin('share'),
+      share: () => openWin('sharemusic'),
       shop: ie('music.msn.com/shop'),
       reviews: ie('music.msn.com/reviews'),
       radio: ie('radio.msn.com'),
@@ -62,7 +62,13 @@ export function musicActions(win) {
       back: () => emit('music.home', { id: win.id }),
       properties: () => {
         const al = a.selected()
-        if (al) openWin('albumprops', 'about', { title: `${al.artist} - ${al.title}`, text: `${al.tracks.length} tracks, ${al.year}, ${al.genre}` })
+        if (al)
+          openWin('albumprops', 'dialog', {
+            title: `${al.title} Properties`,
+            text: `${al.artist} - ${al.title}\n${al.tracks.length} tracks, ${al.year}, ${al.genre}`,
+            icon: 'info',
+            buttons: [{ label: 'OK', emit: { type: 'win.close', id: 'albumprops' } }],
+          })
       },
       section: (name) => () => set('sec.' + name, !valueAt(wid(win, 'mv.sec.' + name), name === 'other')),
     }

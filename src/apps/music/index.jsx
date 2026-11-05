@@ -163,6 +163,7 @@ const music = {
   icon: asset('img/desktop/ic-mymusic.webp'),
   size: { w: 777, h: 654 },
   position: { x: 45, y: 23 },
+  minSize: { w: 640, h: 480 },
   explorer: {
     crumbs: ['my Computer', 'my Pictures'],
     crumbMenus: [PLACES, PLACES],

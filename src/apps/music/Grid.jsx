@@ -18,6 +18,11 @@ const click = (a) => (e) => {
   e.stopPropagation()
   emit('music.album', { id: albumEventId(a) })
 }
+// double-click plays the album (silently, through os/media.js)
+const play = (a) => (e) => {
+  e.stopPropagation()
+  emit('media.play', { playlist: a.tracks.map((tr) => ({ title: `${a.artist} - ${tr.title}`, duration: tr.duration })), track: 0 })
+}
 
 function Cover({ album, size }) {
   return <img src={album.url} width={size} height={size} alt="" draggable={false} style={{ display: 'block' }} />
@@ -35,6 +40,7 @@ const Thumb = memo(function Thumb({ album, x, y, s, hover }) {
       onPointerEnter={hoverOn(album.key)}
       onPointerLeave={hoverOff(album.key)}
       onClick={click(album)}
+      onDoubleClick={play(album)}
       style={{
         position: 'absolute', left: x, top: y, width: s, height: s,
         boxShadow: shadow(hover), transform: hover ? 'translateY(-1px)' : undefined,
@@ -83,7 +89,7 @@ const SelectedBody = memo(function SelectedBody({ album, s }) {
 function SelectedThumb({ album, x, y, s, t, selT, hover }) {
   const rel = toRel(t, selT)
   const box = { position: 'absolute', left: x, top: y, width: s, height: s, transformOrigin: '50% 50%' }
-  const handlers = { onPointerEnter: hoverOn(album.key), onPointerLeave: hoverOff(album.key), onClick: click(album) }
+  const handlers = { onPointerEnter: hoverOn(album.key), onPointerLeave: hoverOff(album.key), onClick: click(album), onDoubleClick: play(album) }
   if (rel >= POP_END || rel < 0) {
     return (
       <div {...handlers} style={{ ...box, transform: hover ? 'translateY(-1px)' : undefined }}>
@@ -116,6 +122,7 @@ const TileRow = memo(function TileRow({ album, x, y, s, hover, selected }) {
       onPointerEnter={hoverOn(album.key)}
       onPointerLeave={hoverOff(album.key)}
       onClick={click(album)}
+      onDoubleClick={play(album)}
       style={{
         position: 'absolute', left: x - 3, top: y - 3, width: s + 146, height: s + 6, borderRadius: 4,
         background: selected ? 'rgba(90,150,235,0.28)' : hover ? 'rgba(150,190,240,0.18)' : undefined,
@@ -148,6 +155,7 @@ const DetailRow = memo(function DetailRow({ album, y, w, hover, selected }) {
       onPointerEnter={hoverOn(album.key)}
       onPointerLeave={hoverOff(album.key)}
       onClick={click(album)}
+      onDoubleClick={play(album)}
       style={{
         position: 'absolute', left: 0, top: y, width: w, height: 18,
         background: selected ? 'rgba(90,150,235,0.3)' : hover ? 'rgba(150,190,240,0.18)' : undefined,

@@ -127,3 +127,32 @@ Real-time playback (`?demo`, headless Chrome on the M4): open and album flip run
   f702 35.7 -> 25.7, f703 27.7 -> 19.8. Window poses at 700-701 refitted from the measured
   edges; lighting = lit toolbar (additive) + right/downward shade over the body and its
   content; device spin-in edge-on at 703.5 and re-positioned to the silhouettes.
+
+## Window system (src/os) and the usable my Music (src/apps/music)
+- `os/apps.js` registry (auto-discovers `src/apps/*/index.{js,jsx}`), `os/PlexWindow.jsx` (frame,
+  title bar, min/max/close, drag, resize grip, focus, maximise tween, open swing-in with lighting,
+  minimise/restore into the window's taskbar button via `os/taskbar.js`, close = open reversed,
+  multi-sample blur), `os/ExplorerChrome.jsx` (toolbar, menus, breadcrumb drop-downs, command
+  row; config values may be functions of (win, t)), `os/WindowLayer.jsx`, `os/windowAnim.js`
+  (the fitted tables), `os/Beam.jsx`, `os/text.jsx`, `os/icons.jsx`.
+- Rendering, one path for capture and real time: each window keeps `copies` layers mounted
+  (my Music: 10); copy 0 is live, the others hold memoised snapshots (`app.snapshot`,
+  `app.copyKey`) and are parked when idle (shown windows: on their rect at 1e-4 opacity so their
+  tiles stay rasterised; others off-stage, painted). Live content renders at a time that only
+  moves while it animates (`app.settle`, `app.liveTime`), quiet windows skip re-rendering
+  (`quietKey`), copies mount on one background queue from session start + 1 s, apps with
+  `prewarm` (my Music) mount as hidden ghosts that the real window takes over.
+- my Music: 96-album library (the video's 32 tiles in the middle of a fictional collection),
+  thumbnail / tiles / details views, Group by / Arrange by / View by drop-downs, the Size slider,
+  search (filters), scrolling (wheel, arrows, track, thumb), album pages for every album with a
+  slab and a track list, track click / album double-click / Play buttons play through
+  os/media.js, task-pane links and collapsible sections, Folders pane, Hide Tasks, Preview,
+  Find (focuses search), Back / Forward, menus, Favorites, resize (min 640 x 480).
+- Scripted interaction bench: `?wmbench` (src/demo/music.js) adds window input after frame 1540.
+
+## Results after the OS work (prod build, tools/bench.mjs --repeat 3, ms p50 / p95 / max)
+open 2.8 / 5.1 / 5.2, window idle 1.4 / 3.9 / 5.7, album flip 2.5 / 5.3 / 6.0, album idle
+2.3 / 3.9 / 5.3, minimise 3.1 / 6.8 / 6.8, restore 2.4 / p95 dominated by one sporadic frame
+(1410-1414, 13-55 ms in full-range runs only; 6.3 max in 1300-1440 runs). ?wmbench: every
+segment p95 under 6.7 ms; reopen 13 ms on its first frame (shell taskbar insertion + live layer).
+Video RMSE per segment within +0.09 of the pre-OS baseline (open 0.3 better).
