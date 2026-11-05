@@ -20,7 +20,7 @@ KEYS = list(range(1, 442, STEP))
 if '--keys' in args:
     a, b = map(int, args[args.index('--keys') + 1].split('-'))
     KEYS = [k for k in KEYS if a <= k <= b]
-NS = 44          # ribbon slots
+NS = 64          # ribbon slots
 SMIN, SMAX = 1.6, 14.0
 
 half = load_half()
@@ -101,7 +101,8 @@ def fit_block(P, A, s, T, W, prior=None, iters=3):
         colw = (g * gw).sum(0)                       # (480,)
         obs = BXH.T @ colw                            # how much each control is observed
         unobs = np.clip(1 - obs / (obs.max() + 1e-9) * 3, 0, 1)
-        M = BXH.T @ (BXH * colw[:, None]) + 0.5 * DD + np.diag(1e-3 + 0.3 * colw.mean() * 8 * unobs)
+        sc = obs.mean() + 1e-6                         # data weight per control
+        M = BXH.T @ (BXH * colw[:, None]) + 0.08 * sc * DD + np.diag(1e-4 * sc + 0.6 * sc * unobs)
         rhs = BXH.T @ (gw[..., None] * Tb).sum(0)    # (KX,3)
         if prior is not None:
             M = M + lam_t * colw.sum() / KX * np.eye(KX)
@@ -265,11 +266,24 @@ def fit_key(n, R, coarse_grid, prior_R):
             R[i] = [P2, A2, s2, True]
             T_all = Ti - render_one(P2, A2, s2)
     # new ribbons
-    added = greedy_add(R, T_all, W, max_new=6 if prior_R is not None else NS, thr=1.2 if prior_R is not None else 0.9)
-    # drop dead / duplicate ribbons
+    # drop dead / duplicate ribbons (frees slots for new ones)
     for i, r in enumerate(R):
-        if r[3] and np.abs(BXH @ r[1].T).max() < 3.0:
+        if r[3] and np.abs(BXH @ r[1].T).max() < 2.5:
+            T_all += render_one(r[0], r[1], r[2])
             R[i] = [r[0], r[1] * 0, r[2], False]
+    act = [i for i, r in enumerate(R) if r[3]]
+    for a_ in act:
+        for b_ in act:
+            if a_ >= b_ or not (R[a_][3] and R[b_][3]):
+                continue
+            ya, _ = curve(R[a_][0]); yb, _ = curve(R[b_][0])
+            close = np.abs(ya - yb) < 0.8 * max(R[a_][2], R[b_][2], 2.0)
+            if close.mean() > 0.6:
+                wa = np.abs(BXH @ R[a_][1].T).sum(); wb = np.abs(BXH @ R[b_][1].T).sum()
+                k_ = b_ if wb < wa else a_
+                T_all += render_one(R[k_][0], R[k_][1], R[k_][2])
+                R[k_] = [R[k_][0], R[k_][1] * 0, R[k_][2], False]
+    added = greedy_add(R, T_all, W, max_new=10 if prior_R is not None else NS, thr=1.0 if prior_R is not None else 0.8)
     e = np.sqrt(((T_all ** 2) * W[..., None]).sum() / (W.sum() * 3))
     return R, added, e
 
