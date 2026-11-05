@@ -2,9 +2,10 @@
 // resting place left of the panel, then idling. A user that is deselected (or swapped for
 // another) flies back the same way, reversed. All slabs share one full-stage Slab3D canvas.
 import { Slab3D } from '../../gl/Slab3D.jsx'
-import { loadTexture } from '../../gl/slab.js'
+import { loadTexture, renderSlabs, SlabScene, texturesReady } from '../../gl/slab.js'
+import { useEffect } from 'react'
 import { clamp, F } from '../../core/anim.js'
-import { FPS } from '../../core/clock.js'
+import { FPS, CAPTURE } from '../../core/clock.js'
 import { pic } from './Tile.jsx'
 import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
@@ -93,7 +94,44 @@ function Halo({ t, rec, submitT }) {
   )
 }
 
+// Real time only: draw into a canvas cropped to the slabs (sizes rounded up to 64 px so the GL
+// render targets are reused) instead of a full-stage canvas: ~8x fewer pixels per accumulation
+// sample. ?capture keeps the full-stage canvas, so captures are bit-for-bit unchanged.
+const Q = 64
+function cropBox(items, times) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+  for (const it of items)
+    for (const tt of times) {
+      const p = it.pose(tt)
+      if (p.visible === false || (p.opacity ?? 1) <= 0.001) continue
+      const r = (BASE * 0.75 + 16) * (p.s ?? 1) + 12 // half-diagonal incl. depth + rim margin
+      x0 = Math.min(x0, p.x - r)
+      y0 = Math.min(y0, p.y - r)
+      x1 = Math.max(x1, p.x + r)
+      y1 = Math.max(y1, p.y + r)
+    }
+  if (x0 === Infinity) return null
+  const w = Math.min(960 + 2 * Q, Math.ceil((x1 - x0) / Q) * Q)
+  const h = Math.min(720 + 2 * Q, Math.ceil((y1 - y0) / Q) * Q)
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
+  return { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h }
+}
+
+// compile the slab shader and upload the pictures at load, so the first click doesn't stall
+let warmed = false
+function warmUp() {
+  if (warmed || CAPTURE) return
+  warmed = true
+  const c = document.createElement('canvas')
+  const ctx = c.getContext('2d')
+  const scene = new SlabScene()
+  const items = USERS.map((u) => ({ slab: slabMaterial(u.id), pose: () => ({ x: 8, y: 8, s: 0.05 }) }))
+  const go = () => renderSlabs(ctx, scene, items, [0, 0.01], { cw: 16, ch: 16, scale: 1, P: 1100 })
+  texturesReady().then(() => requestAnimationFrame(go))
+}
+
 export function Selected({ t, records, submitT }) {
+  useEffect(warmUp, [])
   const items = records.map((rec) => ({ slab: slabMaterial(rec.id), pose: poseFor(rec, submitT) }))
   if (!items.length) return null
   // motion blur while anything flies (launch, return or exit)
@@ -101,20 +139,37 @@ export function Selected({ t, records, submitT }) {
     const k = (t - rec.t0) * FPS
     return rec.back != null || (k > LAUNCH - 1 && k < 31)
   }) || (submitT != null && t - submitT < F(12))
+  const mb = blur('slab')
+  let canvas = { width: 960, height: 720, items, origin: undefined, style: { left: 0, top: 0 } }
+  if (!CAPTURE) {
+    const n = moving ? mb.samples : 1
+    const times = []
+    for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + mb.shutter * ((k + 0.5) / n + mb.phase))
+    const b = cropBox(items, times)
+    if (!b) return null
+    canvas = {
+      width: b.w,
+      height: b.h,
+      origin: [480 - b.x, 360 - b.y],
+      style: { left: b.x, top: b.y },
+      items: items.map((it) => ({ slab: it.slab, pose: (tt) => { const p = it.pose(tt); return { ...p, x: p.x - b.x, y: p.y - b.y } } })),
+    }
+  }
   return (
     <>
       {records.map((rec) => (
         <Halo key={rec.id + rec.t0} t={t} rec={rec} submitT={submitT} />
       ))}
-    <Slab3D
-      width={960}
-      height={720}
-      items={items}
-      moving={moving}
-      {...blur('slab')}
-      P={1100}
-      style={{ left: 0, top: 0 }}
-    />
+      <Slab3D
+        width={canvas.width}
+        height={canvas.height}
+        items={canvas.items}
+        moving={moving}
+        {...mb}
+        P={1100}
+        origin={canvas.origin}
+        style={canvas.style}
+      />
     </>
   )
 }

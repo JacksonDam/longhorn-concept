@@ -9,7 +9,7 @@ import { FPS, CAPTURE } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { userById, passwordLength } from './state.js'
 import { panelExit } from './exit.js'
-import { blur } from './blur.js'
+import { blur, layerHint } from './blur.js'
 
 const P = { left: 505, top: 290, width: 215, height: 105 } // panel box (stage px)
 // panel x offset (px) vs frames since select (select = video frame 168)
@@ -142,6 +142,7 @@ export function Panel({ t, row, submitT }) {
       t={t}
       moving={moving}
       {...blur('panel')}
+      layerStyle={moving ? layerHint : undefined}
       style={{ left: P.left, top: P.top, width: P.width, height: P.height, opacity: ex.opacity }}
       pose={(tt) => {
         const kk = (tt - change.t) * FPS

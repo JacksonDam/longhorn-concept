@@ -5,7 +5,7 @@ import { asset, preload } from '../../core/preload.js'
 import { MotionBlur } from '../../core/MotionBlur.jsx'
 import { LOGO } from './layout.js'
 import { flagExit, wordsExit } from './exit.js'
-import { blur } from './blur.js'
+import { blur, layerHint } from './blur.js'
 
 const FLAG = asset('img/login/flag.svg')
 const WORDS = asset('img/login/wordmark.svg')
@@ -26,6 +26,7 @@ export function Logo({ t, submitT }) {
         t={t}
         moving={flagMoving}
         {...blur('flag')}
+        layerStyle={flagMoving ? layerHint : undefined}
         style={{ left: x, top: y, width: w, height: h }}
         pose={(tt) => {
           const p = flagPose(tt)
