@@ -142,12 +142,21 @@ Real-time playback (`?demo`, headless Chrome on the M4): open and album flip run
   moves while it animates (`app.settle`, `app.liveTime`), quiet windows skip re-rendering
   (`quietKey`), copies mount on one background queue from session start + 1 s, apps with
   `prewarm` (my Music) mount as hidden ghosts that the real window takes over.
+- Opening a window that isn't prewarmed: frame and chrome on the open's frame, its content on the
+  next, then one copy per frame (copies k > 0 draw `app.Proxy` when the app has one) while the
+  beam plays; closed windows keep their composited copies, which settle back to a just-opened
+  state, so a reopen only rasterises. Explorer chrome draws the toolbar icons and reflections
+  from one SVG image (made once from os/icons.jsx; pixel-identical) and its static labels as one
+  SVG per row; copies skip hit areas, drop-down menus and listeners. Focus changes from an open
+  or a close are drawn off the heaviest frame: a closing window stays active while it animates
+  out, the window an open takes the focus from loses it two frames in. `app.minSize` clamps
+  resizing (my Music 777 x 520, its design width, so the header never clips).
 - my Music: 96-album library (the video's 32 tiles in the middle of a fictional collection),
   thumbnail / tiles / details views, Group by / Arrange by / View by drop-downs, the Size slider,
   search (filters), scrolling (wheel, arrows, track, thumb), album pages for every album with a
   slab and a track list, track click / album double-click / Play buttons play through
   os/media.js, task-pane links and collapsible sections, Folders pane, Hide Tasks, Preview,
-  Find (focuses search), Back / Forward, menus, Favorites, resize (min 640 x 480).
+  Find (focuses search), Back / Forward, menus, Favorites, resize (min 777 x 520).
 - Scripted interaction bench: `?wmbench` (src/demo/music.js) adds window input after frame 1540.
 
 ## Results after the OS work (prod build, tools/bench.mjs --repeat 3, ms p50 / p95 / max)
@@ -156,3 +165,19 @@ open 2.8 / 5.1 / 5.2, window idle 1.4 / 3.9 / 5.7, album flip 2.5 / 5.3 / 6.0, a
 (1410-1414, 13-55 ms in full-range runs only; 6.3 max in 1300-1440 runs). ?wmbench: every
 segment p95 under 6.7 ms; reopen 13 ms on its first frame (shell taskbar insertion + live layer).
 Video RMSE per segment within +0.09 of the pre-OS baseline (open 0.3 better).
+
+## Results, window-system round 3 (prod build, 2026-11-05; shared machine, load 2-5)
+Video 1-1529 (--repeat 2): 4 frames over 6.94 ms (1413 13.8, 1414 10.5, frame 1, 558);
+open max 5.0, minimise max 4.9, restore p50 2.4. Video RMSE per segment unchanged (beam 12.18,
+open 21.49, intro 22.27, device idle 21.72, select 21.88, flip 21.62, album idle 20.72, minimise
+19.99, hidden 10.35, restore 20.71, album idle 2 20.68).
+?apps=opens A/B against the previous commit (open frame 0 / copy frames / close frame 0, ms):
+documents 12.0 / 6.7 / 12.5 -> 3.8 / 4.5 / 5.1, programs 8.3 / 6.7 / 7.5 -> 3.6 / 4.0 / 4.3,
+pictures 8.9 / 6.3 / 8.1 -> 4.3 / 5.8 / 6.1 (its content mount, the next frame, is 7.6),
+outlook / ie / im / word opens 3-5, closes 4-5.
+Restore end (1412-1414): not a repaint. Blink paints nothing; cc re-rasterises all ten copies
+(and the masked slab reflection canvases) a few frames after the restore's transforms settle,
+having changed their raster scale while they shrank in the minimise. Warm it costs 2-3 ms over
+two frames; in some full-range runs it blocks the commit (10-20 ms). Hiding the sub-0.3-scale
+samples, clamping the overshoot to 1 and an identity-perspective rest transform all left it
+unchanged.
