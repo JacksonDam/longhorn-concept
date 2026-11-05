@@ -8,3 +8,5 @@ dist
 /assets-src
 /out
 __pycache__
+/ref2
+/ref3
