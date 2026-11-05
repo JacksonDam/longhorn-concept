@@ -20,17 +20,22 @@ export const CATEGORIES = [
   { key: 'productivity', label: 'Productivity', color: ['#eef3ff', '#8ea6e0', '#3a52a0'], glyph: 'doc', items: [P('Word', 'doc', () => openWin('doc1', 'word')), P('my Documents', 'folder', () => openWin('documents', 'documents')), P('Notepad', 'text', () => openWin('notepad', 'notepad'))] },
 ]
 
-// a big glass tile icon: the category glyph on a glossy rounded square
-const GlassIcon = memo(function GlassIcon({ color, glyph }) {
-  const [hi, mid, lo] = color
-  return (
-    <div style={{ position: 'relative', width: 56, height: 56 }}>
-      <div style={{ position: 'absolute', left: 4, top: 52, width: 48, height: 6, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(30,60,120,0.35), rgba(30,60,120,0))' }} />
-      <div style={{ position: 'absolute', inset: '0 0 4px 0', borderRadius: 12, background: `linear-gradient(160deg, ${hi} 0, ${mid} 55%, ${lo} 100%)`, boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.6), 0 2px 4px rgba(30,60,120,0.35)` }} />
-      <div style={{ position: 'absolute', left: 4, top: 3, width: 48, height: 22, borderRadius: '10px 10px 30px 30px / 10px 10px 14px 14px', background: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.15))' }} />
-      <div style={{ position: 'absolute', left: 12, top: 10 }}>
-        <Ico kind={glyph} size={32} />
+// a big glass tile icon (ref3): a pale blue glass slab turned towards the text, the glyph on its
+// face, and a faint reflection below
+const GlassIcon = memo(function GlassIcon({ glyph }) {
+  const slab = (
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 7, background: 'linear-gradient(150deg, rgba(235,246,255,0.95) 0, rgba(176,214,250,0.9) 45%, rgba(120,175,235,0.9) 100%)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.9), inset -3px -3px 0 rgba(90,140,210,0.35), 0 2px 5px rgba(40,80,150,0.3)' }}>
+      <div style={{ position: 'absolute', left: 3, top: 3, right: 3, height: 20, borderRadius: '5px 5px 18px 18px / 5px 5px 8px 8px', background: 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.1))' }} />
+      <div style={{ position: 'absolute', left: 12, top: 12 }}>
+        <Ico kind={glyph} size={34} />
       </div>
+    </div>
+  )
+  const tf = 'perspective(260px) rotateY(24deg) rotateX(6deg)'
+  return (
+    <div style={{ position: 'relative', width: 58, height: 58 }}>
+      <div style={{ position: 'absolute', inset: 0, transform: tf, transformOrigin: '0 50%' }}>{slab}</div>
+      <div style={{ position: 'absolute', left: 0, top: 58, width: 58, height: 58, transform: tf + ' scaleY(-1)', transformOrigin: '0 0', opacity: 0.18, WebkitMaskImage: 'linear-gradient(180deg, transparent 50%, #000 100%)', maskImage: 'linear-gradient(180deg, transparent 50%, #000 100%)' }}>{slab}</div>
     </div>
   )
 })
@@ -41,27 +46,26 @@ function Tile({ win, t, cat, open }) {
   return (
     <div style={{ position: 'relative', width: 268, minHeight: 104 }}>
       <div style={{ position: 'absolute', left: 0, top: 4 }}>
-        <GlassIcon color={cat.color} glyph={cat.glyph} />
+        <GlassIcon glyph={cat.glyph} />
       </div>
-      <div style={{ position: 'absolute', left: 68, top: 0, fontFamily: HEAVY, fontSize: 13, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{cat.label}</div>
+      <div style={{ position: 'absolute', left: 72, top: 0, fontFamily: HEAVY, fontSize: 13.5, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{cat.label}</div>
       {shown.map((it, i) => {
         const k = cat.key + ':' + i
         const l = lit.get(k) || 0
         return (
           <div
             key={k}
-            style={{ position: 'absolute', left: 64, top: 19 + i * 17, height: 16, padding: '0 4px', borderRadius: 3, display: 'flex', gap: 5, alignItems: 'center', background: l > 0.5 ? C.rowHover : 'transparent', fontFamily: FONT, fontSize: 11, color: l > 0.5 ? C.link : C.textDark, whiteSpace: 'nowrap' }}
+            style={{ position: 'absolute', left: 68, top: 19 + i * 16, height: 15, padding: '0 4px', borderRadius: 3, display: 'flex', gap: 5, alignItems: 'center', background: l > 0.5 ? C.rowHover : 'transparent', fontFamily: FONT, fontSize: 11, color: l > 0.5 ? C.link : '#7b7d84', whiteSpace: 'nowrap' }}
             onPointerEnter={(e) => emit('hover', { id: wid(win, 'pi'), key: k, on: true, ...pt(e) })}
             onPointerLeave={() => emit('hover', { id: wid(win, 'pi'), key: k, on: false })}
             onPointerDown={(e) => e.button === 0 && it.go()}
           >
-            <Ico kind={it.icon} size={14} />
             {it.name}
           </div>
         )
       })}
       {cat.items.length > 3 && (
-        <div style={{ position: 'absolute', left: 68, top: 19 + shown.length * 17, fontFamily: FONT, fontSize: 10.5, color: '#8aa6d2' }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'more:' + cat.key), value: !open })}>
+        <div style={{ position: 'absolute', left: 72, top: 22 + shown.length * 16, fontFamily: FONT, fontSize: 10.5, color: '#8b8d94' }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'more:' + cat.key), value: !open })}>
           {open ? 'less...' : 'more...'}
         </div>
       )}
@@ -161,7 +165,8 @@ function Programs({ win, t, w, h, live }) {
       </div>
       <DropMenu id={wid(win, 'dd.g')} items={groupItems} />
       <DropMenu id={wid(win, 'dd.o')} items={orderItems} />
-      <ScrollView id={wid(win, 'sv')} x={196} y={34} w={w - 204} h={h - 40}>
+      <div style={{ position: 'absolute', left: 192, top: 32, width: w - 200, height: h - 38, borderRadius: 6, background: 'linear-gradient(180deg, #ffffff 0, #ffffff 60%, #eef4fc 100%)', boxShadow: 'inset 0 0 0 1px #c9daf0' }} />
+      <ScrollView id={wid(win, 'sv')} x={196} y={36} w={w - 204} h={h - 44}>
         <div style={{ position: 'relative', height: Math.ceil(cats.length / 2) * 118 + 10 }}>
           {cats.map((c, i) => {
             const open = group === 'all' || valueOf(t, wid(win, 'more:' + c.key), false)
