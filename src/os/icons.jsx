@@ -255,61 +255,87 @@ export const SearchIcon = () =>
     </>,
   )
 
-// a web page thumbnail (ofoto.com / yahoo.com / google.com)
-export function PageIcon({ kind }) {
-  return svg(
-    28,
-    32,
+// a web page thumbnail (ofoto.com / yahoo.com / google.com): a glass page turned away to the right
+// (perspective quad, its layout mapped through the same homography; the sites' own pages are not
+// reproduced, only abstract blocks), a bright left edge and a soft light halo, fitted to the
+// median of frames 800-1348.
+const PAGES = {
+  ofoto: (
     <>
       <defs>
-        <linearGradient id={`mw-page-${kind}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#d8e6f6" />
+        <linearGradient id="pgo-p" gradientUnits="userSpaceOnUse" x1="0.56" y1="1.88" x2="27.63" y2="26.56">
+          <stop offset="0" stopColor="#a5cff2" />
+          <stop offset="0.6" stopColor="#d6ecfd" />
+          <stop offset="1" stopColor="#aed4f7" />
         </linearGradient>
       </defs>
-      <rect x="1" y="2" width="26" height="29" fill={`url(#mw-page-${kind})`} />
-      <rect x="1" y="2" width="26" height="29" fill="none" stroke="#a9c4e8" strokeWidth="0.6" />
-      {kind === 'ofoto' && (
-        <>
-          <rect x="1" y="1" width="26" height="2.2" fill="#1b4f9a" />
-          <rect x="1" y="1" width="3" height="3" fill="#0b2a5e" />
-          <path d="M5 12 C6 8 11 8 12 11" stroke="#163c78" strokeWidth="1.8" fill="none" />
-          <circle cx="7" cy="12.5" r="1.1" fill="#163c78" />
-          <rect x="15" y="10" width="3" height="2" fill="#8aa9d6" />
-          <rect x="21" y="9" width="3" height="3" fill="#9db6dc" />
-          <rect x="18" y="15" width="3" height="2" fill="#7d9cc8" />
-          <rect x="11" y="16" width="4" height="2" fill="#a7bfe0" />
-          <circle cx="6" cy="27" r="1.6" fill="#163c78" />
-          <circle cx="15" cy="26" r="1.6" fill="#163c78" />
-          <circle cx="24" cy="25" r="1.6" fill="#163c78" />
-        </>
-      )}
-      {kind === 'yahoo' && (
-        <>
-          <rect x="3" y="4" width="22" height="3" fill="#9bb6dd" />
-          <rect x="3" y="9" width="9" height="8" fill="#b9cde8" />
-          <rect x="14" y="9" width="11" height="2" fill="#a8bfe2" />
-          <rect x="14" y="13" width="8" height="1.5" fill="#b3c8e6" />
-          <rect x="17" y="15" width="3" height="3" fill="#1b3f7a" />
-          <rect x="3" y="20" width="10" height="9" fill="#c5d6ee" />
-          <path d="M5 26 L8 21 L11 26" stroke="#6f8fc0" strokeWidth="1" fill="none" />
-          <rect x="15" y="21" width="9" height="1.5" fill="#b3c8e6" />
-          <rect x="15" y="24" width="7" height="1.5" fill="#b3c8e6" />
-        </>
-      )}
-      {kind === 'google' && (
-        <>
-          <rect x="9" y="7" width="10" height="3" fill="#9fb8de" />
-          <rect x="5" y="13" width="18" height="2" fill="#c3d4ec" />
-          <rect x="11" y="17" width="6" height="1.6" fill="#b0c6e6" />
-          <rect x="4" y="21" width="14" height="1" fill="#c9d8ee" />
-          <rect x="4" y="23" width="18" height="1" fill="#c9d8ee" />
-          <rect x="4" y="25" width="12" height="1" fill="#c9d8ee" />
-        </>
-      )}
-    </>,
-  )
+      <path d="M0.56 1.88 L29.13 3.22 L27.63 26.56 L2.45 29.12 Z" fill="none" stroke="#28617e" strokeOpacity="0.14" strokeWidth="2.27" strokeLinejoin="round" />
+      <path d="M0.56 1.88 L29.13 3.22 L27.63 26.56 L2.45 29.12 Z" fill="none" stroke="#28617e" strokeOpacity="0.28" strokeWidth="1.14" strokeLinejoin="round" />
+      <path d="M0.56 1.88 L29.13 3.22 L27.63 26.56 L2.45 29.12 Z" fill="url(#pgo-p)" />
+      <path d="M0.56 1.88 L29.13 3.22 L28.91 6.57 L0.84 5.86 Z" fill="#1861b3" />
+      <path d="M0.56 1.88 L2.9 1.98 L3.11 5.62 L0.82 5.56 Z" fill="#0c316c" />
+      <path d="M3.59 2.63 L5.84 2.73 L5.94 4.81 L3.71 4.74 Z" fill="#71c5ff" />
+      <path d="M3.6 13.21 L3.56 11.58 L4.08 10.06 L5.09 8.89 L6.45 8.24 L7.94 8.21 L9.33 8.78 L10.44 9.86 L11.11 11.28 L11.28 12.84 L10.92 14.32 L9.49 13.56 L9.69 12.69 L9.59 11.78 L9.19 10.97 L8.55 10.35 L7.74 10.04 L6.89 10.06 L6.12 10.44 L5.55 11.1 L5.24 11.97 L5.26 12.9 Z" fill="#1861b3" />
+      <path d="M6.22 14.4 L6.1 14.83 L5.73 15.15 L5.2 15.28 L4.67 15.18 L4.26 14.88 L4.09 14.45 L4.21 14.02 L4.59 13.69 L5.12 13.57 L5.66 13.68 L6.06 13.98 Z" fill="#1861b3" />
+      <path d="M15.2 12.66 L18.67 12.62 L18.65 13.89 L15.2 13.95 Z" fill="#82a9e4" />
+      <path d="M21.78 11.83 L24.28 11.81 L24.18 14.02 L21.71 14.07 Z" fill="#82a9e4" />
+      <path d="M17.59 15.91 L20.41 15.82 L20.38 17.03 L17.57 17.14 Z" fill="#71c5ff" />
+      <path d="M12.22 17.36 L16 17.21 L16 18.44 L12.24 18.61 Z" fill="#82a9e4" />
+      <path d="M9.26 26.1 L9.11 26.59 L8.67 26.98 L8.06 27.16 L7.43 27.09 L6.95 26.79 L6.76 26.32 L6.91 25.82 L7.36 25.43 L7.98 25.24 L8.61 25.32 L9.08 25.63 Z" fill="#1861b3" />
+      <path d="M18.36 24.39 L18.21 24.86 L17.8 25.23 L17.23 25.4 L16.67 25.33 L16.26 25.03 L16.11 24.58 L16.26 24.1 L16.68 23.73 L17.25 23.56 L17.82 23.64 L18.22 23.95 Z" fill="#1861b3" />
+      <path d="M25.29 22.95 L25.13 23.4 L24.73 23.76 L24.21 23.92 L23.7 23.84 L23.33 23.55 L23.2 23.11 L23.36 22.65 L23.76 22.29 L24.29 22.13 L24.81 22.21 L25.17 22.51 Z" fill="#1861b3" />
+      <path d="M1.01 1.88 L2.9 29.12" stroke="#ffffff" strokeOpacity="0.79" strokeWidth="0.9" />
+    </>
+  ),
+  yahoo: (
+    <>
+      <defs>
+        <linearGradient id="pgy-p" gradientUnits="userSpaceOnUse" x1="3.06" y1="4.88" x2="28.55" y2="29.5">
+          <stop offset="0" stopColor="#f2fff8" />
+          <stop offset="0.6" stopColor="#c8e5fc" />
+          <stop offset="1" stopColor="#ddf1f8" />
+        </linearGradient>
+      </defs>
+      <path d="M3.06 4.88 L28.83 6.69 L28.55 29.5 L2.95 31.62 Z" fill="none" stroke="#fefff2" strokeOpacity="0.17" strokeWidth="2.45" strokeLinejoin="round" />
+      <path d="M3.06 4.88 L28.83 6.69 L28.55 29.5 L2.95 31.62 Z" fill="none" stroke="#fefff2" strokeOpacity="0.34" strokeWidth="1.23" strokeLinejoin="round" />
+      <path d="M3.06 4.88 L28.83 6.69 L28.55 29.5 L2.95 31.62 Z" fill="url(#pgy-p)" />
+      <path d="M5.14 6.89 L27.26 8.2 L27.23 10.06 L5.13 9.02 Z" fill="#c7e0fa" />
+      <path d="M5.13 10.88 L14.33 11.21 L14.28 17.23 L5.1 17.24 Z" fill="#c7e0fa" />
+      <path d="M16.16 11.28 L27.21 11.68 L27.2 13.07 L16.14 12.77 Z" fill="#bcdefb" />
+      <path d="M16.13 14.01 L24.22 14.16 L24.21 15.11 L16.13 15 Z" fill="#c7e0fa" />
+      <path d="M19.4 16.26 L21.35 16.27 L21.32 19.38 L19.37 19.41 Z" fill="#134cab" />
+      <path d="M5.08 20.93 L14.78 20.72 L14.72 28.17 L5.04 28.83 Z" fill="#c7e0fa" />
+      <path d="M16.84 21.66 L25.97 21.4 L25.96 22.33 L16.83 22.64 Z" fill="#c7e0fa" />
+      <path d="M16.82 24.11 L24.11 23.8 L24.1 24.73 L16.81 25.09 Z" fill="#c7e0fa" />
+      <path d="M22.92 25.73 L25.93 25.57 L25.91 27.41 L22.9 27.62 Z" fill="#bcdefb" />
+      <path d="M3.51 4.88 L3.4 31.62" stroke="#ffffff" strokeOpacity="0.8" strokeWidth="0.9" />
+    </>
+  ),
+  google: (
+    <>
+      <defs>
+        <linearGradient id="pgg-p" gradientUnits="userSpaceOnUse" x1="1.88" y1="4.67" x2="28.03" y2="28.56">
+          <stop offset="0" stopColor="#cae8fe" />
+          <stop offset="0.6" stopColor="#dfefff" />
+          <stop offset="1" stopColor="#cddef2" />
+        </linearGradient>
+      </defs>
+      <path d="M1.88 4.67 L27.19 6.88 L28.03 28.56 L2.05 31.27 Z" fill="none" stroke="#e3d7e9" strokeOpacity="0.11" strokeWidth="2.7" strokeLinejoin="round" />
+      <path d="M1.88 4.67 L27.19 6.88 L28.03 28.56 L2.05 31.27 Z" fill="none" stroke="#e3d7e9" strokeOpacity="0.23" strokeWidth="1.35" strokeLinejoin="round" />
+      <path d="M1.88 4.67 L27.19 6.88 L28.03 28.56 L2.05 31.27 Z" fill="url(#pgg-p)" />
+      <path d="M10.63 8.34 L13.82 8.54 L13.88 11.4 L10.68 11.26 Z" fill="#a8cbf4" />
+      <path d="M13.83 9.02 L17.37 9.23 L17.43 11.55 L13.88 11.4 Z" fill="#89b9f9" />
+      <path d="M17.35 8.77 L20.7 8.99 L20.78 11.69 L17.43 11.55 Z" fill="#a8cbf4" />
+      <path d="M6.47 13.37 L24.25 13.82 L24.29 15.15 L6.49 14.9 Z" fill="#adcef9" />
+      <path d="M12.94 16.45 L19.02 16.46 L19.06 17.63 L12.96 17.67 Z" fill="#adcef9" />
+      <path d="M5.07 20.86 L18.65 20.45 L18.67 21.16 L5.07 21.64 Z" fill="#adcef9" />
+      <path d="M5.09 22.96 L22.27 22.18 L22.29 22.87 L5.1 23.75 Z" fill="#adcef9" />
+      <path d="M5.11 25.07 L16.25 24.39 L16.26 25.12 L5.12 25.87 Z" fill="#adcef9" />
+      <path d="M2.33 4.67 L2.5 31.27" stroke="#ffffff" strokeOpacity="0.8" strokeWidth="0.9" />
+    </>
+  ),
 }
+export const PageIcon = ({ kind }) => svg(28, 32, PAGES[kind])
 
 // "my music": two glass eighth notes (stems and flags are tubes, dark rim around a lit core; the
 // heads are glossy with a specular spot), fitted to the median of frames 800-1348.
