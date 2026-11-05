@@ -15,9 +15,23 @@ export const iconUrl = (f) => asset('img/desktop/icons/' + f + '.svg')
 // the Start button's white flag (Taskbar.jsx) is the XP flag recoloured, a 4x WebP
 preload([...FILES.map(iconUrl), asset('img/desktop/icons/flag-start.webp')])
 
-// one icon image at stage position (x, y), w x h stage px; data-ic marks it for icon-free captures
+// one icon image at stage position (x, y), w x h stage px; data-ic marks it for icon-free captures.
+// Chrome pixel-snaps an <img> box (873.5 lands on 874), so the box sits on whole pixels and the
+// fitted sub-pixel remainder is a translate, which is painted as is.
 export function Ico({ f, x, y, w, h, style }) {
-  return <img data-ic={f} src={iconUrl(f)} alt="" draggable={false} style={{ position: 'absolute', left: x, top: y, width: w, height: h, ...style }} />
+  const ix = Math.floor(x)
+  const iy = Math.floor(y)
+  const fx = +(x - ix).toFixed(3)
+  const fy = +(y - iy).toFixed(3)
+  return (
+    <img
+      data-ic={f}
+      src={iconUrl(f)}
+      alt=""
+      draggable={false}
+      style={{ position: 'absolute', left: ix, top: iy, width: w, height: h, transform: fx || fy ? `translate(${fx}px, ${fy}px)` : undefined, ...style }}
+    />
+  )
 }
 
 const svg = (w, h, extra) => ({
