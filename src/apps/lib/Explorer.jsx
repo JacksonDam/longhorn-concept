@@ -114,10 +114,19 @@ function TaskLink({ id, a, b, onClick, icon, y }) {
     </div>
   )
 }
-const Heading = memo(function Heading({ a, b, y }) {
+// a task group heading: click it to fold the group away (and back), as XP's task panes do
+const Heading = memo(function Heading({ a, b, y, folded, onToggle }) {
   return (
-    <div style={{ position: 'absolute', left: 14, top: y, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap', lineHeight: '20px' }}>
+    <div
+      style={{ position: 'absolute', left: 14, top: y, width: PANE_W - 24, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap', lineHeight: '20px' }}
+      onPointerDown={(e) => e.button === 0 && onToggle?.()}
+    >
       {a} <span style={{ fontWeight: 500, color: C.heading }}>{b}</span>
+      {onToggle && (
+        <svg width="9" height="6" style={{ position: 'absolute', right: 4, top: 8 }}>
+          <path d={folded ? 'M0 0 L9 0 L4.5 6 Z' : 'M0 6 L9 6 L4.5 0 Z'} fill="#8ebbe9" />
+        </svg>
+      )}
     </div>
   )
 })
@@ -172,13 +181,20 @@ function newFolder(path) {
 }
 const noPrinter = () => messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 
-function TaskPane({ win, path, node, selNode, preview, h }) {
+function TaskPane({ win, t, path, node, selNode, preview, h }) {
   const groups = tasksFor(win, path, node, selNode)
   let y = 18
   const out = []
+  const fold = (k) => valueOf(t, wid(win, 'fold:' + k), false)
+  const toggle = (k) => () => emit('ui.value', { id: wid(win, 'fold:' + k), value: !valueOf(now(), wid(win, 'fold:' + k), false) })
   groups.forEach(([[a, b], links], gi) => {
-    out.push(<Heading key={'h' + gi} a={a} b={b} y={y} />)
+    const k = a + b
+    out.push(<Heading key={'h' + gi} a={a} b={b} y={y} folded={fold(k)} onToggle={toggle(k)} />)
     y += 28
+    if (fold(k)) {
+      y += 2
+      return
+    }
     links.forEach(([la, lb, icon, fn], li) => {
       out.push(<TaskLink key={gi + ':' + li} id={wid(win, `task.${gi}.${li}`)} a={la} b={lb} icon={icon} onClick={fn} y={y} />)
       y += 20
@@ -188,8 +204,8 @@ function TaskPane({ win, path, node, selNode, preview, h }) {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: PANE_W, height: h }}>
       {out}
-      <Heading a="" b="details" y={y} />
-      <Details node={selNode || node} path={path} y={y + 28} preview={preview} />
+      <Heading a="" b="details" y={y} folded={fold('details')} onToggle={toggle('details')} />
+      {!fold('details') && <Details node={selNode || node} path={path} y={y + 28} preview={preview} />}
     </div>
   )
 }
@@ -410,7 +426,7 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
   const statusH = 20
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      {showPane && (nav.folders ? <FolderTree win={win} path={path} h={h - statusH} t={t} /> : <TaskPane win={win} path={path} node={node} selNode={selNode} preview={nav.preview} h={h - statusH} />)}
+      {showPane && (nav.folders ? <FolderTree win={win} path={path} h={h - statusH} t={t} /> : <TaskPane win={win} t={t} path={path} node={node} selNode={selNode} preview={nav.preview} h={h - statusH} />)}
       {view === 'details' ? (
         <ListView
           id={wid(win, 'items')}
