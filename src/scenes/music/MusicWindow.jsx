@@ -24,7 +24,7 @@ import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from './B
 import { AlbumGrid } from './Grid.jsx'
 import { Header } from './Header.jsx'
 import { Beam } from './Beam.jsx'
-import { HEADER, PAGE_DELAY, OPEN_END, openPose, openMoving, poseCss, smoothRamp, toRel, minimizePose, restorePose, MIN_END, RESTORE_END } from './timeline.js'
+import { HEADER, PAGE_DELAY, OPEN_END, OPEN_DELAY, RESTORE_DELAY, openPose, openMoving, poseCss, smoothRamp, toRel, minimizePose, restorePose, MIN_END, RESTORE_END } from './timeline.js'
 import { ALBUMS } from './albums.js'
 
 export function musicWindowState(t) {
@@ -149,7 +149,12 @@ const CLOSE_SPEED = 1.6
 const CLOSE_END = (OPEN_END - 5) / CLOSE_SPEED
 
 function MusicWindowLayer({ t }) {
-  const st = musicWindowState(t)
+  const st0 = musicWindowState(t)
+  // internal reference times: the fitted animations start a little after the events
+  const st = { ...st0 }
+  if (st.openedAt != null) st.openedAt += OPEN_DELAY / FPS
+  if (st.changedAt != null && st0.changedAt !== st0.openedAt) st.changedAt += (st.minimized ? 0 : RESTORE_DELAY) / FPS
+  else if (st.changedAt != null) st.changedAt = st.openedAt
   if (st.closedAt != null) {
     const crel = toRel(t, st.closedAt)
     if (crel >= CLOSE_END + 3) return null

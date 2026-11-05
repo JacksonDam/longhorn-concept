@@ -1,11 +1,15 @@
 // Timings and fitted motion of the my Music window, in video frames (29.97 fps).
-// "rel" frames count from the event that starts an animation (music.open at video frame 694,
-// music.album at 945.5, music.minimize at 1353, music.restore at 1403).
+// "rel" frames count from the reference point of each animation: video frame 694 for the open
+// (music.open + OPEN_DELAY), the album click (945.5), music.minimize (1354.5) and
+// music.restore + RESTORE_DELAY (1403.5). The delays map the desktop scene's event times
+// (music.open 693.5, music.restore 1402.6) onto the fitted tables.
 import { FPS } from '../../core/clock.js'
 import { clamp, lerp } from '../../core/anim.js'
 import { DEVICE_F0, DEVICE_POSES, ALBUM_POSES } from './poses.js'
 
 export const toRel = (t, t0) => (t - t0) * FPS
+export const OPEN_DELAY = 0.5
+export const RESTORE_DELAY = 0.9
 export const relToSec = (f) => f / FPS
 
 // Catmull-Rom through rows [[f, v0, v1, ...], ...] sorted by f (clamped at both ends)
