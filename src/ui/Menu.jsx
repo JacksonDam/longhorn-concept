@@ -241,7 +241,7 @@ const Title = memo(function Title({ label, look, lit, open, variant }) {
   )
 })
 
-export function MenuBar({ id, menus, x, y, h = 17, variant = 'band', pad = 7, gap = 2, style }) {
+export function MenuBar({ id, menus, x, y, h = 17, variant = 'band', pad = 8, gap = 0, style }) {
   const t = useTime()
   const st = menuState(t, id)
   const open = st && st.open != null ? st.open : null

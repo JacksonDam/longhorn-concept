@@ -1,10 +1,11 @@
 // Inbox - Microsoft Outlook: folders, the message list (the sidebar's mail subjects), the reading
 // pane; New / Reply / Reply to All / Forward open a compose window that "sends" into Sent Items.
 // win.open { id: 'inbox', app: 'outlook', props: { message: <subject | index> } } shows that message.
+import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, find, lastOf, ListView, select, selectionOf, ContextMenu, contextHandler, TextField, textOf, Button, ScrollView, hoverKeys, pt, C, FONT, HEAVY } from '../../ui/index.js'
+import { scoped, wid, valueOf, find, lastOf, ListView, select, selectionOf, ContextMenu, contextHandler, TextField, textOf, Button, ScrollView, hoverKeys, pt, DropMenu, dropBelow, C, FONT, HEAVY } from '../../ui/index.js'
 import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
@@ -62,25 +63,31 @@ const Reading = memo(function Reading({ m, w }) {
 function NavPane({ win, t, folder, ms, top, h }) {
   const lit = hoverKeys(t, wid(win, 'nav:h'))
   const unreadIn = (k) => (k === 'unread' ? ms.folders.inbox : ms.folders[k] || []).filter((m) => ms.isUnread(m)).length
+  // the groups fold from their labels, Personal Folders from its row
+  const fold = (k) => valueOf(t, wid(win, 'nfold:' + k), false)
+  const toggle = (k) => emit('ui.value', { id: wid(win, 'nfold:' + k), value: !valueOf(now(), wid(win, 'nfold:' + k), false) })
   const rows = [
-    ['sub', 'Favorite Folders'],
-    ['inbox', 'Inbox'],
-    ['unread', 'Unread Mail'],
-    ['sent', 'Sent Items'],
-    ['sub', 'All Mail Folders'],
-    ['root', 'Personal Folders'],
-    ...FOLDERS.map((f) => ['f:' + f.key, f.label]),
+    ['sub', 'Favorite Folders', 'fav'],
+    ...(fold('fav') ? [] : [['inbox', 'Inbox'], ['unread', 'Unread Mail'], ['sent', 'Sent Items']]),
+    ['sub', 'All Mail Folders', 'all'],
+    ...(fold('all') ? [] : [['root', 'Personal Folders'], ...(fold('root') ? [] : FOLDERS.map((f) => ['f:' + f.key, f.label]))]),
   ]
   let y = top + 34
   return (
     <>
-      <div style={{ position: 'absolute', left: 12, top: top + 8, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'folder'), value: 'inbox' })} style={{ position: 'absolute', left: 12, top: top + 8, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
         my <span style={{ fontWeight: 500, color: C.heading }}>Mail</span>
       </div>
-      {rows.map(([k, label], i) => {
+      {rows.map(([k, label, fk0], i) => {
         const yy = y
         y += k === 'sub' ? 22 : 19
-        if (k === 'sub') return <div key={i} style={{ position: 'absolute', left: 12, top: yy + 5, fontFamily: HEAVY, fontSize: 10.5, color: '#5b7299' }}>{label}</div>
+        if (k === 'sub')
+          return (
+            <div key={i} onPointerDown={(e) => e.button === 0 && toggle(fk0)} style={{ position: 'absolute', left: 12, top: yy + 5, width: NAV_W - 24, fontFamily: HEAVY, fontSize: 10.5, color: '#5b7299' }}>
+              <span style={{ display: 'inline-block', width: 10, fontSize: 8 }}>{fold(fk0) ? '\u25b8' : '\u25be'}</span>
+              {label}
+            </div>
+          )
         const fk = k.startsWith('f:') ? k.slice(2) : k
         const indent = k === 'root' ? 18 : k.startsWith('f:') ? 34 : 18
         const n = k === 'root' ? 0 : unreadIn(fk)
@@ -92,7 +99,7 @@ function NavPane({ win, t, folder, ms, top, h }) {
             style={{ position: 'absolute', left: 4, top: yy, width: NAV_W - 10, height: 18 }}
             onPointerEnter={(e) => emit('hover', { id: wid(win, 'nav:h'), key: k, on: true, ...pt(e) })}
             onPointerLeave={() => emit('hover', { id: wid(win, 'nav:h'), key: k, on: false })}
-            onPointerDown={(e) => e.button === 0 && k !== 'root' && emit('ui.value', { id: wid(win, 'folder'), value: fk })}
+            onPointerDown={(e) => e.button === 0 && (k === 'root' ? toggle('root') : emit('ui.value', { id: wid(win, 'folder'), value: fk }))}
           >
             {(on || l > 0) && <div style={{ position: 'absolute', inset: 0, borderRadius: 3, background: on ? C.rowSel : C.rowHover, opacity: on ? 1 : l, boxShadow: on ? `inset 0 0 0 1px ${C.rowSelEdge}` : 'none' }} />}
             <div style={{ position: 'absolute', left: indent - 14, top: 2 }}>
@@ -130,6 +137,9 @@ function Outlook({ win, t, w, h, active }) {
   let msgs = folder === 'unread' ? ms.folders.inbox.filter((m) => ms.isUnread(m)) : ms.folders[folder] || []
   if (q) msgs = msgs.filter((m) => (m.subject + ' ' + m.from + ' ' + m.body).toLowerCase().includes(q))
   if (!newest) msgs = [...msgs].reverse()
+  // like Outlook, the newest message is selected until the user picks one
+  const autoSel = !selE && !fromProps && msgs.length ? msgs[0].key : null
+  if (autoSel) selKey = autoSel
   const sel = selKey ? ms.byKey.get(selKey) : null
   const selIn = sel && msgs.some((m) => m.key === sel.key) ? sel : null
   const top = appTopHeight()
@@ -163,6 +173,7 @@ function Outlook({ win, t, w, h, active }) {
     { id: id('findb'), icon: 'find', label: 'Find', onClick: () => emit('ui.value', { id: id('find'), value: !finder }), active: finder },
   ]
   const goF = (k) => () => emit('ui.value', { id: id('folder'), value: k })
+  const folderItems = [...FOLDERS.map((f) => ({ label: f.label, radio: folder === f.key, onClick: goF(f.key) })), '-', { label: 'Unread Mail', radio: folder === 'unread', onClick: goF('unread') }]
   const menus = [
     { key: 'file', label: 'File', items: [{ label: 'New', items: [{ label: 'Mail Message', shortcut: 'Ctrl+N', onClick: () => compose('new') }] }, { label: 'Open', disabled: !selIn, onClick: () => selIn && openWin('read:' + selIn.key, 'compose', { mode: 'read', ref: selIn.key }) }, '-', { label: 'Print...', onClick: noPrinter }, '-', { label: 'Work Offline', checked: true, onClick: sendRecv }, { label: 'Exit', onClick: () => closeWin(win.id) }] },
     { key: 'edit', label: 'Edit', items: [{ label: 'Delete', shortcut: 'Ctrl+D', disabled: !selIn, onClick: () => del(selIn) }, '-', { label: 'Mark as Read', disabled: !selIn, onClick: () => selIn && emit('mail.read', { key: selIn.key }) }, { label: 'Mark as Unread', disabled: !selIn, onClick: () => selIn && emit('mail.unread', { key: selIn.key }) }, '-', { label: 'Select All', shortcut: 'Ctrl+A', onClick: () => select(listId, msgs.map((m) => m.key)) }] },
@@ -196,7 +207,13 @@ function Outlook({ win, t, w, h, active }) {
       <AppTop id={id('m')} w={w} menus={menus} toolbar={toolbar} />
       <div style={{ position: 'absolute', left: 0, top, width: NAV_W, height: h - top - sbH, background: 'linear-gradient(90deg, rgba(225,235,250,0.6), rgba(240,246,255,0.3))', boxShadow: `inset -1px 0 0 ${C.borderLight}` }} />
       <NavPane win={win} t={t} folder={folder} ms={ms} top={top} h={h} />
-      <div style={{ position: 'absolute', left: NAV_W + 10, top: top + 6, fontFamily: FONT, fontSize: 17.5, fontWeight: 500, color: C.heading, whiteSpace: 'nowrap' }}>{name}</div>
+      <div
+        style={{ position: 'absolute', left: NAV_W + 10, top: top + 6, fontFamily: FONT, fontSize: 17.5, fontWeight: 500, color: C.heading, whiteSpace: 'nowrap' }}
+        onPointerDown={(e) => e.button === 0 && dropBelow(id('dd.folders'), e.currentTarget, folderItems)}
+      >
+        {name} <span style={{ fontSize: 10, color: '#8ebbe9' }}>{'\u25be'}</span>
+      </div>
+      <DropMenu id={id('dd.folders')} items={folderItems} />
       <div style={{ position: 'absolute', left: NAV_W + 10, top: top + 32, fontFamily: FONT, fontSize: 10.5, color: '#8b91a6', whiteSpace: 'nowrap' }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('newest'), value: !newest })}>
         Arranged By: <span style={{ color: '#5b7299', fontWeight: 560 }}>Date</span>
         <span style={{ marginLeft: 30, color: '#5b7299' }}>{newest ? 'Newest on top' : 'Oldest on top'} {'▾'}</span>
@@ -220,7 +237,7 @@ function Outlook({ win, t, w, h, active }) {
         active={active}
         items={msgs.map((m) => ({ key: m.key, cells: [<Row key="r" m={m} unread={ms.isUnread(m)} w={listW - 22} />] }))}
         onSelect={onSelect}
-        selected={fromProps ? [fromProps.key] : undefined}
+        selected={fromProps ? [fromProps.key] : autoSel ? [autoSel] : undefined}
         onOpen={(it) => openWin((folder === 'drafts' ? 'draft:' : 'read:') + it.key, 'compose', { mode: folder === 'drafts' ? 'draft' : 'read', ref: it.key })}
         onContext={contextHandler(id('ctx'), ctxItems)}
         emptyText={`There are no items to show in this view.`}
@@ -233,7 +250,12 @@ function Outlook({ win, t, w, h, active }) {
           </ScrollView>
         </>
       )}
-      <StatusBar y={h - sbH} w={w} left={<span>{msgs.length} Items{unreadCount ? `, ${unreadCount} Unread` : ''}</span>} right={<span>Offline</span>} />
+      <StatusBar
+        y={h - sbH}
+        w={w}
+        left={<span onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('folder'), value: folder === 'unread' ? 'inbox' : 'unread' })}>{msgs.length} Items{unreadCount ? `, ${unreadCount} Unread` : ''}</span>}
+        right={<span onPointerDown={(e) => e.button === 0 && sendRecv()}>Offline</span>}
+      />
       <ContextMenu id={id('ctx')} items={ctxItems} />
     </div>
   )
@@ -241,6 +263,30 @@ function Outlook({ win, t, w, h, active }) {
 
 const noPrinter = () => messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 
+// what the blur copies draw: the panes as blocks, the rows and the message as text bars
+const AppProxy = memo(function AppProxy({ w, h }) {
+  const top = appTopHeight()
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
+      <TopProxy w={w} labels="File  Edit  View  Go  Tools  Actions  Help" />
+      {box(0, top, NAV_W, h - top - 20, { background: 'linear-gradient(90deg, rgba(225,235,250,0.6), rgba(240,246,255,0.3))', boxShadow: `inset -1px 0 0 ${C.borderLight}` })}
+      <Text x={12} y={top + 10} size={17.5} color={C.heading}>my Mail</Text>
+      <Lines x={22} y={top + 38} w={NAV_W - 70} n={4} gap={19} bar={6} />
+      <Lines x={36} y={top + 128} w={NAV_W - 80} n={6} gap={19} bar={6} />
+      <Text x={NAV_W + 10} y={top + 8} size={17.5} color={C.heading}>Inbox</Text>
+      {Array.from({ length: 9 }, (_, i) => (
+        <div key={i}>
+          <Lines x={NAV_W + 34} y={top + 55 + i * 36} w={LIST_W - 50} n={2} gap={15} bar={6} color={i < 3 ? 'rgba(44,108,196,0.35)' : 'rgba(90,100,130,0.22)'} />
+        </div>
+      ))}
+      {box(NAV_W + LIST_W + 6, top + 4, w - NAV_W - LIST_W - 10, h - top - 28, { borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.borderLight}` })}
+      <Lines x={NAV_W + LIST_W + 20} y={top + 16} w={w - NAV_W - LIST_W - 120} n={1} gap={17} bar={9} color="rgba(45,53,80,0.4)" />
+      <Lines x={NAV_W + LIST_W + 20} y={top + 40} w={w - NAV_W - LIST_W - 160} n={3} gap={14} bar={6} />
+      <Lines x={NAV_W + LIST_W + 20} y={top + 104} w={w - NAV_W - LIST_W - 50} n={5} gap={17} bar={7} />
+      {box(0, h - 20, w, 20, { background: 'linear-gradient(180deg, #e3eaf6 0, #d3dfef 100%)' })}
+    </div>
+  )
+})
 export default {
   id: 'outlook',
   title: () => 'Inbox - Microsoft Outlook',
@@ -252,4 +298,5 @@ export default {
   explorer: false,
   background: '#f6f9fe',
   Content: scoped(Outlook, { watch: ['mail'] }),
+  Proxy: AppProxy,
 }

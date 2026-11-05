@@ -14,6 +14,7 @@ import { scoped, wid, valueOf, hoverKeys, pt, selectionOf, ListView, ContextMenu
 import { useUITime as useT } from '../../ui/scope.jsx'
 import { getApp } from '../../os/apps.js'
 import { Ico } from './icons.jsx'
+import { Lines as ProxyLines } from './proxy.jsx'
 import { PictureArt } from './pictures.jsx'
 import { ROOT, nodeAt, pathKey, openFile, openMusic, kb, typeName, MY_DOCS, MY_PICS } from './fs.js'
 import { openWin, openUrl, messageBox } from './common.js'
@@ -113,10 +114,19 @@ function TaskLink({ id, a, b, onClick, icon, y }) {
     </div>
   )
 }
-const Heading = memo(function Heading({ a, b, y }) {
+// a task group heading: click it to fold the group away (and back), as XP's task panes do
+const Heading = memo(function Heading({ a, b, y, folded, onToggle }) {
   return (
-    <div style={{ position: 'absolute', left: 14, top: y, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap', lineHeight: '20px' }}>
+    <div
+      style={{ position: 'absolute', left: 14, top: y, width: PANE_W - 24, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap', lineHeight: '20px' }}
+      onPointerDown={(e) => e.button === 0 && onToggle?.()}
+    >
       {a} <span style={{ fontWeight: 500, color: C.heading }}>{b}</span>
+      {onToggle && (
+        <svg width="9" height="6" style={{ position: 'absolute', right: 4, top: 8 }}>
+          <path d={folded ? 'M0 0 L9 0 L4.5 6 Z' : 'M0 6 L9 6 L4.5 0 Z'} fill="#8ebbe9" />
+        </svg>
+      )}
     </div>
   )
 })
@@ -171,13 +181,20 @@ function newFolder(path) {
 }
 const noPrinter = () => messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 
-function TaskPane({ win, path, node, selNode, preview, h }) {
+function TaskPane({ win, t, path, node, selNode, preview, h }) {
   const groups = tasksFor(win, path, node, selNode)
   let y = 18
   const out = []
+  const fold = (k) => valueOf(t, wid(win, 'fold:' + k), false)
+  const toggle = (k) => () => emit('ui.value', { id: wid(win, 'fold:' + k), value: !valueOf(now(), wid(win, 'fold:' + k), false) })
   groups.forEach(([[a, b], links], gi) => {
-    out.push(<Heading key={'h' + gi} a={a} b={b} y={y} />)
+    const k = a + b
+    out.push(<Heading key={'h' + gi} a={a} b={b} y={y} folded={fold(k)} onToggle={toggle(k)} />)
     y += 28
+    if (fold(k)) {
+      y += 2
+      return
+    }
     links.forEach(([la, lb, icon, fn], li) => {
       out.push(<TaskLink key={gi + ':' + li} id={wid(win, `task.${gi}.${li}`)} a={la} b={lb} icon={icon} onClick={fn} y={y} />)
       y += 20
@@ -187,8 +204,8 @@ function TaskPane({ win, path, node, selNode, preview, h }) {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: PANE_W, height: h }}>
       {out}
-      <Heading a="" b="details" y={y} />
-      <Details node={selNode || node} path={path} y={y + 28} preview={preview} />
+      <Heading a="" b="details" y={y} folded={fold('details')} onToggle={toggle('details')} />
+      {!fold('details') && <Details node={selNode || node} path={path} y={y + 28} preview={preview} />}
     </div>
   )
 }
@@ -409,7 +426,7 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
   const statusH = 20
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      {showPane && (nav.folders ? <FolderTree win={win} path={path} h={h - statusH} t={t} /> : <TaskPane win={win} path={path} node={node} selNode={selNode} preview={nav.preview} h={h - statusH} />)}
+      {showPane && (nav.folders ? <FolderTree win={win} path={path} h={h - statusH} t={t} /> : <TaskPane win={win} t={t} path={path} node={node} selNode={selNode} preview={nav.preview} h={h - statusH} />)}
       {view === 'details' ? (
         <ListView
           id={wid(win, 'items')}
@@ -480,6 +497,39 @@ function crumbMenusOf(win, t, path) {
   return path.length > 1 ? [up.length ? up : [here], sub.length ? sub : [here]] : [sub.length ? sub : [here], null]
 }
 
+// what the blur copies draw: the task pane as bars, the items as icons in their grid cells
+const ExplorerProxy = memo(function ExplorerProxy({ win, t, w, h, root, defView }) {
+  const nav = navOf(t, win, root)
+  const kids = (childrenAt(t, nav.path) || []).slice(0, 24)
+  const node = resolve(nav.path)
+  const view = valueOf(t, wid(win, 'view:' + pathKey(nav.path)), node?.special === 'pictures' ? 'thumbs' : defView)
+  const left = nav.hide ? 0 : PANE_W
+  const [cw, ch] = VIEWS[view === 'details' ? 'tiles' : view] || VIEWS.tiles
+  const cols = Math.max(1, Math.floor((w - left - 20) / cw))
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
+      {!nav.hide && (
+        <>
+          <ProxyLines x={34} y={24} w={130} n={1} gap={20} bar={11} color="rgba(59,124,198,0.35)" />
+          <ProxyLines x={40} y={54} w={120} n={3} gap={20} bar={7} />
+          <ProxyLines x={34} y={136} w={110} n={1} gap={20} bar={11} color="rgba(59,124,198,0.35)" />
+          <ProxyLines x={40} y={164} w={100} n={4} gap={20} bar={7} />
+        </>
+      )}
+      {kids.map((n, i) =>
+        (i % cols) * cw + left + 10 > w || 8 + Math.floor(i / cols) * ch > h - 30 ? null : (
+          <div key={n.name} style={{ position: 'absolute', left: left + 10 + (i % cols) * cw, top: 8 + Math.floor(i / cols) * ch }}>
+            <div style={{ position: 'absolute', left: 4, top: 3 }}>
+              <Ico kind={iconOf(n)} size={view === 'tiles' ? 42 : 40} />
+            </div>
+            {view === 'tiles' && <ProxyLines x={54} y={6} w={Math.min(cw - 70, n.name.length * 6)} n={2} gap={15} bar={6} />}
+          </div>
+        ),
+      )}
+    </div>
+  )
+})
+
 export function makeExplorer({ id, title, taskbar, root, view = 'tiles', position, size = { w: 720, h: 540 }, search }) {
   const app = {
     id,
@@ -504,6 +554,7 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
       pressed: () => null,
     },
   }
+  app.Proxy = (props) => <ExplorerProxy {...props} root={root} defView={view} />
   app.Content = scoped(
     function Explorer(props) {
       return <ExplorerBody {...props} root={root} defView={view} app={getApp(id)} />

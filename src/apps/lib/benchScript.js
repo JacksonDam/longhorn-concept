@@ -1,4 +1,4 @@
-// ?apps=<name>: a demo-like event list for the apps, appended after the video's input (frames
+// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens'): a demo-like event list for the apps, appended after the video's input (frames
 // 1530+), so tools/bench.mjs and tools/capture.mjs can step and measure the apps' windows on the
 // ?capture path:  node tools/bench.mjs 1530-1960 --url "http://localhost:5304/longhorn-concept/?apps=all"
 import { onEvents, getLog, emit } from '../../core/events.js'
@@ -45,6 +45,15 @@ function script(name) {
     at(1910, 'im.send', { id: 'im:Hank', buddy: 'Hank', text: 'Are we still on for Saturday?' })
     at(1920, 'win.close', { id: 'im:Hank' })
     at(1935, 'win.minimize', { id: 'winamp' })
+  }
+  if (name === 'opens') {
+    // each heavy app opens, settles and closes: frames 1540-1540+7*60
+    const list = [['pictures', 'pictures'], ['outlook', 'inbox', { message: 'Hello' }], ['ie', 'ie', { url: 'www.msn.com' }], ['im', 'im:Hank', { buddy: 'Hank' }], ['word', 'doc1'], ['programs', 'programs'], ['documents', 'documents']]
+    list.forEach(([app, id, props], i) => {
+      const f = 1540 + i * 60
+      at(f, 'win.open', props ? { id, app, props } : { id, app })
+      at(f + 45, 'win.close', { id })
+    })
   }
   return ev
 }

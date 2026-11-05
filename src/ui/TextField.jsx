@@ -42,8 +42,10 @@ const boxLook = {
   // the my Music breadcrumb / search field on the blue band
   chrome: (f) => ({
     borderRadius: 9,
-    background: f ? 'linear-gradient(90deg, #eef6ff, #f4f8fd)' : 'linear-gradient(90deg, #d9ecfb 0, #e5effa 60%, #dce8f6 100%)',
-    boxShadow: '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
+    background: f ? '#ffffff' : 'linear-gradient(90deg, #d9ecfb 0, #e5effa 60%, #dce8f6 100%)',
+    boxShadow: f
+      ? '0 -1px 0 rgba(20,55,105,0.75), inset 0 0 0 1px #8cc4ff, 0 0 4px rgba(140,200,255,0.8)'
+      : '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
   }),
   bare: () => ({}),
 }

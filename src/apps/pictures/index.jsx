@@ -3,6 +3,7 @@
 // Videos", task pane (enjoy pictures, find pictures, Refine By Date calendar, file types),
 // date-grouped thumbnails, a detail view per photo (comments, keywords, location, Edit),
 // albums, and the full-screen slide show (app 'slideshow').
+import { Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -163,7 +164,9 @@ function Header({ win }) {
       <div style={{ position: 'absolute', left: 0, top: -123 }}>
         <Swoosh />
       </div>
-      <Frame />
+      <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
+        <Frame />
+      </div>
       <Title />
       <HeaderButton id={wid(win, 'hb.show')} x={318} icon={<Projector />} a="View" b="Slide Show" onClick={() => slideshow(null, true)} />
       <HeaderButton id={wid(win, 'hb.album')} x={418} icon={<AlbumIcon />} a="Create" b="Album" onClick={() => openWin('album', 'album')} />
@@ -216,14 +219,14 @@ function TaskPane({ win, t, st }) {
       {L('print', 94, 'Print Pictures', 'print', printBox)}
       {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()))}
       <Head a="find" b="pictures" y={132} />
-      <div style={{ ...small, left: PANE_X - 8, top: 155 }}>Containing the words:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 155 }} onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>Containing the words:</div>
       <TextField id={wid(win, 'words')} x={PANE_X - 8} y={170} w={136} h={17} size={10.5} pad={4} />
-      <div style={{ ...small, left: PANE_X - 8, top: 194 }}>Show all images by:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 194 }} onPointerDown={(e) => e.button === 0 && set(win, 'tag', null)}>Show all images by:</div>
       {tags.map((tg, i) => L('tag' + tg, 209 + i * 16, tg, undefined, () => set(win, 'tag', st.tag === tg ? null : tg), st.tag === tg))}
       {L('more', 257, st.moreTags ? 'Back...' : 'More...', undefined, () => set(win, 'moretags', !st.moreTags))}
-      <div style={{ ...small, left: PANE_X - 8, top: 282 }}>Refine By Date:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 282 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
       <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} />
-      <div style={{ ...small, left: PANE_X - 8, top: 450 }}>Of this file type:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 450 }} onPointerDown={(e) => e.button === 0 && set(win, 'type', 'all')}>Of this file type:</div>
       {L('tpic', 466, 'Pictures', 'picture', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
       <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'display', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
       {L('talb', 484, 'Albums', 'folder', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
@@ -348,7 +351,9 @@ function Grid({ win, t, groups, x, y, w, h, tw, th, active, st, onOpen, edits })
           {blocks.map(({ g, y: gy, h: gh }) =>
             gy + gh < pos - 40 || gy > pos + h + 40 ? null : (
               <div key={g.id} style={{ position: 'absolute', left: 0, top: gy, width }}>
-                <GroupHead title={g.title} caption={g.caption} w={width} />
+                <div onPointerDown={(e) => e.button === 0 && g.photos[0] && openDetail(win, g.photos[0])}>
+                  <GroupHead title={g.title} caption={g.caption} w={width} />
+                </div>
                 {g.photos.map((p, i) => (
                   <div
                     key={p.id}
@@ -630,6 +635,68 @@ function clearFilters(win) {
   emit('ui.value', { id: wid(win, 'cal'), value: { level: 'days', y: 2002, m: 4, sel: null } })
 }
 
+// what the blur copies draw: the header or the photo, the task pane as bars and the thumbnails
+// as one element with many background images
+const AppProxy = memo(function AppProxy({ win, t, w, h }) {
+  const st = viewOf(t, win, picState(t, win))
+  const detail = st.view === 'detail'
+  const groups = st.type === 'album' ? [] : visibleGroups(st)
+  const tw = Math.round(40 + st.size * 40)
+  const th = Math.round(tw * 0.75)
+  const gap = Math.round(tw * 0.18) + 4
+  const barY = detail ? 288 : 206
+  const gridY = barY + 22
+  const width = w - AREA_X - 30
+  const cols = Math.max(1, Math.floor((width + gap) / (tw + gap)))
+  const shown = detail ? groups.filter((g) => g.photos.some((p) => p.id === st.photo)) : groups
+  // the first groups that fit, each a header bar and one image grid
+  let gy = gridY
+  const blocks = []
+  for (const g of shown.slice(0, 3)) {
+    if (gy > h - 60) break
+    const rows = Math.min(Math.ceil(g.photos.length / cols), Math.max(1, Math.floor((h - 44 - gy - 24) / (th + gap))))
+    blocks.push({ g, y: gy, rows })
+    gy += 24 + Math.ceil(g.photos.length / cols) * (th + gap) + 10
+  }
+  const p = detail ? photoById(st.photo) : null
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body, overflow: 'hidden' }}>
+      {!detail && (
+        <>
+          {box(168, 18, 118, 132, { borderRadius: 6, background: 'linear-gradient(135deg, #f7fbff 0, #c9d5e6 40%, #eef3fa 60%, #a9b8cc 100%)', transform: 'perspective(500px) rotateY(24deg) rotateX(4deg) rotateZ(-2deg)', transformOrigin: '50% 100%' })}
+          {box(410, 140, 240, 120, { borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(110,168,239,0.55), rgba(110,168,239,0))' })}
+          <Title />
+          {box(340, 108, 34, 30, { borderRadius: 6, background: 'linear-gradient(180deg, #f2f5fa, #8a96a8)' })}
+          {box(446, 108, 30, 30, { borderRadius: 3, background: '#3a5f9c' })}
+          {box(548, 108, 30, 30, { borderRadius: 15, background: 'radial-gradient(circle, #f6fbff 20%, #c9dcf2 45%, #bfe6ff 78%, #9fb7d6)' })}
+          <Lines x={318} y={150} w={300} n={1} gap={14} bar={8} color="rgba(61,99,166,0.4)" ragged={false} />
+        </>
+      )}
+      {detail && p && (
+        <>
+          <Text x={187} y={10} size={16} heavy color="#2c6cc4">{p.name}</Text>
+          <img src={p.url} alt="" draggable={false} style={{ position: 'absolute', left: 187, top: 32, width: 286, height: 215, objectFit: 'cover' }} />
+          <Lines x={505} y={20} w={w - 530} n={13} gap={16} bar={7} color="rgba(74,127,208,0.35)" />
+        </>
+      )}
+      <Text x={21} y={10} size={17.5} color={C.heading} light>enjoy pictures</Text>
+      <Lines x={46} y={30} w={110} n={6} gap={16} bar={7} />
+      <Text x={21} y={134} size={17.5} color={C.heading} light>find pictures</Text>
+      {box(25, 170, 136, 17, { borderRadius: 3, background: '#fff', boxShadow: 'inset 0 0 0 1px #a6b9d6' })}
+      <Lines x={25} y={194} w={100} n={5} gap={16} bar={7} />
+      {box(25, 297, 136, 150, { borderRadius: 4, background: 'linear-gradient(180deg, #ffffff, #eef4fc)', boxShadow: `inset 0 0 0 1px ${C.borderLight}` })}
+      <Lines x={25} y={450} w={110} n={3} gap={17} bar={7} />
+      <Lines x={AREA_X + 10} y={barY} w={w - AREA_X - 60} n={1} gap={14} bar={8} color="rgba(109,141,184,0.35)" ragged={false} />
+      {blocks.map(({ g, y, rows }) => (
+        <div key={g.id}>
+          {box(AREA_X, y, width, 18, { borderRadius: 3, background: 'linear-gradient(90deg, rgba(200,222,250,0.6), rgba(220,234,252,0.2))' })}
+          <ImageGrid x={AREA_X + 4} y={y + 24} w={width} h={Math.max(0, Math.min(h - 44 - y - 24, rows * (th + gap)))} urls={g.photos.slice(0, rows * cols).map((p) => p.url)} tw={tw} th={th} gap={gap} cols={cols} />
+        </div>
+      ))}
+    </div>
+  )
+})
+
 export default {
   id: 'pictures',
   title: () => 'my Pictures & Videos',
@@ -657,5 +724,6 @@ export default {
     menus: (win, t) => pictureMenus(win, t),
   },
   Content: scoped(Pictures, { watch: ['pics'], alive: (win, t) => videoPlaying(win, t) }),
+  Proxy: AppProxy,
   liveTime: (win, t, base) => (win.state === 'open' && videoPlaying(win, t) ? t : base),
 }
