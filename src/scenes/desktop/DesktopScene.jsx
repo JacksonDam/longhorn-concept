@@ -15,7 +15,7 @@ import { IconDefs } from './icons.jsx'
 import { Sidebar, PANEL } from './Sidebar.jsx'
 import { SidebarHits, SidebarLive, mailState } from './SidebarHits.jsx'
 import { TaskbarLayer } from './TaskbarLayer.jsx'
-import { Flyout, flyoutState, closeFlyout, hoverLevel } from './Flyout.jsx'
+import { Flyout, flyoutState, closeFlyout, hoverLevel, FLY_MENU } from './Flyout.jsx'
 import { StartMenu } from './StartMenu.jsx'
 import { WeatherFlyout, CalendarFlyout } from './Flyouts.jsx'
 import { closePopups, sidebarVisible, setSessionFloor } from './shellState.js'
@@ -49,7 +49,8 @@ const Photo = memo(function Photo() {
       src={asset('img/desktop/wallpaper.webp')}
       alt=""
       draggable={false}
-      style={{ position: 'absolute', left: 0.16, top: 0.58, width: 959.8, height: 720.04 }}
+      // its own layer: drawn once, never re-rastered with what changes above it
+      style={{ position: 'absolute', left: 0.16, top: 0.58, width: 959.8, height: 720.04, willChange: 'transform' }}
     />
   )
 })
@@ -148,6 +149,7 @@ export function DesktopScene({ since, user: userId }) {
       <ContextMenu id="desk.ctx" items={DESK_MENU} />
       <DropMenu id="sb.user" items={USER_MENU} />
       <DropMenu id="sb.status" items={STATUS_MENU} />
+      <DropMenu id="fly.menu" items={FLY_MENU} />
     </div>
   )
   if (pending) pendingEl.current = el

@@ -267,7 +267,9 @@ export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, li
         {live}
         {TILES.map(([id, Comp]) => (
           <div key={id} style={show(opacity[id])}>
-            <Comp user={user} mail={mail} />
+            {/* only the header depends on the user and only Mail on the mail state, so the
+                other tiles never re-render */}
+            <Comp user={id.startsWith('header') || id === 'name' ? user : undefined} mail={id === 'mail' ? mail : undefined} />
           </div>
         ))}
         <div style={show(opacity.media)}>
