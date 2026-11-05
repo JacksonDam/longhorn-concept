@@ -10,7 +10,8 @@
 //     pressed: 'preview' | ['a', 'b'] | (win, t) => command id(s) shown pressed,
 //     menus: { File: items, Edit: items, View: items, Help: items } | (win, t) => {...}  (ui kit items),
 //     crumbMenus: [items for crumb 0, items for crumb 1] | (win, t) => [...],
-//     Search: ({ win, t }) => node   (replaces the search field text, window-local px) }
+//     Search: ({ win, t, copy }) => node   (replaces the search field text, window-local px;
+//             copy: drawn in a motion-blur copy, no input handling needed) }
 //   A command may carry onClick(win) (called on click, besides the event).
 // Clicks emit events the app or the shell handles:
 //   'explorer.command' { id: <window id>, command }   command row
@@ -22,7 +23,7 @@
 import { memo } from 'react'
 import { emit } from '../core/events.js'
 import { DropMenu, dropBelow, wid } from '../ui/index.js'
-import { Txt, abs, HEAVY } from './text.jsx'
+import { Txt, Texts, abs, HEAVY } from './text.jsx'
 import * as I from './icons.jsx'
 
 export const EXPLORER_TOP = 123
@@ -34,21 +35,68 @@ const grad = (stops, w) => `linear-gradient(90deg, ${stops.map(([c, x]) => `${c}
 
 const label = { size: 11, w: 400, f: HEAVY, sx: 1, c: '#e4f4ff', style: { filter: 'drop-shadow(0 0 1.2px rgba(10,50,120,0.75))' } }
 
-function ToolItem({ text, tx, children, iw, ih, ix, iy, onClick, hitW }) {
-  return (
-    <>
-      <I.Reflected x={ix} y={iy} w={iw} h={ih} gap={0} depth={9} op={0.3}>
-        {children}
-      </I.Reflected>
-      <Txt x={tx} y={48} {...label}>
-        {text}
-      </Txt>
-      <div data-hit={'tool:' + text} style={abs(ix - 2, 22, hitW ?? tx - ix + text.length * 6.5 + 4, 40, { cursor: 'default' })} onClick={onClick} />
-    </>
-  )
-}
-
 const ie = (url) => () => emit('win.open', { id: 'ie', app: 'ie', props: { url } })
+
+// the toolbar's link buttons (icon box, label x); Favorites only on windows at least 760 px wide
+const TOOLS = [
+  { ix: 90, iy: 22, iw: 34, ih: 36, tx: 133, text: 'Home', Icon: I.HomeIcon, onClick: ie('www.msn.com') },
+  { ix: 149, iy: 29, iw: 50, ih: 26, tx: 209, text: 'Search', Icon: I.SearchIcon, onClick: () => emit('win.open', { id: 'search', app: 'search' }) },
+  { ix: 255, iy: 27, iw: 28, ih: 32, tx: 291, text: 'ofoto.com', Icon: () => <I.PageIcon kind="ofoto" />, onClick: ie('www.ofoto.com') },
+  { ix: 356, iy: 26, iw: 26, ih: 30, tx: 387, text: 'my music', Icon: I.NotesIcon, onClick: () => emit('win.open', { id: 'music', app: 'music' }) },
+  { ix: 444, iy: 26, iw: 28, ih: 32, tx: 482, text: 'yahoo.com', Icon: () => <I.PageIcon kind="yahoo" />, onClick: ie('www.yahoo.com') },
+  { ix: 553, iy: 26, iw: 28, ih: 32, tx: 593, text: 'google.com', Icon: () => <I.PageIcon kind="google" />, onClick: ie('www.google.com') },
+  { ix: 659, iy: 25, iw: 30, ih: 30, tx: 695, text: 'Favorites', Icon: I.StarIcon, fav: true },
+]
+const BF = { x: 10, y: 19 }
+const toolsFor = (w) => TOOLS.filter((it) => !it.fav || w >= 760)
+
+// The toolbar's icons (back / forward and the link icons with their reflections, as I.Reflected
+// draws them) are one SVG image, made on first use: an image is rasterised once and shared by
+// every layer of every explorer window (live and motion-blur copies), where the inline drawings
+// cost each layer ~200 DOM nodes, masks and their paint. (Pixel-identical to the inline icons:
+// max channel difference 5, RMSE 0.04 over the toolbar.)
+const TOOL_IMG_H = 75
+// SVG markup of a React element tree (the icons are plain function components drawing SVG)
+const KEEP_CAMEL = new Set(['viewBox', 'gradientUnits', 'gradientTransform', 'preserveAspectRatio', 'maskUnits', 'maskContentUnits', 'patternUnits', 'clipPathUnits', 'spreadMethod', 'stdDeviation'])
+const kebab = (k) => k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
+const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
+function iconMarkup(node) {
+  if (node == null || typeof node === 'boolean') return ''
+  if (Array.isArray(node)) return node.map(iconMarkup).join('')
+  if (typeof node !== 'object') return esc(node)
+  const { type, props } = node
+  if (typeof type === 'function') return iconMarkup(type(props))
+  if (type && typeof type === 'object' && type.type) return iconMarkup({ type: type.type, props }) // memo
+  if (typeof type !== 'string') return iconMarkup(props.children) // fragment
+  let attrs = type === 'svg' ? ' xmlns="http://www.w3.org/2000/svg"' : ''
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'children' || v == null || v === false) continue
+    if (k === 'style') attrs += ` style="${esc(Object.entries(v).map(([p, x]) => kebab(p) + ':' + x).join(';'))}"`
+    else attrs += ` ${k === 'className' ? 'class' : KEEP_CAMEL.has(k) ? k : kebab(k)}="${esc(v)}"`
+  }
+  return `<${type}${attrs}>${iconMarkup(props.children)}</${type}>`
+}
+function toolbarImage(fav) {
+  const items = TOOLS.filter((it) => fav || !it.fav)
+  const w = Math.max(...items.map((it) => it.ix + it.iw)) + 4
+  const defs = [`<g id="bf">${iconMarkup(<I.BackForward />)}</g>`]
+  const body = [`<use href="#bf" x="${BF.x}" y="${BF.y}"/>`]
+  items.forEach((it, i) => {
+    defs.push(`<g id="t${i}">${iconMarkup(<it.Icon />)}</g>`)
+    // the reflection: the icon flipped below its box, its lowest 9 px fading out, at 30 %
+    defs.push(`<linearGradient id="g${i}" gradientUnits="userSpaceOnUse" x1="0" y1="${it.ih}" x2="0" y2="${it.ih - 9}"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`)
+    defs.push(`<mask id="m${i}" maskUnits="userSpaceOnUse" x="0" y="0" width="${it.iw}" height="${it.ih}"><rect width="${it.iw}" height="${it.ih}" fill="url(#g${i})"/></mask>`)
+    body.push(`<svg x="${it.ix}" y="${it.iy}" width="${it.iw}" height="${it.ih}" overflow="visible"><use href="#t${i}"/></svg>`)
+    body.push(`<g transform="translate(${it.ix} ${it.iy + 2 * it.ih}) scale(1 -1)" opacity="0.3"><svg width="${it.iw}" height="${it.ih}" overflow="hidden"><g mask="url(#m${i})"><use href="#t${i}"/></g></svg></g>`)
+  })
+  const doc = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${TOOL_IMG_H}" viewBox="0 0 ${w} ${TOOL_IMG_H}"><defs>${defs.join('')}</defs>${body.join('')}</svg>`
+  return { src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(doc), w }
+}
+let toolImgs = null
+const toolImg = (fav) => {
+  toolImgs ??= [toolbarImage(false), toolbarImage(true)]
+  return toolImgs[fav ? 1 : 0]
+}
 
 const DEFAULT_COMMANDS = [
   { id: 'hide', label: 'Hide Music Tasks', icon: 'hide' },
@@ -72,6 +120,8 @@ const CMD_ICONS = {
   find: () => <I.FindIcon />,
   preview: () => <I.PreviewIcon />,
 }
+
+const MENU_LABELS = [['File', 16, '#86bcff'], ['Edit', 57, '#86bcff'], ['View', 100, '#86bcff'], ['Help', 151, '#8cc2ff']]
 
 const val = (v, win, t, def) => (v == null ? def : typeof v === 'function' ? v(win, t) : v)
 
@@ -106,7 +156,8 @@ const defaultMenus = (win) => ({
   ],
 })
 
-export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
+// copy: a motion-blur copy's chrome (no hit areas or menus, the toolbar icons from one image)
+export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, copy = false }) {
   const id = win.id
   const cfg = typeof app.explorer === 'object' ? app.explorer : {}
   const crumbs = val(cfg.crumbs, win, t, ['my Computer', 'my Pictures'])
@@ -137,34 +188,14 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 64px, rgba(255,255,255,0.06) 68px, rgba(255,255,255,0.1) 70px, rgba(0,0,0,0) 72px)',
         })}
       />
-      <div style={abs(10, 19, 60, 40)}>
-        <I.BackForward />
-      </div>
-      <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />
-      <div data-hit="nav:forward" style={abs(46, 30, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />
-      <ToolItem ix={90} iy={22} iw={34} ih={36} tx={133} text="Home" onClick={ie('www.msn.com')}>
-        <I.HomeIcon />
-      </ToolItem>
-      <ToolItem ix={149} iy={29} iw={50} ih={26} tx={209} text="Search" onClick={() => emit('win.open', { id: 'search', app: 'search' })}>
-        <I.SearchIcon />
-      </ToolItem>
-      <ToolItem ix={255} iy={27} iw={28} ih={32} tx={291} text="ofoto.com" onClick={ie('www.ofoto.com')}>
-        <I.PageIcon kind="ofoto" />
-      </ToolItem>
-      <ToolItem ix={356} iy={26} iw={26} ih={30} tx={387} text="my music" onClick={() => emit('win.open', { id: 'music', app: 'music' })}>
-        <I.NotesIcon />
-      </ToolItem>
-      <ToolItem ix={444} iy={26} iw={28} ih={32} tx={482} text="yahoo.com" onClick={ie('www.yahoo.com')}>
-        <I.PageIcon kind="yahoo" />
-      </ToolItem>
-      <ToolItem ix={553} iy={26} iw={28} ih={32} tx={593} text="google.com" onClick={ie('www.google.com')}>
-        <I.PageIcon kind="google" />
-      </ToolItem>
-      {w >= 760 && (
-        <ToolItem ix={659} iy={25} iw={30} ih={30} tx={695} text="Favorites" onClick={menu('Favorites')}>
-          <I.StarIcon />
-        </ToolItem>
-      )}
+      <img alt="" src={toolImg(w >= 760).src} width={toolImg(w >= 760).w} height={TOOL_IMG_H} style={abs(0, 0, toolImg(w >= 760).w, TOOL_IMG_H)} />
+      {!copy && <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />}
+      {!copy && <div data-hit="nav:forward" style={abs(46, 30, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
+      <Texts style={label.style} items={toolsFor(w).map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
+      {!copy &&
+        toolsFor(w).map((it) => (
+          <div key={it.text} data-hit={'tool:' + it.text} style={abs(it.ix - 2, 22, it.tx - it.ix + it.text.length * 6.5 + 4, 40, { cursor: 'default' })} onClick={it.fav ? menu('Favorites') : it.onClick} />
+        ))}
 
       {/* menu / address band and command row */}
       <div
@@ -177,14 +208,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
       <div style={abs(0, 118, w, 4, { background: 'linear-gradient(180deg, #3f7ac3, #5a96e0 50%, #3c76b7)' })} />
       <div style={abs(0, 122, w, 1, { background: '#9cd8ff' })} />
 
-      {[['File', 16, '#86bcff'], ['Edit', 57, '#86bcff'], ['View', 100, '#86bcff'], ['Help', 151, '#8cc2ff']].map(([m, x, c]) => (
-        <div key={m}>
-          <Txt x={x} y={88} size={10} w={400} f={HEAVY} sx={1} c={c}>
-            {m}
-          </Txt>
-          <div data-hit={'menu:' + m} style={abs(x - 6, 76, 34, 16)} onClick={menu(m)} />
-        </div>
-      ))}
+      <Texts items={MENU_LABELS.map(([m, x, c]) => ({ x, y: 88, text: m, size: 10, w: 400, f: HEAVY, sx: 1, c }))} />
+      {!copy && MENU_LABELS.map(([m, x]) => <div key={m} data-hit={'menu:' + m} style={abs(x - 6, 76, 34, 16)} onClick={menu(m)} />)}
 
       {/* breadcrumb address bar */}
       <div
@@ -194,12 +219,12 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
           boxShadow: '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
         })}
       />
-      <Crumbs id={id} crumbs={crumbs} search={Search ? '' : val(cfg.search, win, t, 'search my for...')} menuIds={[0, 1].map((i) => wid(win, 'xcrumb.' + i))} crumbMenus={crumbMenus} />
-      {Search && <Search win={win} t={t} />}
-      {Object.keys(menus).map((m) => (
+      <Crumbs id={id} crumbs={crumbs} search={Search ? '' : val(cfg.search, win, t, 'search my for...')} menuIds={copy ? null : [0, 1].map((i) => wid(win, 'xcrumb.' + i))} crumbMenus={crumbMenus} copy={copy} />
+      {Search && <Search win={win} t={t} copy={copy} />}
+      {!copy && Object.keys(menus).map((m) => (
         <DropMenu key={m} id={menuId(m)} items={menus[m]} />
       ))}
-      {crumbMenus.map((items, i) => items && <DropMenu key={'c' + i} id={wid(win, 'xcrumb.' + i)} items={items} />)}
+      {!copy && crumbMenus.map((items, i) => items && <DropMenu key={'c' + i} id={wid(win, 'xcrumb.' + i)} items={items} />)}
 
       {/* command row */}
       {commands.slice(0, SLOTS.length).map((c, i) => {
@@ -218,19 +243,18 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
               />
             )}
             <div style={abs(...s.icon)}>{Icon && <Icon />}</div>
-            <Txt x={s.tx} y={s.ty} size={s.size} w={400} f={HEAVY} sx={1} c={isPressed ? '#eef6ff' : '#e6f2ff'}>
-              {c.label}
-            </Txt>
-            <div data-hit={'cmd:' + c.id} style={abs(s.icon[0] - 4, 96, s.tx - s.icon[0] + c.label.length * 6 + 10, 23)} onClick={cmd(c)} />
+            {!copy && <div data-hit={'cmd:' + c.id} style={abs(s.icon[0] - 4, 96, s.tx - s.icon[0] + c.label.length * 6 + 10, 23)} onClick={cmd(c)} />}
           </div>
         )
       })}
+      {/* the labels over the pressed button's highlight */}
+      <Texts items={commands.slice(0, SLOTS.length).map((c, i) => ({ key: c.id, x: SLOTS[i].tx, y: SLOTS[i].ty, text: c.label, size: SLOTS[i].size, w: 400, f: HEAVY, sx: 1, c: pressed.has(c.id) ? '#eef6ff' : '#e6f2ff' }))} />
     </>
   )
 })
 
 // the breadcrumb: the first crumb on a light-blue segment, the next on a darker one, then the search field
-const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus }) {
+const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus, copy }) {
   const open = (i) => (e) => {
     e.stopPropagation()
     emit('explorer.crumb', { id, index: i })
@@ -256,7 +280,7 @@ const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus })
       <div style={abs(291, 85, 7, 4)}>
         <I.DropArrow c="#e8f4ff" />
       </div>
-      <div data-hit="crumb:0" style={abs(200, 78, 102, 17)} onClick={open(0)} />
+      {!copy && <div data-hit="crumb:0" style={abs(200, 78, 102, 17)} onClick={open(0)} />}
       {c1 != null && (
         <>
           <Txt x={312} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#f0f6ff">
@@ -265,7 +289,7 @@ const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus })
           <div style={abs(377, 85, 7, 4)}>
             <I.DropArrow c="#e8f4ff" />
           </div>
-          <div data-hit="crumb:1" style={abs(302, 78, 83, 17)} onClick={open(1)} />
+          {!copy && <div data-hit="crumb:1" style={abs(302, 78, 83, 17)} onClick={open(1)} />}
         </>
       )}
       {search && (

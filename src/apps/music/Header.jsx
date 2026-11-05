@@ -1,9 +1,9 @@
 // The header of my Music: the glass music device (3D slab), "Windows my Music", the swoosh and
 // the Play Music / Burn CD / Share Music buttons; after an album is opened, the album slab
 // and its track list. Everything is a pure function of (t, header state).
-import { memo } from 'react'
+import { memo, useContext } from 'react'
 import { emit } from '../../core/events.js'
-import { Txt, abs, FONT, HEAVY, useLayer } from '../../os/text.jsx'
+import { Txt, abs, FONT, HEAVY, useLayer, LiveLayers } from '../../os/text.jsx'
 import * as I from '../../os/icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
@@ -328,7 +328,10 @@ const TrackHits = memo(function TrackHits({ album }) {
 const LIST_N = 5
 const PARK = { transform: 'translateX(-4000px)', opacity: 1e-4 }
 function TrackList({ album, hrel, sel, hover, playing, out = 1 }) {
+  const live = useContext(LiveLayers)
   if (!album) return null
+  // motion-blur copies of the window show the settled list, flat (no layers of their own)
+  if (!live) return hrel >= 20 ? <div style={{ position: 'absolute', left: 0, top: 0, opacity: out }}><TrackListBody album={album} sel={sel} playing={playing} /></div> : null
   const settled = hrel >= 20
   const [, op] = LIST_IN(Math.min(hrel, 20))
   const mounted = Math.min(LIST_N, Math.max(1, Math.floor(hrel + 23) + 1))
