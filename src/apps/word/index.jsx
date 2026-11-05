@@ -8,7 +8,7 @@ import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, lastOf, find, useLive, focusAt, setFocus, ScrollView, DropMenu, dropBelow, ToolButton, Tooltip, C, FONT } from '../../ui/index.js'
+import { scoped, wid, valueOf, lastOf, find, useLive, focusAt, setFocus, ScrollView, DropMenu, dropBelow, ToolButton, Tooltip, stageRect, pt, C, FONT } from '../../ui/index.js'
 import { CaretBlink } from '../../ui/TextField.jsx'
 import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
@@ -330,7 +330,26 @@ function Word({ win, t, w, h }) {
           <DropMenu id={id('dd.color')} items={colorItems} />
         </span>
       </AppTop>
-      {rulerOn && <Ruler y={top} w={w} />}
+      {rulerOn && (
+        <div
+          style={{ position: 'absolute', left: 0, top, width: w, height: 20 }}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return
+            const r = stageRect(e.currentTarget)
+            const x = Math.round((pt(e).x - r.x - ((w - PAGE_W) / 2 + MARGIN)) / 6) * 6
+            if (x < 0 || x > PAGE_W - 2 * MARGIN) return
+            const tabs = valueOf(now(), id('tabs'), [])
+            emit('ui.value', { id: id('tabs'), value: tabs.includes(x) ? tabs.filter((v) => v !== x) : [...tabs, x].sort((a, b) => a - b) })
+          }}
+        >
+          <Ruler y={0} w={w} />
+          {valueOf(t, id('tabs'), []).map((x) => (
+            <svg key={x} width="7" height="7" style={{ position: 'absolute', left: (w - PAGE_W) / 2 + MARGIN + x - 1, top: 11 }}>
+              <path d="M1 0 V6 H7" fill="none" stroke="#1d3557" strokeWidth="1.6" />
+            </svg>
+          ))}
+        </div>
+      )}
       <ScrollView id={id('scroll')} x={0} y={pageTop} w={w} h={h - pageTop - sbH} bar="always">
         <div style={{ padding: '14px 0 24px', minHeight: h - pageTop - sbH }}>
           <div
@@ -379,6 +398,7 @@ function Word({ win, t, w, h }) {
         </div>
       </ScrollView>
       {live && <PageInput taRef={ta} handlers={handlers} css={taCss} />}
+      <div style={{ position: 'absolute', left: 0, top: h - sbH, width: w, height: sbH }} onPointerDown={(e) => e.button === 0 && wordCount(current())} />
       <StatusBar
         y={h - sbH}
         w={w}
