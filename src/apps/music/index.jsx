@@ -1,69 +1,87 @@
-// my Music: the video's explorer window, as an app of the Plex window system (os/PlexWindow).
-// The video's animations (header intro, album page, minimise/restore) are unchanged.
+// my Music: the video's explorer window, as an app of the Plex window system (os/PlexWindow),
+// made fully usable: library with scrolling, thumbnail / tiles / details views, grouping and
+// arranging, the Size slider, search, album pages for every album, silent playback through
+// os/media.js, task-pane links, menus and drop-downs. The video's frames are the defaults.
 import { memo } from 'react'
-import { last, all } from '../../core/events.js'
 import { FPS } from '../../core/clock.js'
+import { emit } from '../../core/events.js'
 import { asset } from '../../core/preload.js'
 import { Txt } from '../../os/text.jsx'
-import { EXPLORER_TOP } from '../../os/ExplorerChrome.jsx'
-import { OPEN_DELAY } from '../../os/windowAnim.js'
+import { EXPLORER_TOP, PLACES } from '../../os/ExplorerChrome.jsx'
 import * as I from '../../os/icons.jsx'
-import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from '../../scenes/music/Body.jsx'
-import { AlbumGrid } from '../../scenes/music/Grid.jsx'
-import { Header } from '../../scenes/music/Header.jsx'
-import { HEADER, PAGE_DELAY, smoothRamp, toRel } from '../../scenes/music/timeline.js'
-import { ALBUMS } from '../../scenes/music/albums.js'
+import { scoped, TextField, wid, valueOf, textOf } from '../../ui/index.js'
+import { mediaState } from '../../os/media.js'
+import { BodyBg, EnjoyGroup, TaskPane, FoldersPane, GridBar, StatusBar, ResizeGrip } from './Body.jsx'
+import { AlbumView, GridScrollbar } from './Grid.jsx'
+import { Header } from './Header.jsx'
+import { HEADER, smoothRamp, toRel } from './timeline.js'
+import { TWEET_COVER } from './albums.js'
+import { warmSlabs } from './SlabCanvas.jsx'
+import { DEFAULTS, settings, gridLayout } from './layout.js'
+import { viewState } from './state.js'
+import { musicActions, openT } from './actions.js'
 
-// the window's reference time: rel 0 = music.open + OPEN_DELAY (video frame 694)
-const openT = (win) => win.openedAt + OPEN_DELAY / FPS
+// compile the 3D slab shader at load (never on the frame a slab first appears)
+warmSlabs({ w: 4, h: 4, d: 2, map: TWEET_COVER })
 
-// selection, hover and album page, derived from the log (window session = since it opened)
-export function viewState(t, t0) {
-  const after = (e) => e.t >= t0
-  const s = last(t, (e) => e.type === 'music.album' && after(e))
-  let first = null
-  for (const e of all(t, (e) => e.type === 'music.album' && after(e) && ALBUMS[e.id]?.tweet)) {
-    first = e
-    break
+const searchText = (t, win) => textOf(t, wid(win, 'search'))
+
+// which track number is blue: the playing track of this page's album (the video: track 4)
+function playingIndex(t, page) {
+  if (!page || !page.album) return -1
+  const m = mediaState(t)
+  const a = page.album
+  if (m && m.playing && m.track && m.track.title.startsWith(a.artist + ' - ')) {
+    const i = a.tracks.findIndex((tr) => m.track.title === `${a.artist} - ${tr.title}`)
+    if (i >= 0) return i
   }
-  const h = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.album.'))
-  const th = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.track.'))
-  const tr = last(t, (e) => e.type === 'music.track' && after(e))
-  return {
-    sel: s ? { id: s.id, t: s.t } : null,
-    hover: h && h.on ? +String(h.id).slice('music.album.'.length) : -1,
-    track: tr ? tr.n : 2,
-    trackHover: th && th.on ? +String(th.id).slice('music.track.'.length) : -1,
-    pageT: first ? first.t + PAGE_DELAY / FPS : null,
-  }
+  return a.artist === 'Tweet' ? 3 : -1
 }
 
-// the client area (window-local layout of the video, shifted up by the explorer chrome)
-function MusicContent({ win, t }) {
+// the client area (the video's window-local layout, shifted up by the explorer chrome)
+function MusicContent({ win, t, live, w, h }) {
+  const W = w
+  const H = h + EXPLORER_TOP
   const t0 = openT(win)
   const rel = toRel(t, t0)
+  const s = settings(t, win)
   const vs = viewState(t, t0)
-  const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
+  const search = searchText(t, win)
+  const L = gridLayout(s, W, H, search)
+  const A = live ? musicActions(win) : null
+  const sec = (name, def) => valueOf(t, wid(win, 'mv.sec.' + name), def)
+  const left = s.folders ? 'folders' : s.tasks ? 'tasks' : null
+  const n = L.items.length
+  const status = search ? `${n} object${n === 1 ? '' : 's'} found` : vs.sel || !vs.deselected ? '1 object selected' : `${n} objects`
   return (
-    <div style={{ position: 'absolute', left: 0, top: -EXPLORER_TOP, width: 777, height: 654 }}>
-      <BodyBg />
-      <Header t={t} openT={t0} pageT={pageT} track={vs.track} trackHover={vs.trackHover} slabs="none" />
-      <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
-      <TaskPane />
-      <GridBar />
-      <AlbumGrid t={t} hover={vs.hover} sel={vs.sel && t >= vs.sel.t ? vs.sel : null} />
-      <Scrollbar />
-      <StatusBar />
+    <div style={{ position: 'absolute', left: 0, top: -EXPLORER_TOP, width: W, height: H }}>
+      <BodyBg w={W} h={H} />
+      {s.preview && (
+        <Header t={t} openT={t0} page={vs.page} track={vs.track} trackHover={live ? vs.trackHover : -1} playing={playingIndex(t, vs.page)} slabs="none" actions={A} />
+      )}
+      {left === 'tasks' && (
+        <>
+          <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} A={A} collapsed={sec('enjoy', false)} />
+          <TaskPane A={A} guide={sec('guide', false)} other={sec('other', true)} />
+        </>
+      )}
+      {left === 'folders' && <FoldersPane A={A} />}
+      <GridBar s={s} dx={L.view.x - 200} dy={L.view.y - 362} A={A} win={win} />
+      <AlbumView win={win} t={t} L={L} sel={vs.sel} hover={live ? vs.hover : null} />
+      <GridScrollbar win={win} t={t} L={L} x={W - 19} />
+      <StatusBar text={status} w={W} h={H} />
+      <ResizeGrip x={W - 24} y={H - 30} />
     </div>
   )
 }
 
-// the 3D slabs (device / album) live on every visible blur copy, rendered once per frame
+// the 3D slabs (device / album) on every visible blur copy, rendered once per frame
 function MusicOverlay({ win, t, skip }) {
+  const s = settings(t, win)
+  if (!s.preview) return null
   const t0 = openT(win)
   const vs = viewState(t, t0)
-  const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
-  return <Header t={t} openT={t0} pageT={pageT} slabs="only" cache skip={skip} />
+  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} />
 }
 
 // the content a motion-blur copy shows: the settled state after the latest change
@@ -72,36 +90,139 @@ function snapshot(win, tk) {
   const vk = viewState(tk, t0)
   const pts = [t0 + 9 / FPS, t0 + 74 / FPS]
   if (vk.sel) pts.push(vk.sel.t + 10 / FPS)
-  if (vk.pageT != null) pts.push(vk.pageT + 21 / FPS)
+  if (vk.page) pts.push(vk.page.t + 21 / FPS)
   let best = pts[0]
   for (const p of pts) if (p <= tk && p > best) best = p
+  // any later ui change (settings, search, scroll) shows as of tk
   return best
 }
 
+// the live layer re-renders per frame only while time-driven visuals run (os/PlexWindow
+// liveContentT): the header intro, page transitions, and the playing track's number
+function liveTime(win, t, base) {
+  const t0 = openT(win)
+  if (toRel(t, t0) < 80) return t
+  let ct = Math.max(base, t0 + 80 / FPS)
+  const vs = viewState(t, t0)
+  if (vs.page) {
+    if (toRel(t, vs.page.t) < 23) return t
+    ct = Math.max(ct, vs.page.t + 23 / FPS)
+  }
+  if (vs.sel) ct = Math.max(ct, Math.min(t, vs.sel.t + 10 / FPS))
+  const m = mediaState(t)
+  if (m.playing) ct = Math.max(ct, t - m.position)
+  return Math.min(t, ct)
+}
+
 // title: the equaliser glyph and "my Music" (light "my", heavy "Music"), as measured
-const MusicTitle = memo(function MusicTitle() {
+const MusicTitle = memo(function MusicTitle({ w = 777 }) {
+  const x = 348 + (w - 777) / 2
   return (
     <>
-      <div style={{ position: 'absolute', left: 348, top: 4, width: 13, height: 10 }}>
+      <div style={{ position: 'absolute', left: x, top: 4, width: 13, height: 10 }}>
         <I.TitleEq />
       </div>
-      <Txt x={364} y={13.5} size={13.5} w={400} sx={0.95} c="#e3f3ff" parts={[['my ', { w: 300 }], ['Music', { w: 600 }]]} />
+      <Txt x={x + 16} y={13.5} size={13.5} w={400} sx={0.95} c="#e3f3ff" parts={[['my ', { w: 300 }], ['Music', { w: 600 }]]} />
     </>
   )
 })
 
-export default {
+// the search field in the address bar (filters the albums); the video's grey hint when empty
+function MusicSearch({ win, t }) {
+  const id = wid(win, 'search')
+  const text = textOf(t, id)
+  return (
+    <>
+      {!text && (
+        <Txt x={389} y={89.5} size={11} w={400} c="#8ab0d8">
+          search my for...
+        </Txt>
+      )}
+      <TextField id={id} x={386} y={78} w={370} h={17} variant="bare" size={11} pad={3} color="#2a4d80" />
+    </>
+  )
+}
+
+const music = {
   id: 'music',
   title: () => 'my Music',
   taskbarLabel: () => 'My Music',
   icon: asset('img/desktop/ic-mymusic.webp'),
   size: { w: 777, h: 654 },
   position: { x: 45, y: 23 },
-  explorer: { crumbs: ['my Computer', 'my Pictures'], search: 'search my for...' },
+  explorer: {
+    crumbs: ['my Computer', 'my Pictures'],
+    crumbMenus: [PLACES, PLACES],
+    Search: MusicSearch,
+    commands: (win, t) => {
+      const A = musicActions(win)
+      const s = settings(t, win)
+      return [
+        { id: 'hide', label: s.tasks || s.folders ? 'Hide Music Tasks' : 'Show Music Tasks', icon: 'hide', onClick: A.tasks },
+        { id: 'up', label: 'Up a Folder', icon: 'up', onClick: A.up },
+        { id: 'folders', label: 'Folders', icon: 'folders', onClick: A.folders },
+        { id: 'find', label: 'Find', icon: 'find', onClick: A.find },
+        { id: 'preview', label: 'Preview', icon: 'preview', onClick: A.preview },
+      ]
+    },
+    pressed: (win, t) => {
+      const s = settings(t, win)
+      return [s.preview && 'preview', s.folders && 'folders'].filter(Boolean)
+    },
+    menus: (win, t) => {
+      const A = musicActions(win)
+      const s = settings(t, win)
+      const sel = viewState(t, openT(win)).sel
+      return {
+        File: [
+          { label: 'Play', onClick: A.playSelected, bold: true },
+          { label: 'Play All', onClick: A.playAll },
+          '-',
+          { label: 'Create Playlist...', onClick: A.createPlaylist },
+          { label: 'Burn CD...', onClick: A.burn },
+          { label: 'Share Music...', onClick: A.share },
+          '-',
+          { label: 'Properties', onClick: A.properties, disabled: !sel },
+          '-',
+          { label: 'Close', onClick: () => emit('win.close', { id: win.id }) },
+        ],
+        Edit: [
+          { label: 'Find...', shortcut: 'Ctrl+F', onClick: A.find },
+          '-',
+          { label: 'Copy to CD...', onClick: A.burn },
+        ],
+        View: [
+          { label: 'Thumbnails', radio: true, checked: s.view === 'thumbnail', onClick: A.setView('thumbnail') },
+          { label: 'Tiles', radio: true, checked: s.view === 'tiles', onClick: A.setView('tiles') },
+          { label: 'Details', radio: true, checked: s.view === 'details', onClick: A.setView('details') },
+          '-',
+          {
+            label: 'Arrange Icons By',
+            items: [
+              { label: 'Date', radio: true, checked: s.arrange === 'date', onClick: A.setArrange('date') },
+              { label: 'Name', radio: true, checked: s.arrange === 'name', onClick: A.setArrange('name') },
+              { label: 'Artist', radio: true, checked: s.arrange === 'artist', onClick: A.setArrange('artist') },
+            ],
+          },
+          '-',
+          { label: 'Preview', checked: s.preview, onClick: A.preview },
+          { label: 'Music Tasks', checked: s.tasks && !s.folders, onClick: A.tasks },
+          { label: 'Folders', checked: s.folders, onClick: A.folders },
+        ],
+        Help: [
+          { label: 'Help and Support', onClick: () => emit('win.open', { id: 'help', app: 'help' }) },
+          '-',
+          { label: 'About Windows', onClick: () => emit('win.open', { id: 'about', app: 'about' }) },
+        ],
+      }
+    },
+  },
   TitleContent: MusicTitle,
-  Content: MusicContent,
+  Content: scoped(MusicContent),
   Overlay: MusicOverlay,
   snapshot,
-  copies: 16,
-  settle: 2.5,
+  liveTime,
+  copies: 10,
 }
+export default music
+export { DEFAULTS }

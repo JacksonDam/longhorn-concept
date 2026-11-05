@@ -4,9 +4,14 @@
 // Window-local px; EXPLORER_TOP is where the client area starts.
 //
 // App config (`explorer` in the app registry; every field optional, defaults = my Music):
-//   { crumbs: ['my Computer', 'my Pictures'], search: 'search my for...',
+//   { crumbs: ['my Computer', 'my Pictures'] | (win, t) => [...],
+//     search: 'search my for...' | (win, t) => string,
 //     commands: [{ id, label, icon: 'hide' | 'up' | 'folders' | 'find' | 'preview' | <component> }],
-//     pressed: (props) => command id shown pressed }
+//     pressed: 'preview' | ['a', 'b'] | (win, t) => command id(s) shown pressed,
+//     menus: { File: items, Edit: items, View: items, Help: items } | (win, t) => {...}  (ui kit items),
+//     crumbMenus: [items for crumb 0, items for crumb 1] | (win, t) => [...],
+//     Search: ({ win, t }) => node   (replaces the search field text, window-local px) }
+//   A command may carry onClick(win) (called on click, besides the event).
 // Clicks emit events the app or the shell handles:
 //   'explorer.command' { id: <window id>, command }   command row
 //   'explorer.menu'    { id, menu: 'File' | 'Edit' | 'View' | 'Help', x, y }
@@ -16,6 +21,7 @@
 // Search opens the Search window, Favorites drops the Favorites list ('explorer.menu' Favorites).
 import { memo } from 'react'
 import { emit } from '../core/events.js'
+import { DropMenu, dropBelow, wid } from '../ui/index.js'
 import { Txt, abs, HEAVY } from './text.jsx'
 import * as I from './icons.jsx'
 
@@ -67,14 +73,49 @@ const CMD_ICONS = {
   preview: () => <I.PreviewIcon />,
 }
 
-export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
+const val = (v, win, t, def) => (v == null ? def : typeof v === 'function' ? v(win, t) : v)
+
+// places every explorer window can go to (the breadcrumb drop-downs and default menus)
+const open = (id, app = id) => () => emit('win.open', { id, app })
+export const PLACES = [
+  { label: 'my Documents', onClick: open('documents') },
+  { label: 'my Pictures', onClick: open('pictures') },
+  { label: 'my Music', onClick: open('music') },
+  { label: 'my Computer', onClick: open('computer') },
+  '-',
+  { label: 'Control Panel', onClick: open('control') },
+]
+const defaultMenus = (win) => ({
+  File: [{ label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
+  Edit: [{ label: 'Select All', shortcut: 'Ctrl+A', disabled: true }],
+  View: [{ label: 'Refresh', shortcut: 'F5', onClick: () => emit('explorer.refresh', { id: win.id }) }],
+  Help: [
+    { label: 'Help and Support', onClick: open('help') },
+    '-',
+    { label: 'About Windows', onClick: open('about') },
+  ],
+})
+
+export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
   const id = win.id
   const cfg = typeof app.explorer === 'object' ? app.explorer : {}
-  const crumbs = cfg.crumbs || ['my Computer', 'my Pictures']
-  const commands = cfg.commands || DEFAULT_COMMANDS
-  const pressed = cfg.pressed ? cfg.pressed(win.props || {}) : 'preview'
-  const menu = (m, x) => (e) => emit('explorer.menu', { id, menu: m, x: win.rect ? x : x, y: 95 })
-  const cmd = (c) => () => emit('explorer.command', { id, command: c })
+  const crumbs = val(cfg.crumbs, win, t, ['my Computer', 'my Pictures'])
+  const commands = val(cfg.commands, win, t, DEFAULT_COMMANDS)
+  const pressedV = val(cfg.pressed, win, t, 'preview')
+  const pressed = new Set(Array.isArray(pressedV) ? pressedV : [pressedV])
+  const menus = val(cfg.menus, win, t, null) || defaultMenus(win)
+  const crumbMenus = val(cfg.crumbMenus, win, t, null) || [PLACES, PLACES]
+  const menuId = (m) => wid(win, 'xmenu.' + m)
+  const menu = (m) => (e) => {
+    e.stopPropagation()
+    emit('explorer.menu', { id, menu: m })
+    if (menus[m]) dropBelow(menuId(m), e.currentTarget, menus[m])
+  }
+  const cmd = (c) => () => {
+    emit('explorer.command', { id, command: c.id })
+    if (c.onClick) c.onClick(win)
+  }
+  const Search = cfg.Search
   return (
     <>
       {/* glass toolbar (title bar + favourites row) */}
@@ -109,7 +150,7 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
         <I.PageIcon kind="google" />
       </ToolItem>
       {w >= 760 && (
-        <ToolItem ix={659} iy={25} iw={30} ih={30} tx={695} text="Favorites" onClick={menu('Favorites', 659)}>
+        <ToolItem ix={659} iy={25} iw={30} ih={30} tx={695} text="Favorites" onClick={menu('Favorites')}>
           <I.StarIcon />
         </ToolItem>
       )}
@@ -130,7 +171,7 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
           <Txt x={x} y={88} size={10} w={400} f={HEAVY} sx={1} c={c}>
             {m}
           </Txt>
-          <div data-hit={'menu:' + m} style={abs(x - 6, 76, 34, 16)} onClick={menu(m, x - 6)} />
+          <div data-hit={'menu:' + m} style={abs(x - 6, 76, 34, 16)} onClick={menu(m)} />
         </div>
       ))}
 
@@ -142,13 +183,18 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
           boxShadow: '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
         })}
       />
-      <Crumbs id={id} crumbs={crumbs} search={cfg.search ?? 'search my for...'} />
+      <Crumbs id={id} crumbs={crumbs} search={Search ? '' : val(cfg.search, win, t, 'search my for...')} menuIds={[0, 1].map((i) => wid(win, 'xcrumb.' + i))} crumbMenus={crumbMenus} />
+      {Search && <Search win={win} t={t} />}
+      {Object.keys(menus).map((m) => (
+        <DropMenu key={m} id={menuId(m)} items={menus[m]} />
+      ))}
+      {crumbMenus.map((items, i) => items && <DropMenu key={'c' + i} id={wid(win, 'xcrumb.' + i)} items={items} />)}
 
       {/* command row */}
       {commands.slice(0, SLOTS.length).map((c, i) => {
         const s = SLOTS[i]
         const Icon = typeof c.icon === 'string' ? CMD_ICONS[c.icon] : c.icon
-        const isPressed = c.id === pressed
+        const isPressed = pressed.has(c.id)
         return (
           <div key={c.id}>
             {s.button && isPressed && (
@@ -164,7 +210,7 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
             <Txt x={s.tx} y={s.ty} size={s.size} w={400} f={HEAVY} sx={1} c={isPressed ? '#eef6ff' : '#e6f2ff'}>
               {c.label}
             </Txt>
-            <div data-hit={'cmd:' + c.id} style={abs(s.icon[0] - 4, 96, s.tx - s.icon[0] + c.label.length * 6 + 10, 23)} onClick={cmd(c.id)} />
+            <div data-hit={'cmd:' + c.id} style={abs(s.icon[0] - 4, 96, s.tx - s.icon[0] + c.label.length * 6 + 10, 23)} onClick={cmd(c)} />
           </div>
         )
       })}
@@ -173,7 +219,12 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
 })
 
 // the breadcrumb: the first crumb on a light-blue segment, the next on a darker one, then the search field
-const Crumbs = memo(function Crumbs({ id, crumbs, search }) {
+const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus }) {
+  const open = (i) => (e) => {
+    e.stopPropagation()
+    emit('explorer.crumb', { id, index: i })
+    if (crumbMenus[i]) dropBelow(menuIds[i], e.currentTarget, crumbMenus[i])
+  }
   const c0 = crumbs[0] ?? '', c1 = crumbs[1]
   return (
     <>
@@ -194,7 +245,7 @@ const Crumbs = memo(function Crumbs({ id, crumbs, search }) {
       <div style={abs(291, 85, 7, 4)}>
         <I.DropArrow c="#e8f4ff" />
       </div>
-      <div data-hit="crumb:0" style={abs(200, 78, 102, 17)} onClick={() => emit('explorer.crumb', { id, index: 0, x: 200, y: 95 })} />
+      <div data-hit="crumb:0" style={abs(200, 78, 102, 17)} onClick={open(0)} />
       {c1 != null && (
         <>
           <Txt x={312} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#f0f6ff">
@@ -203,12 +254,14 @@ const Crumbs = memo(function Crumbs({ id, crumbs, search }) {
           <div style={abs(377, 85, 7, 4)}>
             <I.DropArrow c="#e8f4ff" />
           </div>
-          <div data-hit="crumb:1" style={abs(302, 78, 83, 17)} onClick={() => emit('explorer.crumb', { id, index: 1, x: 302, y: 95 })} />
+          <div data-hit="crumb:1" style={abs(302, 78, 83, 17)} onClick={open(1)} />
         </>
       )}
-      <Txt x={389} y={89.5} size={11} w={400} c="#8ab0d8">
-        {search}
-      </Txt>
+      {search && (
+        <Txt x={389} y={89.5} size={11} w={400} c="#8ab0d8">
+          {search}
+        </Txt>
+      )}
     </>
   )
 })
