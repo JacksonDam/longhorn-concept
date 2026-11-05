@@ -3,7 +3,7 @@
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, lastOf, find, TextField, textOf, setText, focusField, C } from '../../ui/index.js'
-import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, openWin, messageBox } from '../lib/common.js'
 
 function Notepad({ win, t, w, h }) {
@@ -86,6 +86,7 @@ export default {
   position: { x: 200, y: 110 },
   minSize: { w: 300, h: 200 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#ffffff',
   Content: scoped(Notepad, { watch: ['notepad'] }),
 }

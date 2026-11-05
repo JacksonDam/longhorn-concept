@@ -20,6 +20,8 @@ import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
 import { focusedField } from '../ui/state.js'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
+import { WindowShadow } from './shadow.jsx'
+import { LookLayer, INACTIVE_SHADOW } from './look.jsx'
 import {
   OPEN_DELAY, RESTORE_DELAY, OPEN_END, openPose, openMoving, openLight, poseCss, openBlur,
   MIN_END, RESTORE_END, minimizePoseFor, restorePoseFor, minimizeBlur, restoreBlur,
@@ -91,7 +93,8 @@ function OpenLight({ rel, w, h, topH }) {
 
 // ---------------------------------------------------------------- frame parts
 // window rim (f800): a 2 px light top edge, 2 px dark translucent sides along the top block
-const Rim = memo(function Rim({ w, topH }) {
+// (the title bar and the glass and bands below it, as far as the explorer chrome reaches)
+const Rim = memo(function Rim({ w, topH, r = RIM_R }) {
   const rim = 'rgba(90,108,150,0.5)'
   return (
     <div
@@ -99,7 +102,7 @@ const Rim = memo(function Rim({ w, topH }) {
         position: 'absolute', left: -1, top: 1, width: w + 3, height: topH, boxSizing: 'border-box',
         borderStyle: 'solid', borderWidth: '2px 2px 0 2px',
         borderColor: `rgba(185,215,255,0.65) ${rim} transparent ${rim}`,
-        borderRadius: `${RIM_R + 1}px ${RIM_R + 1}px 0 0`, pointerEvents: 'none',
+        borderRadius: r > 0 ? `${r + 1}px ${r + 1}px 0 0` : 0, pointerEvents: 'none',
       }}
     />
   )
@@ -111,9 +114,9 @@ const titleGrad =
 const PlainTitleBg = memo(function PlainTitleBg({ w }) {
   return (
     <>
-      <div style={abs(1, 0, w - 1, TITLE_H, { background: titleGrad })} />
+      <div style={abs(0, 0, w, TITLE_H, { background: titleGrad })} />
       <div
-        style={abs(1, 0, w - 1, TITLE_H, {
+        style={abs(0, 0, w, TITLE_H, {
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 18px, rgba(20,60,130,0.25) 23px, rgba(140,200,255,0.5) 24px)',
         })}
@@ -134,11 +137,11 @@ const WinButtonsIcon = () => (
 )
 
 // title text: app.TitleContent (custom, e.g. my Music's equaliser glyph + "my Music") or the
-// app title centred in the bar
+// app title centred in the bar (one colour: an inactive window's wash dims it, os/look.jsx)
 const Title = memo(function Title({ w, title, TitleContent, active, props }) {
   if (TitleContent) return <TitleContent w={w} active={active} props={props} />
   return (
-    <Txt x={w / 2} y={13.5} anchor="middle" size={13.5} w={600} f={HEAVY} sx={1} c={active ? '#e3f3ff' : '#c4dcf6'}>
+    <Txt x={w / 2} y={13.5} anchor="middle" size={13.5} w={600} f={HEAVY} sx={1} c="#e3f3ff">
       {title}
     </Txt>
   )
@@ -149,7 +152,9 @@ const Title = memo(function Title({ w, title, TitleContent, active, props }) {
 const WindowBody = memo(
   // ck: optional content key (app.copyKey): copies with an unchanged key don't re-render
   // defer: the content isn't mounted yet (an opening window mounts its frame first, see below)
-  function WindowBody({ win, app, t, w, h, active, live, ck, proxy, defer }) {
+  // r: corner radius (RIM_R; 0 when maximised): only the window's own outline is rounded, the
+  // bars inside it run square to its edges and the client area is clipped to its corners
+  function WindowBody({ win, app, t, w, h, active, live, ck, proxy, defer, r = RIM_R }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
@@ -157,8 +162,8 @@ const WindowBody = memo(
     return (
       <div
         style={{
-          position: 'absolute', left: 0, top: 0, width: w, height: h, borderRadius: RIM_R, overflow: 'hidden',
-          clipPath: `inset(3px 0px 0px 0px round ${RIM_R}px ${RIM_R}px 0 0)`,
+          position: 'absolute', left: 0, top: 0, width: w, height: h, borderRadius: r, overflow: 'hidden',
+          clipPath: `inset(3px 0px 0px 0px round ${r}px ${r}px 0 0)`,
           background: bare ? undefined : app.background ?? '#fff',
         }}
       >
@@ -181,7 +186,7 @@ const WindowBody = memo(
   },
   (a, b) =>
     (a.ck != null && a.ck === b.ck ? true : sameRelT(a, b)) &&
-    a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && a.proxy === b.proxy && a.defer === b.defer && winKey(a.win) === winKey(b.win),
+    a.w === b.w && a.h === b.h && a.r === b.r && a.active === b.active && a.live === b.live && a.app === b.app && a.proxy === b.proxy && a.defer === b.defer && winKey(a.win) === winKey(b.win),
 )
 // content time relative to the window's open: a prewarmed ghost and the window that takes over
 // its layers render identical content at the same relative time, so nothing re-renders
@@ -298,7 +303,15 @@ function motion(win, app, t) {
     }
   }
   const rect = (tt) => (win.maximized || (win.maximizedAt != null && toRel(tt, win.maximizedAt) < MAX_FRAMES) ? max(tt) : rectAt(win, app, tt))
-  const base = { rect, light: null, beam: null, hidden: false, pose: null, n: 1, shutter: 0, phase: -0.5 }
+  // how maximised the frame is (0 normal .. 1 maximised; tweened with the rect): a maximised
+  // window has square corners and no shadow (it tiles the work area against the screen edges,
+  // the sidebar and the taskbar, and has nothing to cast a shadow on)
+  const maxK = (tt) => {
+    if (win.maximizedAt == null) return win.maximized ? 1 : 0
+    const k = maxEase(toRel(tt, win.maximizedAt) / MAX_FRAMES)
+    return win.maximized ? k : 1 - k
+  }
+  const base = { rect, maxK, light: null, beam: null, hidden: false, pose: null, n: 1, shutter: 0, phase: -0.5 }
 
   if (win.lastAction === 'ghost') return { ...base, hidden: true }
   if (win.state === 'closed') {
@@ -439,8 +452,9 @@ export function quietKey(win, app, t) {
   return `${win.lastAction}|${win.state}|${win.changedAt}|${mountedCopies(win, app, t, N)}|${ev}|${bucket}|${winKey(win)}`
 }
 
-function PlexWindowImpl({ win, app, t, active, z }) {
-  const m = motion(win, app, t) || { ...GHOST_MOTION, rect: () => normalRect(win, app) }
+// look: the active look's level (os/focus.js activeLevels: 1 active .. 0 inactive)
+function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
+  const m = motion(win, app, t) || { ...GHOST_MOTION, rect: () => normalRect(win, app), maxK: () => 0 }
   const N = app.copies ?? DEFAULT_COPIES
   const mounted = mountedCopies(win, app, t, N)
   const nEff = Math.min(m.n, mounted)
@@ -468,6 +482,14 @@ function PlexWindowImpl({ win, app, t, active, z }) {
   const contentMounted = useRef(false)
   const deferContent = !contentMounted.current && !app.prewarm && win.lastAction === 'open' && toRel(t, win.openedAt) < 1 - 1e-6
   if (!deferContent) contentMounted.current = true
+  // how inactive the window looks (the chrome wash and the live window's shadow are layers of
+  // their own, so the cross-fade is compositor work)
+  const inactive = Math.round((1 - look) * 64) / 64
+  const hasShadow = app.chrome !== 'none' && app.shadow !== false
+  let live0 = null // copy 0's style and rect: its shadow layer mirrors them
+  // how far the window's top chrome reaches (title bar + the app's bars): the rim runs along it
+  // and an inactive window's wash covers it
+  const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -485,6 +507,8 @@ function PlexWindowImpl({ win, app, t, active, z }) {
       style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = rest
     const rr = blur && k < nEff ? m.rect(tt) : r
+    const mk = m.maxK(blur && k < nEff ? tt : t)
+    const radius = mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4
     // a closed window's live layer turns into a just-opened window's (a reopen then re-renders
     // little); while closing, the live content holds the time of the close
     let ct = m.closedDone ? liveContentT(win, app, win.openedAt) : liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
@@ -498,6 +522,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
       const settle = app.settle ?? DEFAULT_SETTLE
       ct = app.snapshot ? app.snapshot(win, tk, ev, settle) : Math.max(win.openedAt, ev) + settle
     }
+    if (k === 0) live0 = { style, rr, mk }
     const visible = style !== PARKED && style.opacity > 1e-3
     // the open's lighting layers: on the live layer always, on copies until the open is over
     // (unmounted one copy per frame afterwards)
@@ -518,18 +543,52 @@ function PlexWindowImpl({ win, app, t, active, z }) {
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
+          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} r={radius} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
-        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={Math.min(72, topH || 72)} /> : null}
+        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
       </div>,
     )
   }
+  // the inactive look's chrome wash over the live window, shown at rest only (os/look.jsx)
+  const atRest = !blur && !m.hidden && !m.pose && win.state === 'open'
+  const mk = m.maxK(t)
+  const wash = chromeTop > 0 && mounted > 0 && (
+    <LookLayer key="look" x={r.x} y={r.y} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4} op={atRest ? inactive : 0} />
+  )
+  // The window's shadow: one layer of its own (the motion-blur copies carry none, so their
+  // layers and rasters stay the window's size), rasterised once and then only transformed: it
+  // takes the live layer's pose and opacity, and while the window blurs, the pose at the middle
+  // of the shutter at full opacity (a soft shadow reads the same blurred or not). Its opacity
+  // also carries the look (lighter while inactive), so the focus cross-fade only composites.
+  let sh = live0
+  if (blur && live0) {
+    const tm = t + (m.shutter / FPS) * (0.5 + m.phase)
+    const p = m.pose(tm)
+    sh = { style: { ...poseCss(p), opacity: Math.max(0, p.op) }, rr: m.rect(tm), mk: m.maxK(tm) }
+  }
+  const shadow = hasShadow && sh && (
+    <div
+      key="shadow"
+      style={{
+        position: 'absolute', left: sh.rr.x, top: sh.rr.y, width: sh.rr.w, height: sh.rr.h, pointerEvents: 'none',
+        transform: sh.style.transform, transformOrigin: sh.style.transformOrigin,
+        opacity: sh.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)), mixBlendMode: 'plus-lighter',
+        willChange: live0.style === PARKED && !keepLayers ? undefined : 'transform, opacity',
+      }}
+    >
+      <WindowShadow w={sh.rr.w} h={sh.rr.h} op={1 - sh.mk} />
+    </div>
+  )
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
-      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>{layers}</div>
+      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>
+        {shadow}
+        {layers}
+        {wash}
+      </div>
     </div>
   )
 }
@@ -543,5 +602,5 @@ export function beamOf(win, app, t) {
 // re-renders every frame unless the window is quiet (see quietKey) and nothing else changed
 export const PlexWindow = memo(PlexWindowImpl, (a, b) => {
   if (a.quiet == null || b.quiet == null || a.quiet !== b.quiet) return false
-  return a.app === b.app && a.active === b.active && a.z === b.z
+  return a.app === b.app && a.active === b.active && a.look === b.look && a.z === b.z
 })

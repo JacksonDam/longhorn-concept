@@ -9,7 +9,7 @@ import { memo } from 'react'
 import { emit, getLog, getVersion } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, TextField, Button, ScrollView, ContextMenu, contextHandler, focusField, DropMenu, dropBelow } from '../../ui/index.js'
-import { AppTop, appTopHeight, StatusBar, label } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, StatusBar, label, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { normUrl, openWin, closeWin, messageBox } from '../lib/common.js'
 
@@ -399,6 +399,7 @@ export default {
   position: { x: 90, y: 50 },
   minSize: { w: 420, h: 260 },
   explorer: false,
+  chromeTop: chromeTop({ row2: 24 }),
   background: '#ffffff',
   Content: scoped(IE, {}),
   Proxy: AppProxy,

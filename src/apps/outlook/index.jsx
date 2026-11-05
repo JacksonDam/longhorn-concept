@@ -6,7 +6,7 @@ import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, find, lastOf, ListView, select, selectionOf, ContextMenu, contextHandler, TextField, textOf, Button, ScrollView, hoverKeys, pt, DropMenu, dropBelow, C, FONT, HEAVY } from '../../ui/index.js'
-import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
 import { mailState, messageFor, FOLDERS } from './mail.js'
@@ -296,6 +296,7 @@ export default {
   position: { x: 50, y: 40 },
   minSize: { w: 600, h: 380 },
   explorer: false,
+  chromeTop: chromeTop(),
   background: '#f6f9fe',
   Content: scoped(Outlook, { watch: ['mail'] }),
   Proxy: AppProxy,

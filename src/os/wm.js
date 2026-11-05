@@ -163,8 +163,11 @@ function reduce(events) {
   return { wins, session }
 }
 
-// cached by (log version, number of events at or before t)
-let cache = { version: -1, n: -1, value: null }
+// cached by (log version, number of events at or before t); a few entries, so looking back in
+// time (os/focus.js evaluates the focus at recent change times during a cross-fade) doesn't evict
+// the current frame's state
+let cacheV = -1
+const cache = new Map() // n -> value
 function stateAt(t) {
   const log = getLog()
   let lo = 0, hi = log.length
@@ -174,12 +177,18 @@ function stateAt(t) {
     else hi = mid
   }
   const v = getVersion()
-  if (cache.version === v && cache.n === lo) return cache.value
+  if (cacheV !== v) {
+    cache.clear()
+    cacheV = v
+  }
+  const hit = cache.get(lo)
+  if (hit) return hit
   const r = reduce(log.slice(0, lo))
   // freeze copies so callers can't mutate the cache
   const list = [...r.wins.values()].map((w) => Object.freeze({ ...w, props: Object.freeze({ ...w.props }) }))
   const value = { list, byId: new Map(list.map((w) => [w.id, w])), session: r.session }
-  cache = { version: v, n: lo, value }
+  if (cache.size >= 6) cache.delete(cache.keys().next().value)
+  cache.set(lo, value)
   return value
 }
 

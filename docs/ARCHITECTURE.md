@@ -64,6 +64,17 @@ OS in the same style. Everything still derives from (time, event log).
   toolbar block, `src/os/WindowLayer.jsx` renders all windows. Blur copies render `app.Proxy`
   (a cheap stand-in) when the app has one. `src/os/ErrorBoundary.jsx` keeps a crash inside its
   window.
+- Window chrome rules (details in docs/briefs/os.md, "Window chrome rules"): only the window's
+  outline is rounded (title bar top corners, bottom corners; the client area is clipped to them);
+  every bar and edge panel inside runs square and flush. `src/os/shadow.jsx`: the drop shadow
+  fitted on the video (pre-rendered nine-slice strips on one layer per window that follows the
+  window, during motion blur at the shutter's middle pose; blur copies carry none; nothing is
+  blurred per frame); maximised windows are square with no shadow.
+  `src/os/focus.js`: which windows look active (`activeIds`: hand-over rules for open, close and
+  minimise) and the 4-frame cross-fade of the look (`activeLevels`), pure functions of the log;
+  `src/os/look.jsx`: the inactive look (a wash over the window's top chrome, `app.chromeTop` px,
+  in one small layer per window whose opacity alone cross-fades; a lighter shadow). Blur copies
+  always draw the active look.
 - `src/os/media.js`: the silent media player shared by the sidebar strip, flyout, my Music, Winamp.
 - `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
   tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
@@ -75,7 +86,8 @@ OS in the same style. Everything still derives from (time, event log).
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
 http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
-`?apps=opens&`, `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
+`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?scenario=shell&`,
+`?scenario=session&` with frames past the video's end).
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 
 ## Usability audit

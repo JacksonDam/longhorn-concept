@@ -4,7 +4,7 @@ import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, find, TextField, textOf, Button, ScrollView, hoverKeys, pt, focusField, C, FONT, HEAVY } from '../../ui/index.js'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin } from '../lib/common.js'
 
@@ -140,6 +140,7 @@ export default {
   position: { x: 140, y: 60 },
   minSize: { w: 520, h: 360 },
   explorer: false,
+  chromeTop: chromeTop({ row2: 24 }),
   background: '#f6f9fe',
   Content: scoped(Help, {}),
 }

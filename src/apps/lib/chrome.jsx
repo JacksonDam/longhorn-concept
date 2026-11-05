@@ -1,9 +1,11 @@
 // Shared window furniture for the plain (non-explorer) apps, extrapolated from the my Music
-// window: the glass toolbar continues the title bar, the darker rounded band below it holds the
-// menu bar (and an address / tool row), then the pale body; a soft status bar at the bottom.
-// Client-area px (the PlexWindow title bar is above y 0).
+// window: the glass toolbar continues the title bar, the darker band below it holds the menu bar
+// (and an address / tool row), then the pale body; a soft status bar at the bottom.
+// Client-area px (the PlexWindow title bar is above y 0). Only the window's outline is rounded
+// (PlexWindow): every bar here runs square and flush to the window's edges.
 import { memo } from 'react'
 import { MenuBar, ToolButton, Tooltip, C, FONT, HEAVY } from '../../ui/index.js'
+import { TITLE_H } from '../../os/PlexWindow.jsx'
 import { Ico } from './icons.jsx'
 
 export const TOOL_H = 34 // glass toolbar row
@@ -18,13 +20,13 @@ const bandGrad =
 export const GlassRow = memo(function GlassRow({ y = 0, w, h = TOOL_H }) {
   return (
     <>
-      <div style={{ position: 'absolute', left: 1, top: y - 1, width: w - 1, height: h + 1, background: titleGrad }} />
+      <div style={{ position: 'absolute', left: 0, top: y - 1, width: w, height: h + 1, background: titleGrad }} />
       <div
         style={{
           position: 'absolute',
-          left: 1,
+          left: 0,
           top: y - 1,
-          width: w - 1,
+          width: w,
           height: h + 1,
           background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)',
         }}
@@ -33,20 +35,19 @@ export const GlassRow = memo(function GlassRow({ y = 0, w, h = TOOL_H }) {
   )
 })
 
-// the darker band with rounded top corners (menu row + optional second row) and its edge strip
+// the darker band (menu row + optional second row) and its edge strip
 export const Band = memo(function Band({ y, w, h }) {
   return (
     <>
-      <div style={{ position: 'absolute', left: 1, top: y - 6, width: w - 2, height: 6, background: titleGrad }} />
+      <div style={{ position: 'absolute', left: 0, top: y - 6, width: w, height: 6, background: titleGrad }} />
       <div
         style={{
           position: 'absolute',
-          left: 1,
+          left: 0,
           top: y - 2,
-          width: w - 2,
+          width: w,
           height: h + 2,
           background: bandGrad,
-          borderRadius: '8px 8px 0 0',
           boxShadow: 'inset 0 1px 0 rgba(20,60,130,0.6), inset 0 2px 0 rgba(140,190,255,0.12)',
         }}
       />
@@ -95,6 +96,9 @@ export function Toolbar({ x = 6, y = 4, items, h = 26, gap = 2 }) {
 export function appTopHeight({ toolbar = true, row2 = 0 } = {}) {
   return (toolbar ? TOOL_H : 4) + MENU_H + row2 + 5
 }
+// the app's `chromeTop` (registry): how far its top chrome (title bar + AppTop, with the band's
+// edge line) reaches from the window's top; an inactive window's wash covers it (os/look.jsx)
+export const chromeTop = (opts) => TITLE_H + appTopHeight(opts) + 1
 export function AppTop({ id, w, menus, toolbar, row2 = 0, children }) {
   const ty = toolbar ? TOOL_H : 4
   const bandH = MENU_H + row2 + 5

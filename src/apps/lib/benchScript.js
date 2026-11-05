@@ -1,4 +1,4 @@
-// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens'): a demo-like event list for the apps, appended after the video's input (frames
+// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus'): a demo-like event list for the apps, appended after the video's input (frames
 // 1530+), so tools/bench.mjs and tools/capture.mjs can step and measure the apps' windows on the
 // ?capture path:  node tools/bench.mjs 1530-1960 --url "http://localhost:5304/longhorn-concept/?apps=all"
 import { onEvents, getLog, emit } from '../../core/events.js'
@@ -45,6 +45,21 @@ function script(name) {
     at(1910, 'im.send', { id: 'im:Hank', buddy: 'Hank', text: 'Are we still on for Saturday?' })
     at(1920, 'win.close', { id: 'im:Hank' })
     at(1935, 'win.minimize', { id: 'winamp' })
+  }
+  if (name === 'focus') {
+    // focus switches between overlapping windows (the active / inactive cross-fade, os/focus.js):
+    // three windows over my Music, clicks between them, then the active one minimised, restored
+    // and closed (each hands the active look over), frames 1540-1800
+    at(1540, 'win.open', { id: 'inbox', app: 'outlook', props: { message: 'Hello' } })
+    at(1560, 'win.open', { id: 'ie', app: 'ie', props: { url: 'www.msn.com' } })
+    at(1580, 'win.move', { id: 'ie', x: 250, y: 150 })
+    at(1590, 'win.open', { id: 'calc', app: 'calc' })
+    const order = ['inbox', 'music', 'ie', 'calc', 'inbox', 'ie', 'music', 'calc']
+    order.forEach((id, i) => at(1620 + i * 12, 'win.focus', { id }))
+    at(1720, 'win.minimize', { id: 'calc' })
+    at(1745, 'win.restore', { id: 'calc' })
+    at(1770, 'win.close', { id: 'calc' })
+    at(1790, 'win.focus', { id: 'inbox' })
   }
   if (name === 'opens') {
     // each heavy app opens, settles and closes: frames 1540-1540+7*60
