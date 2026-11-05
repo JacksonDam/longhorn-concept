@@ -131,6 +131,9 @@ function Outlook({ win, t, w, h, active }) {
   let msgs = folder === 'unread' ? ms.folders.inbox.filter((m) => ms.isUnread(m)) : ms.folders[folder] || []
   if (q) msgs = msgs.filter((m) => (m.subject + ' ' + m.from + ' ' + m.body).toLowerCase().includes(q))
   if (!newest) msgs = [...msgs].reverse()
+  // like Outlook, the newest message is selected until the user picks one
+  const autoSel = !selE && !fromProps && msgs.length ? msgs[0].key : null
+  if (autoSel) selKey = autoSel
   const sel = selKey ? ms.byKey.get(selKey) : null
   const selIn = sel && msgs.some((m) => m.key === sel.key) ? sel : null
   const top = appTopHeight()
@@ -221,7 +224,7 @@ function Outlook({ win, t, w, h, active }) {
         active={active}
         items={msgs.map((m) => ({ key: m.key, cells: [<Row key="r" m={m} unread={ms.isUnread(m)} w={listW - 22} />] }))}
         onSelect={onSelect}
-        selected={fromProps ? [fromProps.key] : undefined}
+        selected={fromProps ? [fromProps.key] : autoSel ? [autoSel] : undefined}
         onOpen={(it) => openWin((folder === 'drafts' ? 'draft:' : 'read:') + it.key, 'compose', { mode: folder === 'drafts' ? 'draft' : 'read', ref: it.key })}
         onContext={contextHandler(id('ctx'), ctxItems)}
         emptyText={`There are no items to show in this view.`}
@@ -234,7 +237,12 @@ function Outlook({ win, t, w, h, active }) {
           </ScrollView>
         </>
       )}
-      <StatusBar y={h - sbH} w={w} left={<span>{msgs.length} Items{unreadCount ? `, ${unreadCount} Unread` : ''}</span>} right={<span>Offline</span>} />
+      <StatusBar
+        y={h - sbH}
+        w={w}
+        left={<span onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('folder'), value: folder === 'unread' ? 'inbox' : 'unread' })}>{msgs.length} Items{unreadCount ? `, ${unreadCount} Unread` : ''}</span>}
+        right={<span onPointerDown={(e) => e.button === 0 && sendRecv()}>Offline</span>}
+      />
       <ContextMenu id={id('ctx')} items={ctxItems} />
     </div>
   )

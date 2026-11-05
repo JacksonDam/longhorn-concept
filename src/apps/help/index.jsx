@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, find, TextField, textOf, Button, ScrollView, hoverKeys, pt, C, FONT, HEAVY } from '../../ui/index.js'
+import { scoped, wid, valueOf, find, TextField, textOf, Button, ScrollView, hoverKeys, pt, focusField, C, FONT, HEAVY } from '../../ui/index.js'
 import { AppTop, appTopHeight } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin } from '../lib/common.js'
@@ -98,7 +98,7 @@ function Help({ win, t, w, h }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
       <AppTop id={id('m')} w={w} menus={menus} toolbar={toolbar} row2={24}>
-        <div style={{ position: 'absolute', left: 12, top: top - 25, lineHeight: '18px', fontFamily: HEAVY, fontSize: 10.5, color: '#cfe6ff' }}>Search</div>
+        <div style={{ position: 'absolute', left: 12, top: top - 25, lineHeight: '18px', fontFamily: HEAVY, fontSize: 10.5, color: '#cfe6ff' }} onPointerDown={(e) => e.button === 0 && focusField(id('q'))}>Search</div>
         <TextField id={id('q')} x={62} y={top - 25} w={w - 150} h={18} variant="chrome" pad={9} size={11} onEnter={search} />
         <div style={{ position: 'absolute', left: w - 82, top: top - 26 }}>
           <Button id={id('go')} variant="glass" x={0} y={0} w={70} h={20} onClick={search}>
@@ -113,15 +113,15 @@ function Help({ win, t, w, h }) {
         </ScrollView>
       ) : (
         <>
-          <div style={{ position: 'absolute', left: 24, top: top + 16, fontFamily: FONT, fontSize: 13, color: '#4f86d6' }}>Windows</div>
-          <div style={{ position: 'absolute', left: 22, top: top + 30, fontFamily: FONT, fontSize: 26, fontWeight: 300, color: '#86b4ea', whiteSpace: 'nowrap' }}>
+          <div onPointerDown={(e) => e.button === 0 && openWin('about', 'about')} style={{ position: 'absolute', left: 24, top: top + 16, fontFamily: FONT, fontSize: 13, color: '#4f86d6' }}>Windows</div>
+          <div onPointerDown={(e) => e.button === 0 && go(win, 'basics')} style={{ position: 'absolute', left: 22, top: top + 30, fontFamily: FONT, fontSize: 26, fontWeight: 300, color: '#86b4ea', whiteSpace: 'nowrap' }}>
             help <span style={{ fontWeight: 400, color: '#2c6cc4' }}>and support</span>
           </div>
-          <div style={{ position: 'absolute', left: 24, top: top + 74, fontFamily: FONT, fontSize: 11, color: '#8b91a6' }}>
+          <div style={{ position: 'absolute', left: 24, top: top + 74, fontFamily: FONT, fontSize: 11, color: '#8b91a6' }} onPointerDown={(e) => e.button === 0 && focusField(id('q'))}>
             {searched ? `${list.length} topic${list.length === 1 ? '' : 's'} found for "${searched}"` : 'Pick a help topic'}
           </div>
           <TopicList win={win} t={t} list={list} x={24} y={top + 98} />
-          <div style={{ position: 'absolute', left: 360, top: top + 98, width: w - 390, padding: 14, borderRadius: 6, background: 'rgba(255,255,255,0.7)', boxShadow: `inset 0 0 0 1px ${C.borderLight}`, boxSizing: 'border-box' }}>
+          <div onPointerDown={(e) => e.button === 0 && go(win, 'basics')} style={{ position: 'absolute', left: 360, top: top + 98, width: w - 390, padding: 14, borderRadius: 6, background: 'rgba(255,255,255,0.7)', boxShadow: `inset 0 0 0 1px ${C.borderLight}`, boxSizing: 'border-box' }}>
             <div style={{ fontFamily: HEAVY, fontSize: 12, color: '#3b7cc6', marginBottom: 6 }}>Did you know?</div>
             <div style={{ fontFamily: FONT, fontSize: 11, lineHeight: '16px', color: C.text }}>You can right-click almost anything, the desktop, a file, a message or a picture, to see what you can do with it.</div>
           </div>
