@@ -17,7 +17,7 @@
 //   'hover' { id: 'music.album.<i>' | 'music.track.<n>', on }
 import { last, all } from '../../core/events.js'
 import { useTime, useEvents } from '../../core/time.jsx'
-import { FPS } from '../../core/clock.js'
+import { FPS, CAPTURE } from '../../core/clock.js'
 import { WIN } from './geometry.js'
 import { Chrome } from './Chrome.jsx'
 import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from './Body.jsx'
@@ -67,7 +67,7 @@ function viewState(t, openT) {
 }
 
 // One rendering of the whole window at time t (motion-blur copies each get their own t).
-function WindowContent({ t, st, vs, copy = false }) {
+function WindowContent({ t, st, vs, copy = false, slabT }) {
   const rel = toRel(t, st.openedAt)
   const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
   return (
@@ -86,7 +86,7 @@ function WindowContent({ t, st, vs, copy = false }) {
     >
       <Chrome />
       <BodyBg />
-      <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} />
+      <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} slabT={slabT ?? t} />
       <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
       <TaskPane />
       <GridBar />
@@ -126,19 +126,37 @@ function openBlur(rel) {
 // the window drawn n times at sub-frame times, averaged (plus-lighter in an isolated group)
 // frozen: render the content as at this time (e.g. while closing). Inside a copy the slabs
 // render one sample each: the copies already provide the temporal samples.
-function Blurred({ t, n, shutter, phase = -0.5, pose, st, vs, frozen }) {
+// Real-time playback uses fewer copies (each copy is a full window DOM); ?capture uses all.
+const MAX_COPIES = CAPTURE ? 64 : 7
+
+function Blurred({ t, n: nWanted, shutter = 0, phase = -0.5, pose, st, vs, frozen, hidden = false }) {
+  const n = Math.min(nWanted, MAX_COPIES)
   const layers = []
   for (let k = 0; k < n; k++) {
+    if (n === 1) {
+      // the settled window (layer 0 stays mounted across all states, so a blur never remounts it)
+      const p = pose ? pose(t) : null
+      const vis = !hidden && (!p || p.op > 0)
+      layers.push(
+        <div key={k} style={{ ...winBox, ...(p ? poseCss(p) : null), visibility: vis ? 'visible' : 'hidden' }}>
+          <WindowContent t={frozen ?? t} st={st} vs={vs} />
+        </div>,
+      )
+      continue
+    }
     const tt = t + shutter * ((k + 0.5) / n + phase)
     const p = pose(tt)
-    if (p.op <= 0) continue
+    const vis = p.op > 0
     layers.push(
-      <div key={k} style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter' }}>
-        <WindowContent t={frozen ?? tt} st={st} vs={vs} copy />
+      <div
+        key={k}
+        style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter', visibility: vis ? 'visible' : 'hidden' }}
+      >
+        <WindowContent t={frozen ?? tt} st={st} vs={vs} copy slabT={CAPTURE ? undefined : (frozen ?? t)} />
       </div>,
     )
   }
-  return <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>{layers}</div>
+  return <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: n === 1 && !hidden ? 'auto' : 'none' }}>{layers}</div>
 }
 
 // Dev-only comparison aid (?plate): a clean desktop frame of the reference video behind the
@@ -179,9 +197,7 @@ function MusicWindowLayer({ t }) {
     const back = (tt) => OPEN_END - toRel(tt, st.closedAt) * CLOSE_SPEED
     return (
       <>
-        {crel < CLOSE_END && (
-          <Blurred t={t} st={st} vs={vs} n={10} shutter={0.8 / FPS} pose={(tt) => openPose(back(tt))} frozen={st.closedAt} />
-        )}
+        <Blurred t={t} st={st} vs={vs} n={10} shutter={0.8 / FPS} pose={(tt) => openPose(back(tt))} frozen={st.closedAt} hidden={crel >= CLOSE_END} />
         <Beam rel={OPEN_END - crel * CLOSE_SPEED} fan={[3.2, 6, 8.2]} spark={[-1, -1, -1]} />
       </>
     )
@@ -190,44 +206,28 @@ function MusicWindowLayer({ t }) {
   const rel = toRel(t, st.openedAt)
   const vs = viewState(t, st.openedAt)
   const props = { t, st, vs }
-  // minimise / restore
-  if (st.changedAt !== st.openedAt) {
-    const mrel = toRel(t, st.changedAt)
-    if (st.minimized) {
-      if (mrel >= MIN_END) return null
-      const fall = mrel > 3.8
-      return (
-        <>
-          <Blurred {...props} n={fall ? 16 : 6} shutter={(fall ? 1.32 : 1) / FPS} phase={mrel > 5.8 ? 0 : -0.5} pose={(tt) => minimizePose(toRel(tt, st.changedAt))} />
-          <Beam rel={mrel} fan={[5, 6.8, 8.6]} spark={[6, 7.5, 9.5]} rise={false} />
-        </>
-      )
-    }
-    if (mrel < RESTORE_END) {
-      return (
-        <>
-          <Blurred {...props} n={16} shutter={(mrel > 4.5 ? 1.36 : 1) / FPS} phase={mrel < 2 ? -1 : -0.5} pose={(tt) => restorePose(toRel(tt, st.changedAt))} />
-          <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
-        </>
-      )
-    }
+  // one Blurred in every state (n = 1 when settled) so its first layer is never remounted
+  let blur = { n: 1 }
+  let beam = null
+  const mrel = toRel(t, st.changedAt)
+  if (st.changedAt !== st.openedAt && st.minimized) {
+    const fall = mrel > 3.8
+    blur =
+      mrel >= MIN_END
+        ? { n: 1, hidden: true }
+        : { n: fall ? 16 : 6, shutter: (fall ? 1.32 : 1) / FPS, phase: mrel > 5.8 ? 0 : -0.5, pose: (tt) => minimizePose(toRel(tt, st.changedAt)) }
+    beam = <Beam rel={mrel} fan={[5, 6.8, 8.6]} spark={[6, 7.5, 9.5]} rise={false} />
+  } else if (st.changedAt !== st.openedAt && mrel < RESTORE_END) {
+    blur = { n: 16, shutter: (mrel > 4.5 ? 1.36 : 1) / FPS, phase: mrel < 2 ? -1 : -0.5, pose: (tt) => restorePose(toRel(tt, st.changedAt)) }
+    beam = <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
+  } else if (st.changedAt === st.openedAt) {
+    beam = <Beam rel={rel} haze fanOp={0.6} />
+    if (rel < 5) blur = { n: 1, hidden: true }
+    else if (openMoving(rel)) blur = { ...openBlur(rel), pose: (tt) => openPose(toRel(tt, st.openedAt)) }
   }
-  const beam = <Beam rel={rel} haze fanOp={0.6} />
-  if (rel < 5) return beam
-  if (!openMoving(rel)) {
-    return (
-      <>
-        <div style={winBox}>
-          <WindowContent {...props} />
-        </div>
-        {beam}
-      </>
-    )
-  }
-  const { n, shutter } = openBlur(rel)
   return (
     <>
-      <Blurred {...props} n={n} shutter={shutter} pose={(tt) => openPose(toRel(tt, st.openedAt))} />
+      <Blurred {...props} {...blur} />
       {beam}
     </>
   )

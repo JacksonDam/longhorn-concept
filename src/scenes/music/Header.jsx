@@ -10,7 +10,7 @@ import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
 import { TWEET, TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
-import { FPS } from '../../core/clock.js'
+import { FPS, CAPTURE } from '../../core/clock.js'
 import { ease } from '../../core/anim.js'
 
 // slab canvas: window-local box that holds the device and its floor reflection
@@ -214,10 +214,10 @@ const albumSlab = {
 }
 
 // The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-function Slabs({ t, items, samples = 1, shutter = 0 }) {
+function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache }) {
   return (
     <>
-      <SlabCanvas
+      {reflection && <SlabCanvas
         t={t}
         width={SC.w}
         height={SC.h}
@@ -226,8 +226,9 @@ function Slabs({ t, items, samples = 1, shutter = 0 }) {
         shutter={shutter}
         P={900}
         style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask }}
-      />
-      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} />
+        cacheKey={cache && 'refl'}
+      />}
+      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} cacheKey={cache && 'main'} />
     </>
   )
 }
@@ -303,7 +304,9 @@ function TrackList({ hrel, sel, hover }) {
 }
 
 // t: this copy's time; openT: music.open; pageT: start of the album page transition (or null)
-export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1 }) {
+// slabT: time for the slabs (real-time blur copies all pass the frame time, so the slab renders
+// once per frame and the copies share it)
+export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1, slabT = t }) {
   const rel = toRel(t, openT)
   const hrel = pageT == null ? -1e9 : toRel(t, pageT)
   const fadeOut = 1 - smoothRamp(hrel, 1.5, 8.5)
@@ -319,7 +322,7 @@ export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = 
     return { ...albumPoseRel(h), opacity: ramp(h, 4, 5) }
   }
   const items = []
-  if (rel > 5.5 && hrel < 5.2) items.push({ slab: deviceSlab(drawDevice(t)), pose: devPose })
+  if (rel > 5.5 && hrel < 5.2) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: devPose })
   if (hrel > 3.8) items.push({ slab: albumSlab, pose: albPose })
   const fast = rel < 24 || (hrel > 0 && hrel < 21)
   return (
@@ -330,7 +333,9 @@ export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = 
           sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
         />
       )}
-      {items.length > 0 && <Slabs t={t} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} />}
+      {items.length > 0 && (
+        <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection={CAPTURE || !copy} cache={copy && !CAPTURE} />
+      )}
       {fadeOut > 0 && <Title rel={rel} op={fadeOut} />}
       {fadeOut > 0 && <Buttons rel={rel} op={fadeOut} />}
       <TrackList hrel={hrel} sel={track} hover={copy ? -1 : trackHover} />
