@@ -9,6 +9,7 @@ import { asset, preload } from '../../core/preload.js'
 const FILES = [
   'env-closed', 'env-hot', 'env-open', 'buddy-away', 'play', 'pause', 'capsule', 'btn-stop', 'btn-prev',
   'btn-next', 'go-online', 'thumb0', 'thumb1', 'thumb2', 'thumb3', 'chevron', 'ic-outlook', 'ic-winamp',
+  'fly-note', 'fly-buttons', 'fly-go',
 ]
 export const iconUrl = (f) => asset('img/desktop/icons/' + f + '.svg')
 // the Start button's white flag (Taskbar.jsx) is the XP flag recoloured, a 4x WebP
@@ -171,3 +172,15 @@ export function OutlookIcon({ x, y, size = 16 }) {
 export function WinampIcon({ x, y, size = 16 }) {
   return <Ico f="ic-winamp" x={x} y={y} w={size} h={size} />
 }
+
+// my Music flyout (fixed stage positions inside the flyout): the glossy violet note of the title
+// bar, the title bar's drop-down triangle and glass close cross, and the footer's arrow
+export const FlyNote = memo(function FlyNote() {
+  return <Ico f="fly-note" x={667} y={261} w={26} h={28} />
+})
+export const FlyTitleButtons = memo(function FlyTitleButtons() {
+  return <Ico f="fly-buttons" x={819.5} y={261.3} w={42} h={22} />
+})
+export const FlyGoArrow = memo(function FlyGoArrow() {
+  return <Ico f="fly-go" x={718} y={478} w={12} h={16} />
+})
