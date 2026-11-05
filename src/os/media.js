@@ -19,10 +19,11 @@ const mmss = (s) => {
   return m * 60 + x
 }
 
-// the my Music flyout's list (the video's text, verbatim); the sidebar strip shows track 1
+// the my Music flyout's list (the video's text, verbatim); the sidebar strip shows track 1. The
+// video's strip is cut off after "U2 - One more Voice Wi": the rest is unknown, so it isn't invented
 export const DEFAULT_PLAYLIST = [
   ['Gomez - Bring it on', '4:34'],
-  ['U2 - One More Voice', '3:10', 'U2 - One more Voice With Love'],
+  ['U2 - One More Voice', '3:10', 'U2 - One more Voice'],
   ['Alicia Keys - Just another', '7:31'],
   ['Evergreen - Small sound', '5:09'],
   ['Gomez - Bring it on', '4:34'],
