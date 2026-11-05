@@ -3,15 +3,12 @@
 // every image a scene uses, including CSS background images. The boot (core/boot.js) also
 // preloads every file under public/img before the clock starts.
 const pending = new Map()
-// the Image objects stay referenced, so their decoded resources stay in the memory cache
-const images = []
 
 export function preload(urls) {
   for (const url of urls) {
     if (pending.has(url)) continue
     const img = new Image()
     img.src = url
-    images.push(img)
     pending.set(url, img.decode().catch(() => {}))
   }
 }
