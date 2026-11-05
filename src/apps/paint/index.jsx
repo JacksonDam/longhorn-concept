@@ -4,7 +4,7 @@
 import { memo, useLayoutEffect, useRef } from 'react'
 import { emit } from '../../core/events.js'
 import { scoped, wid, valueOf, find, pt, stageRect, ToolButton, Tooltip, DropMenu, dropBelow, C } from '../../ui/index.js'
-import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, messageBox, openWin } from '../lib/common.js'
 
 const COLORS = ['#000000', '#808080', '#c0272d', '#e67e22', '#f5c542', '#4dbb3a', '#2e7d32', '#38b6d8', '#2c6cc4', '#1f3f7a', '#8e44ad', '#d85fa4', '#8a5a2b', '#ffffff']
@@ -144,6 +144,7 @@ export default {
   position: { x: 150, y: 70 },
   minSize: { w: 420, h: 320 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#9fb1cc',
   Content: scoped(Paint, { watch: ['paint'] }),
 }

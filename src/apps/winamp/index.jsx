@@ -5,7 +5,7 @@ import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { scoped, wid, valueOf, Slider, ListView, ToolButton, Tooltip, C, FONT, HEAVY } from '../../ui/index.js'
 import { mediaState, formatTime } from '../../os/media.js'
-import { AppTop, appTopHeight } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
 import { openMusic } from '../lib/fs.js'
@@ -171,6 +171,7 @@ export default {
   position: { x: 300, y: 120 },
   minSize: { w: 340, h: 260 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#3f78c4',
   // the time, title and visualiser move while the player plays (and the bars settle after a pause)
   Content: scoped(Winamp, { watch: ['media'], alive: (win, t) => playing(t) }),

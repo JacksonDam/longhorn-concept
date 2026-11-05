@@ -21,7 +21,7 @@ import { focusedField } from '../ui/state.js'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
 import { WindowShadow } from './shadow.jsx'
-import { WindowLook, ChromeWash, INACTIVE_SHADOW } from './look.jsx'
+import { LookLayer, INACTIVE_SHADOW } from './look.jsx'
 import {
   OPEN_DELAY, RESTORE_DELAY, OPEN_END, openPose, openMoving, openLight, poseCss, openBlur,
   MIN_END, RESTORE_END, minimizePoseFor, restorePoseFor, minimizeBlur, restoreBlur,
@@ -137,7 +137,7 @@ const WinButtonsIcon = () => (
 )
 
 // title text: app.TitleContent (custom, e.g. my Music's equaliser glyph + "my Music") or the
-// app title centred in the bar (one colour: an inactive window's ChromeWash dims it)
+// app title centred in the bar (one colour: an inactive window's wash dims it, os/look.jsx)
 const Title = memo(function Title({ w, title, TitleContent, active, props }) {
   if (TitleContent) return <TitleContent w={w} active={active} props={props} />
   return (
@@ -181,7 +181,6 @@ const WindowBody = memo(
             <WinButtonsIcon />
           </div>
         )}
-        {!bare && <ChromeWash w={w} h={topH} />}
       </div>
     )
   },
@@ -483,6 +482,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   const contentMounted = useRef(false)
   const deferContent = !contentMounted.current && !app.prewarm && win.lastAction === 'open' && toRel(t, win.openedAt) < 1 - 1e-6
   if (!deferContent) contentMounted.current = true
+  // how inactive the window looks (in eighths: at 144 Hz a cross-fade repaints the lighter shadow
+  // 8 times, not 19; the chrome wash is a compositor-only fade)
+  const inactive = Math.round((1 - look) * 8) / 8
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -502,9 +504,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     const rr = blur && k < nEff ? m.rect(tt) : r
     const mk = m.maxK(blur && k < nEff ? tt : t)
     const radius = mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4
-    // the live layer shows the window's look; copies (motion blur, idle) always the active one
-    const inactive = k === 0 ? Math.round((1 - look) * 1000) / 1000 : 0
-    const shadowOp = (1 - mk) * (1 - inactive * (1 - INACTIVE_SHADOW))
+    // the live layer's shadow is lighter while the window looks inactive; copies (motion blur,
+    // idle) always draw the active look
+    const shadowOp = (1 - mk) * (1 - (k === 0 ? inactive : 0) * (1 - INACTIVE_SHADOW))
     // a closed window's live layer turns into a just-opened window's (a reopen then re-renders
     // little); while closing, the live content holds the time of the close
     let ct = m.closedDone ? liveContentT(win, app, win.openedAt) : liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
@@ -539,9 +541,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       >
         {app.chrome !== 'none' && app.shadow !== false && <WindowShadow w={rr.w} h={rr.h} op={shadowOp} />}
         <LiveLayers.Provider value={k === 0}>
-          <WindowLook.Provider value={inactive}>
-            <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} r={radius} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
-          </WindowLook.Provider>
+          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} r={radius} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
@@ -550,9 +550,19 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       </div>,
     )
   }
+  // the inactive look's chrome wash over the live window, shown at rest only (os/look.jsx)
+  const atRest = !blur && !m.hidden && !m.pose && win.state === 'open'
+  const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
+  const mk = m.maxK(t)
+  const wash = chromeTop > 0 && mounted > 0 && (
+    <LookLayer key="look" x={r.x} y={r.y} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4} op={atRest ? inactive : 0} />
+  )
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
-      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>{layers}</div>
+      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>
+        {layers}
+        {wash}
+      </div>
     </div>
   )
 }

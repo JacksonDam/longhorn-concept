@@ -6,11 +6,11 @@ import { getApp, listApps } from './apps.js'
 import { PlexWindow, MOUNT_EVERY, DEFAULT_COPIES, quietKey, beamOf } from './PlexWindow.jsx'
 import { activeIds, activeLevels } from './focus.js'
 import { Beam } from './Beam.jsx'
-import { FPS } from '../core/clock.js'
+import { FPS, now } from '../core/clock.js'
 import { emit } from '../core/events.js'
 
-// dev/test hook: scripted window input (tools, benches)
-if (typeof window !== 'undefined') window.__wm = { emit, windows, focusedWindow }
+// dev/test hook: scripted window input (tools, benches); looks(): the active look's level per window
+if (typeof window !== 'undefined') window.__wm = { emit, windows, focusedWindow, looks: (t = now()) => Object.fromEntries(activeLevels(windows, t)) }
 
 // Apps with `prewarm: true` (my Music, which the video opens) get a hidden "ghost" window from
 // the session start: its layers mount and paint while nothing is happening, and the real window

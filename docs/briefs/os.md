@@ -20,6 +20,30 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
 - No third-party copyrighted media: keep using original stand-in art (docs/SUBSTITUTIONS.md).
 - Microsoft product names/brands as the video shows them are fine (Outlook, Word, IE, MSN).
 
+## Window chrome rules (every window and dialog)
+- **Corners.** Only the window's own outline is rounded: the title bar's top corners and the
+  window's bottom corners (PlexWindow `RIM_R` = 8; the client area is clipped to them). Every bar
+  inside it (glass toolbar, menu band, command row, address / task band, status bar) and every
+  panel that reaches an edge runs square and flush to the window's edges, even where the video's
+  band shows a slight rounding (the user's rule wins). Controls keep their rounding (buttons,
+  the address / search pill, tabs, tiles, menus, cards inset from the edges). Use
+  `src/apps/lib/chrome.jsx` (AppTop, GlassRow, Band, StatusBar) for an app's top bars.
+- **Shadow.** Every window casts the video's soft drop shadow (os/shadow.jsx, fitted on the my
+  Music window: black, offset 9 px down, sigma 8, spread -1, alpha 0.33; nothing above the
+  window). It is drawn inside each window layer, so motion-blur copies carry it. Maximised
+  windows have square corners and no shadow (they tile the work area; both tween with the
+  maximise). Apps with `chrome: 'none'` or `shadow: false` have none.
+- **Active / inactive.** The focused window keeps the video's look. Other windows are calmer:
+  a pale cool wash over the title bar and the top chrome (lighter, less saturated, toolbar labels
+  lower in contrast), the title row dimmed towards the bar (a dimmer title and window buttons) and
+  a shadow at half strength; content is unchanged (os/look.jsx). Neither video shows an inactive
+  look (the back window in ref2 keeps its colours), so it follows the Plex theme's Luna lineage
+  (XP's lighter, desaturated inactive caption), kept subtle. The look cross-fades over 4 frames
+  (os/focus.js), compositor-only. A closing or minimising window keeps its look until it has gone,
+  the window an open takes the focus from keeps it for two frames, a window that turns active by
+  its own open or restore starts active. An app whose top chrome reaches below the title bar
+  declares `chromeTop` (lib/chrome.jsx `chromeTop(opts)` for AppTop) so the wash covers it.
+
 ## Components and ownership
 Each owner works in their own worktree/branch, merges `main` regularly (at least every hour and
 whenever I say main moved), commits small, and touches other owners' files only through the

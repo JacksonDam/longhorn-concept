@@ -19,13 +19,26 @@ const DY = 9
 const SIGMA = 8
 export const SHADOW_RADIUS = 8 // the window's corner radius (PlexWindow RIM_R)
 
-// O: how far the shadow reaches outside the window; C: the corner zone inside it (past C the
-// profile along an edge is uniform)
-const O = Math.ceil(SPREAD + DY + 3 * SIGMA)
-const C = Math.ceil(SHADOW_RADIUS + SPREAD + DY + 3 * SIGMA)
+// How far the shadow reaches outside the window on each side (cut where its alpha falls under
+// 1/400: 2.5 sigma past the spread edge): sides, bottom (offset down by DY) and top (little or
+// nothing). The strips cover only that ring (and the corner radius R inside it, where the rounded
+// corners leave room), so the window layers grow as little as possible (every motion-blur copy
+// composites its whole layer) and re-rastering a strip never touches the window's content.
+// C: the corner zone (past C from a corner the profile along an edge is uniform).
+const TAIL = 2.5 * SIGMA
+const OS = Math.ceil(SPREAD + TAIL)
+const OB = Math.ceil(SPREAD + DY + TAIL)
+const OT = Math.max(0, Math.ceil(SPREAD - DY + TAIL))
+const C = Math.ceil(SHADOW_RADIUS + SPREAD + DY + TAIL)
+const O = Math.max(OS, OB, OT) // the image's margin
 const S = 2 // image px per stage px
 const IW = 2 * C + 2 // the shape the image is drawn for (its middle 2 px are uniform)
 const TOT = IW + 2 * O
+const R = SHADOW_RADIUS
+const KS = OS + C // corner piece width (top and bottom strips)
+const KT = OT + R // top strip height
+const KB = OB + R // bottom strip height
+const KV = C - R // corner piece height (side strips)
 
 function build() {
   if (typeof document === 'undefined') return null
@@ -58,35 +71,42 @@ function build() {
     p.getContext('2d').drawImage(c, x * S, y * S, w * S, h * S, 0, 0, w * S, h * S)
     return p.toDataURL('image/png')
   }
-  const K = O + C // corner piece size
+  const xl = O - OS, xr = O + IW // left / right side strips
+  const x1 = O + IW - C // right corner pieces
+  const yt = O - OT, yb = O + IW - R // top / bottom strips
   const mid = O + C // a uniform column / row
   return {
-    tl: piece(0, 0, K, K), tm: piece(mid, 0, 1, K), tr: piece(TOT - K, 0, K, K),
-    bl: piece(0, TOT - K, K, K), bm: piece(mid, TOT - K, 1, K), br: piece(TOT - K, TOT - K, K, K),
-    l: piece(0, mid, O, 1), r: piece(TOT - O, mid, O, 1),
+    tl: piece(xl, yt, KS, KT), tm: piece(mid, yt, 1, KT), tr: piece(x1, yt, KS, KT),
+    bl: piece(xl, yb, KS, KB), bm: piece(mid, yb, 1, KB), br: piece(x1, yb, KS, KB),
+    lt: piece(xl, O + R, OS, KV), lm: piece(xl, mid, OS, 1), lb: piece(xl, O + IW - C, OS, KV),
+    rt: piece(xr, O + R, OS, KV), rm: piece(xr, mid, OS, 1), rb: piece(xr, O + IW - C, OS, KV),
   }
 }
 const IMG = build()
 if (IMG) preload(Object.values(IMG))
 
-const K = O + C
 const strip = (x, y, w, h, extra) => ({ position: 'absolute', left: x, top: y, width: w, height: h, pointerEvents: 'none', backgroundRepeat: 'no-repeat', ...extra })
 const row = (a, m, b) => ({
   backgroundImage: `url(${a}), url(${m}), url(${b})`,
-  backgroundPosition: `0 0, ${K}px 0, 100% 0`,
-  backgroundSize: `${K}px 100%, calc(100% - ${2 * K}px) 100%, ${K}px 100%`,
+  backgroundPosition: `0 0, ${KS}px 0, 100% 0`,
+  backgroundSize: `${KS}px 100%, calc(100% - ${2 * KS}px) 100%, ${KS}px 100%`,
+})
+const col = (a, m, b) => ({
+  backgroundImage: `url(${a}), url(${m}), url(${b})`,
+  backgroundPosition: `0 0, 0 ${KV}px, 0 100%`,
+  backgroundSize: `100% ${KV}px, 100% calc(100% - ${2 * KV}px), 100% ${KV}px`,
 })
 
 // the shadow of a w x h window (window-local px), at opacity op (1 = the video's)
 export const WindowShadow = memo(function WindowShadow({ w, h, op = 1 }) {
-  if (!IMG || op <= 0 || w < 2 * K || h < 2 * C) return null
+  if (!IMG || op <= 0 || w < 2 * C || h < 2 * C) return null
   const o = op >= 1 ? undefined : op
   return (
     <>
-      <div style={strip(-O, -O, w + 2 * O, K, { ...row(IMG.tl, IMG.tm, IMG.tr), opacity: o })} />
-      <div style={strip(-O, h - C, w + 2 * O, K, { ...row(IMG.bl, IMG.bm, IMG.br), opacity: o })} />
-      <div style={strip(-O, C, O, h - 2 * C, { backgroundImage: `url(${IMG.l})`, backgroundSize: '100% 100%', opacity: o })} />
-      <div style={strip(w, C, O, h - 2 * C, { backgroundImage: `url(${IMG.r})`, backgroundSize: '100% 100%', opacity: o })} />
+      <div style={strip(-OS, -OT, w + 2 * OS, KT, { ...row(IMG.tl, IMG.tm, IMG.tr), opacity: o })} />
+      <div style={strip(-OS, h - R, w + 2 * OS, KB, { ...row(IMG.bl, IMG.bm, IMG.br), opacity: o })} />
+      <div style={strip(-OS, R, OS, h - 2 * R, { ...col(IMG.lt, IMG.lm, IMG.lb), opacity: o })} />
+      <div style={strip(w, R, OS, h - 2 * R, { ...col(IMG.rt, IMG.rm, IMG.rb), opacity: o })} />
     </>
   )
 })

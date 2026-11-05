@@ -6,7 +6,7 @@ import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, find, Button, C, FONT, HEAVY } from '../../ui/index.js'
-import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
+import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, messageBox, openWin } from '../lib/common.js'
 
 const SUITS = ['♠', '♥', '♦', '♣'] // spades hearts diamonds clubs
@@ -233,6 +233,7 @@ export default {
   position: { x: 160, y: 60 },
   minSize: { w: 560, h: 420 },
   explorer: false,
+  chromeTop: chromeTop({ toolbar: false }),
   background: '#2a6b36',
   Content: scoped(Solitaire, { watch: ['sol'] }),
 }

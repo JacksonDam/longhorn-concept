@@ -5,7 +5,7 @@
 // (PlexWindow): every bar here runs square and flush to the window's edges.
 import { memo } from 'react'
 import { MenuBar, ToolButton, Tooltip, C, FONT, HEAVY } from '../../ui/index.js'
-import { ChromeWash } from '../../os/look.jsx'
+import { TITLE_H } from '../../os/PlexWindow.jsx'
 import { Ico } from './icons.jsx'
 
 export const TOOL_H = 34 // glass toolbar row
@@ -96,6 +96,9 @@ export function Toolbar({ x = 6, y = 4, items, h = 26, gap = 2 }) {
 export function appTopHeight({ toolbar = true, row2 = 0 } = {}) {
   return (toolbar ? TOOL_H : 4) + MENU_H + row2 + 5
 }
+// the app's `chromeTop` (registry): how far its top chrome (title bar + AppTop, with the band's
+// edge line) reaches from the window's top; an inactive window's wash covers it (os/look.jsx)
+export const chromeTop = (opts) => TITLE_H + appTopHeight(opts) + 1
 export function AppTop({ id, w, menus, toolbar, row2 = 0, children }) {
   const ty = toolbar ? TOOL_H : 4
   const bandH = MENU_H + row2 + 5
@@ -106,7 +109,6 @@ export function AppTop({ id, w, menus, toolbar, row2 = 0, children }) {
       <Band y={ty} w={w} h={bandH} />
       {menus && <MenuBar id={id + '.menubar'} menus={menus} x={8} y={ty + 2} h={18} />}
       {children}
-      <ChromeWash y={-1} w={w} h={ty + bandH + 2} />
     </>
   )
 }
