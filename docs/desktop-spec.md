@@ -45,6 +45,10 @@ sidebar, the Refresh dim), `out = k(x) * blur(backdrop) + t(x) + g(y)` per chann
   mode or isolation (or a transform around the plus-lighter layer, which isolates its blend)
   becomes the backdrop root: the blur then sees nothing and the tint adds to nothing.
 - Left border: bright line at x 859-860.
+- Result vs the precomputed image it replaced (all 1529 frames, blur 1): sidebar x 858-960
+  20.11 -> 20.07 (desktop frames 515-1529: 28.02 -> 27.98), clock foot 14.36 -> 14.22,
+  taskbar 12.72 -> 12.71, full frame 17.58 -> 17.57; no frame worse by more than 0.3 (foot,
+  entrance frame 518).
 
 ## Sidebar tiles (text: Libre Franklin 500, white 90 %; baselines)
 | tile | contents |
@@ -169,5 +173,9 @@ Files (src/scenes/desktop unless noted):
   a mail row moves the sidebar's selection, marks the mail read and opens it; Windows Tour and
   Top 10 Tasks open Help on their pages; the Start header opens Control Panel > User Accounts.
 
-Bench (prod build, ?scenario=shell, 1-520): p50 0.6 ms, p95 3.5 ms, max 6.1 ms. The video
+Bench (prod build, ?scenario=shell, 1-520): p50 0.6 ms, p95 3.5 ms, max 6.1 ms.
+Glass section (520-720, machine load ~8, 4 repeats): window drag under the glass p50 2.8 / max
+5.0 ms, sidebar hide and show over it max 3.4, Refresh max 2.6, wallpapers max 2.6. Its task
+button insertion frame (528, 8 frames after the window opens) costs ~8 ms, as its twin frame 128
+does on the build without live glass at the same load. The video
 replay's RMSE is unchanged by the shell (every segment within 0.01 of the pre-shell capture).
