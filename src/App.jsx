@@ -11,8 +11,8 @@ import { LoginScene, LOGIN_EXIT } from './scenes/login/LoginScene.jsx'
 import { DesktopScene } from './scenes/desktop/DesktopScene.jsx'
 import { ErrorBoundary } from './os/ErrorBoundary.jsx'
 import { getVersion } from './core/events.js'
-import { OffScreen, Black, blackLevel } from './scenes/session/PowerScreens.jsx'
-import { screen } from './os/session.js'
+import { OffScreen, Black, blackLevel, BootScreen } from './scenes/session/PowerScreens.jsx'
+import { screen, bootScreenDur } from './os/session.js'
 import { emit } from './core/events.js'
 import { frameTime } from './core/clock.js'
 import { sessionScenario } from './demo/session.js'
@@ -41,6 +41,9 @@ const startLog = () =>
 // compile new pipelines on the first fade frames). Capture never boots.
 const BOOT = !CAPTURE
 let booted = !BOOT
+// the page's own boot screen (index.html, scenes/session/bootScreen.js): the boot hands it over
+// to the black; capture never shows it
+if (CAPTURE) document.getElementById('lh-boot')?.remove()
 const bootDone = new Set()
 const BOOT_BLACK = 0.999
 function useBooted() {
@@ -61,7 +64,7 @@ if (BOOT)
 // Scene flow (os/session.js), after the two reference videos: login -> desktop (submit, the
 // element-wise login exit over the desktop); log off / switch user: a hard cut back to the login
 // screen; shut down (login or desktop): the login screen fades to black, then the off screen;
-// its power button boots: the login screen fades in from black.
+// its power button boots: the boot screen, then the login screen fades in from black.
 function Scenes() {
   const t = useTime()
   useEvents()
@@ -82,6 +85,7 @@ function Scenes() {
       <LoginScene visible={loginVisible} />
       {cur.name === 'off' && <OffScreen t0={cur.t0} t={t} hover={hover} />}
       {(cur.name !== 'off' || booting) && <Black level={black} block={booting || cur.name === 'shutdown' || cur.name === 'boot'} />}
+      {cur.name === 'boot' && t < cur.t0 + bootScreenDur(cur) && <BootScreen t0={cur.t0} t={t} />}
     </>
   )
 }

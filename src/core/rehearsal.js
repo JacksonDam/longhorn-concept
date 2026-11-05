@@ -46,7 +46,8 @@ const AFTER = {
   'ui.menu': [1, 4],
   'session.logoff': [1],
   'session.shutdown': [1, 40, 95],
-  'session.boot': [1, 15],
+  // the boot screen fading in, its blocks, the black, the login fading in
+  'session.boot': [1, 20, 50, 70, 88, 92, 105, 125],
   'tb.press': [],
 }
 const ONE = new Set(['hover', 'login.hover', 'login.pw', 'media.play', 'media.next', 'media.pause', 'desk.flypress'])

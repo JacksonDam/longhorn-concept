@@ -8,8 +8,10 @@
 //   'session.logoff'   {}      end the session, back to the login screen (windows close, see wm.js)
 //   'session.switch'   {}      Switch User: back to the login screen
 //   'session.shutdown' {}      from the login screen or the desktop: shutting-down sequence, then off
-//   'session.boot'     {}      from the off screen: boot sequence, then the login screen (a log
-//                              that starts with one at t <= 0 starts off: the real OS's first boot)
+//   'session.boot'     {}      from the off screen: the boot screen (scenes/session/bootScreen.js),
+//                              black, the login screen fading in. A log that starts with one at
+//                              t <= 0 starts off: the real OS's first boot, whose boot screen is the
+//                              page's own while it loads (core/boot.js), so that one only fades in
 //   'desk.wallpaper'   { kind, color? }  Display Properties / Control Panel > Display
 //
 // currentUser(t)  -> { id, name, email, picture, washed } of the logged-in user, or null
@@ -24,6 +26,7 @@
 import { all, last, getVersion } from '../core/events.js'
 import { lastOfType } from './logIndex.js'
 import { asset } from '../core/preload.js'
+import { FADE as BOOT_FADE, SWEEP as BOOT_SWEEP } from '../scenes/session/bootScreen.js'
 
 export const USERS = [
   { id: 'jenny', name: 'Jenny' },
@@ -39,11 +42,14 @@ export const userPictureWashed = (id) => asset(`img/login/users/${id}-hover.webp
 // Screen timings (seconds), from the second reference video (ref2, days-video.md, f02775-f02888):
 // log off is a hard cut from the desktop to the login screen; shutting down shows the login screen
 // (held 28 frames when coming from the desktop) and fades it linearly to black over 61 frames.
-// Booting fades the login screen back in from black (not in either video: kept short and plain).
+// Booting (in neither video; the second one ends black) shows the Longhorn boot screen for one
+// fade-in and one pass of its blocks, then fades the login screen in from black.
 const FRAME = 1001 / 30000
 export const SHUTDOWN_HOLD = 28 * FRAME
 export const SHUTDOWN_FADE = 61 * FRAME
 export const BOOT_DUR = 30 * FRAME
+export const BOOT_SCREEN = BOOT_FADE + BOOT_SWEEP // the power button's boot screen, before BOOT_DUR
+export const bootScreenDur = (s) => (s.cold ? 0 : BOOT_SCREEN)
 export const shutdownDur = (s) => (s.from === 'desktop' ? SHUTDOWN_HOLD : 0) + SHUTDOWN_FADE
 
 const TYPES = new Set(['login.submit', 'session.logoff', 'session.switch', 'session.shutdown', 'session.boot'])
@@ -78,7 +84,7 @@ function build(t) {
     }
     else if ((e.type === 'session.logoff' || e.type === 'session.switch') && c === 'desktop') push('login', e.t)
     else if (e.type === 'session.shutdown' && (c === 'login' || c === 'desktop')) push('shutdown', e.t)
-    else if (e.type === 'session.boot' && c === 'off') push('boot', e.t)
+    else if (e.type === 'session.boot' && c === 'off') out.push({ name: 'boot', t0: e.t, from: 'off', user: null, cold: cur().t0 === -Infinity })
   }
   settle(out, t)
   return out
@@ -88,7 +94,7 @@ function settle(out, t) {
   for (;;) {
     const c = out[out.length - 1]
     if (c.name === 'shutdown' && t >= c.t0 + shutdownDur(c)) out.push({ name: 'off', t0: c.t0 + shutdownDur(c), from: 'shutdown', user: null })
-    else if (c.name === 'boot' && t >= c.t0 + BOOT_DUR) out.push({ name: 'login', t0: c.t0 + BOOT_DUR, from: 'boot', user: null })
+    else if (c.name === 'boot' && t >= c.t0 + bootScreenDur(c) + BOOT_DUR) out.push({ name: 'login', t0: c.t0 + bootScreenDur(c) + BOOT_DUR, from: 'boot', user: null })
     else return
   }
 }
