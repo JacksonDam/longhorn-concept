@@ -1,0 +1,9 @@
+node_modules
+dist
+.DS_Store
+._*
+.env
+# reference video, frames and raw downloads stay local
+ref/
+assets-src/
+out/
