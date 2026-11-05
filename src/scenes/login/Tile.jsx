@@ -21,7 +21,7 @@ export const TileFace = memo(function TileFace({ id, color, glass }) {
           position: 'absolute',
           inset: 0,
           borderRadius: 4.5,
-          boxShadow: '-1px 1.5px 1.5px rgba(0,25,110,0.55), 0 0 3px rgba(0,30,120,0.25)',
+          boxShadow: '-1.5px 1.5px 3px rgba(0,25,110,0.5), 0 0 2px rgba(0,30,120,0.2)',
         }}
       />
       <img src={duo(id)} alt="" draggable={false} style={imgStyle} />
@@ -34,7 +34,7 @@ export const TileFace = memo(function TileFace({ id, color, glass }) {
           borderRadius: 4,
           boxShadow: glass
             ? 'inset 0 0 0 1px rgba(235,245,255,0.7)'
-            : `inset 0 0 0 2.2px rgba(255,255,255,${0.97 - 0.35 * color}), inset 0 0 0 3px rgba(255,255,255,0.35)`,
+            : `inset 0 0 0 2px rgba(255,255,255,${0.55 - 0.15 * color}), inset -1px 0 0 2.5px rgba(255,255,255,0.25)`,
         }}
       />
       <div
@@ -81,15 +81,15 @@ export function Tile({ user, x, y = 0, look, onPointerEnter, onPointerLeave, onP
           width: 100,
           top: TILE.labelY - 7 + label * 5 + y,
           textAlign: 'center',
-          fontFamily: 'Plex',
-          fontSize: 11.5 + label * 1.5,
-          fontWeight: label > 0.5 ? 650 : 450,
+          fontFamily: 'Libre Franklin',
+          fontSize: 12 + label * 1.5,
+          fontWeight: 600 + label * 150,
           lineHeight: '14px',
           color: 'rgb(214,232,255)',
           opacity: labelOpacity * opacity,
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
-          textShadow: '0 1px 1px rgba(10,40,140,0.3)',
+          textShadow: '0 1px 1.5px rgba(5,30,120,0.55)',
         }}
       >
         {user.name}

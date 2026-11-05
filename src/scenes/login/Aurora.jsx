@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTime } from '../../core/time.jsx'
 import { useStageScale } from '../../core/Stage.jsx'
 import { AuroraRenderer, keysReady } from './aurora.js'
-import { ribbonsAt } from './ribbons.js'
 
 export function Aurora({ style }) {
   const t = useTime()
@@ -18,7 +17,7 @@ export function Aurora({ style }) {
   useLayoutEffect(() => {
     if (!ref.current) return
     if (!r.current) r.current = new AuroraRenderer(ref.current)
-    r.current.render(t, Math.round(960 * k), Math.round(720 * k), ribbonsAt(t))
+    r.current.render(t, Math.round(960 * k), Math.round(720 * k))
   })
   return <canvas ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, ...style }} />
 }

@@ -32,14 +32,14 @@ export const BarBand = memo(function BarBand() {
 
 const labelStyle = {
   position: 'absolute',
-  fontFamily: 'Plex',
+  fontFamily: 'Libre Franklin',
   fontSize: 12,
-  fontWeight: 500,
+  fontWeight: 600,
   color: 'rgb(214,232,255)',
   whiteSpace: 'nowrap',
   textAlign: 'center',
   lineHeight: '14px',
-  textShadow: '0 1px 1px rgba(10,40,140,0.35)',
+  textShadow: '0 1px 1.5px rgba(5,30,120,0.55)',
 }
 
 export const ShutDown = memo(function ShutDown({ onClick }) {
@@ -54,22 +54,28 @@ export const ShutDown = memo(function ShutDown({ onClick }) {
         onPointerDown={onClick}
       >
         <defs>
-          <radialGradient id="sd-body" cx="0.4" cy="0.32" r="0.75">
-            <stop offset="0" stopColor="#9fb6ff" />
-            <stop offset="0.45" stopColor="#5571f0" />
-            <stop offset="1" stopColor="#3a52d8" />
+          <radialGradient id="sd-body" cx="0.55" cy="0.78" r="0.7">
+            <stop offset="0" stopColor="#8db0ff" />
+            <stop offset="0.55" stopColor="#5a88fb" />
+            <stop offset="1" stopColor="#4a7af2" />
           </radialGradient>
+          <linearGradient id="sd-top" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#dfe6ff" stopOpacity="0.95" />
+            <stop offset="0.55" stopColor="#c4d2ff" stopOpacity="0.55" />
+            <stop offset="1" stopColor="#a8c0ff" stopOpacity="0" />
+          </linearGradient>
           <linearGradient id="sd-rim" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#d6e2ff" />
-            <stop offset="1" stopColor="#8fa8ff" />
+            <stop offset="0" stopColor="#c0d4f0" />
+            <stop offset="0.5" stopColor="#7aa6e6" />
+            <stop offset="1" stopColor="#64a6f6" />
           </linearGradient>
         </defs>
-        <circle r={r} fill="url(#sd-rim)" opacity="0.85" />
-        <circle r={r - 2} fill="url(#sd-body)" />
-        <ellipse cx="-1.5" cy="-6" rx="8" ry="5" fill="#fff" opacity="0.28" />
-        <line x1="0" y1="-5" x2="0" y2="1.5" stroke="#e8eeff" strokeWidth="1.4" strokeLinecap="round" />
+        <circle r={r} fill="none" stroke="url(#sd-rim)" strokeWidth="1.6" opacity="0.9" />
+        <circle r={r - 1.2} fill="url(#sd-body)" />
+        <ellipse cx="0" cy={-r * 0.42} rx={r * 0.78} ry={r * 0.5} fill="url(#sd-top)" />
+        <line x1="0" y1="-4.5" x2="0" y2="4.5" stroke="#9cc6ff" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
-      <div style={{ ...labelStyle, left: cx - 40, width: 80, top: labelY - 7, fontWeight: 600, fontSize: 11.5 }}>Shut Down</div>
+      <div style={{ ...labelStyle, left: cx - 40, width: 80, top: labelY - 7, fontSize: 12.5 }}>Shut Down</div>
     </>
   )
 })
@@ -88,29 +94,35 @@ export const Clock = memo(function Clock({ text }) {
       <svg width={width} height={height} style={{ position: 'absolute', left: 0, top: 0 }}>
         <defs>
           <linearGradient id="ck-body" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3f7cf2" />
-            <stop offset="1" stopColor="#2f69e6" />
+            <stop offset="0" stopColor="#2b6fea" />
+            <stop offset="0.6" stopColor="#3376ee" />
+            <stop offset="1" stopColor="#4c8bf2" />
           </linearGradient>
-          <linearGradient id="ck-cap" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#4a86f0" />
-            <stop offset="1" stopColor="#7aa8f6" />
+          <linearGradient id="ck-band" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#4a86ec" />
+            <stop offset="1" stopColor="#5293ef" />
+          </linearGradient>
+          <linearGradient id="ck-cap" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#7cabf5" />
+            <stop offset="0.6" stopColor="#5f97ef" />
+            <stop offset="1" stopColor="#4c84ee" />
           </linearGradient>
         </defs>
-        <rect x="0.5" y="0.5" width={width - 1} height={height - 1} rx="6" fill="url(#ck-body)" opacity="0.85" />
-        <rect x="1" y="1" width="16" height={height - 2} rx="5" fill="url(#ck-cap)" opacity="0.55" />
-        <rect x={width - 19} y="2.5" width="15" height={height - 5} rx="3.5" fill="#8fb4f6" opacity="0.6" />
+        <rect x="0.5" y="0" width={width - 1} height={height} rx="5" fill="url(#ck-body)" />
+        <path d={`M5 0.5 H18 L15 ${height - 0.5} H5 Z`} fill="url(#ck-band)" opacity="0.9" />
+        <rect x={width - 15} y="1.5" width="12" height={height - 6} rx="3" fill="url(#ck-cap)" />
       </svg>
       <div
         style={{
           position: 'absolute',
-          left: 18,
-          width: width - 38,
-          top: 5,
+          left: 16,
+          width: width - 32,
+          top: 4.5,
           textAlign: 'center',
-          fontFamily: 'Plex',
-          fontSize: 15,
+          fontFamily: 'Libre Franklin',
+          fontSize: 14.5,
           fontWeight: 400,
-          color: 'rgb(122,170,250)',
+          color: 'rgb(90,156,255)',
           lineHeight: '17px',
           whiteSpace: 'nowrap',
         }}

@@ -14,14 +14,17 @@ import { LOGIN_EXIT, layerOpacity } from './exit.js'
 
 export { LOGIN_EXIT }
 
-const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
+const params = new URLSearchParams(location.search)
+const DEMO = CAPTURE || params.has('demo')
+// local verification aid: ?capture&refbg puts the reference video frame behind the UI instead of
+// the aurora, so element-wise RMSE isolates the UI elements (ref/ is local only)
+const REFBG = params.has('refbg')
+const refFrame = (t) => `${import.meta.env.BASE_URL}ref/frames/f${String(Math.round(t * (30000 / 1001)) + 1).padStart(5, '0')}.png`
 
 function useKeys() {
   useEffect(() => {
     if (CAPTURE) return
     const onKey = (e) => {
-      const t = performance.now() // only used to detect auto-repeat floods; visuals use the clock
-      void t
       const sel = currentSelection(Infinity)
       if (submitEvent(Infinity)) return
       if (e.key === 'Escape') {
@@ -57,8 +60,12 @@ export function LoginScene() {
         }
       }}
     >
-      <Aurora />
-      <BarBand />
+      {REFBG ? (
+        <img src={refFrame(t)} alt="" style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720 }} />
+      ) : (
+        <Aurora />
+      )}
+      {!REFBG && <BarBand />}
       <Logo t={t} submitT={submit ? submit.t : null} />
       <ShutDown />
       <TileRow t={t} />

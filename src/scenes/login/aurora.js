@@ -1,11 +1,14 @@
 // The login background: a looping aurora of light ribbons over a blue gradient, rendered
 // procedurally in a fragment shader (crisp at any size).
 //
-// Fitted to the reference video (tools/login/fit_*.py):
+// Fitted to the reference video (tools/login/fit_aurora.py, export_aurora.py):
 // - coarse colour field: a uniform cubic B-spline grid (35x27 control points, 30 px spacing),
-//   keyframed every 4 video frames (public/img/login/aurora-coarse.png). JS interpolates the
-//   keyframes (Catmull-Rom) and uploads one grid per frame; the shader evaluates the spline.
-// - ribbons: thin glowing curves, keyframed parameters (see ribbons.js), drawn analytically.
+//   keyframed every 4 video frames (public/img/login/aurora-coarse.png).
+// - ribbons: up to NS glowing curves; each is a centreline y = Y(x) and a per-channel amplitude
+//   A(x) (cubic B-splines over x, KX control points) with a gaussian cross-section of width s,
+//   keyframed every 4 frames (public/img/login/aurora-ribbons.png).
+// Each frame, JS interpolates the keys (Catmull-Rom), evaluates every ribbon's curves at RCOLS
+// columns into a small float texture, and the shader sums the gaussians analytically per pixel.
 //
 // Time: the video's background is a loop of 395 frames (frames 436.. repeat 41..), with an
 // extra swell of light (frames ~140-435) that we keep inside the loop. auroraFrame(t) maps
@@ -18,48 +21,81 @@ export const KEY_STEP = 4
 export const LOOP_A = 41
 export const LOOP_B = 435
 
+const KX = 8
+const BX0 = -60
+const BSX = (1020 - BX0) / (KX - 3)
+const PER = 4 * KX + 1 // per slot: KX centreline, 3*KX amplitudes, sigma
+const RCOLS = 512
+
 export function auroraFrame(t) {
   const f = (t * 30000) / 1001 + 1
   if (f < LOOP_B) return f
   return LOOP_A + ((((f - LOOP_A) % (LOOP_B - LOOP_A)) + (LOOP_B - LOOP_A)) % (LOOP_B - LOOP_A))
 }
 
-// ------------------------------------------------------------------ coarse keyframes
-let keys = null // Float32Array per keyframe (NX*NY*3, 0..1)
-export const keysReady = new Promise((resolve) => {
-  const img = new Image()
-  img.onload = () => {
-    const c = document.createElement('canvas')
-    c.width = img.width
-    c.height = img.height
-    const ctx = c.getContext('2d', { willReadFrequently: true })
-    ctx.drawImage(img, 0, 0)
-    const d = ctx.getImageData(0, 0, img.width, img.height).data
-    const n = img.height / NY
-    keys = []
-    for (let k = 0; k < n; k++) {
+// ------------------------------------------------------------------ data
+function loadPixels(url) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const c = document.createElement('canvas')
+      c.width = img.width
+      c.height = img.height
+      const ctx = c.getContext('2d', { willReadFrequently: true })
+      ctx.drawImage(img, 0, 0)
+      resolve({ w: img.width, h: img.height, d: ctx.getImageData(0, 0, img.width, img.height).data })
+    }
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
+let coarseKeys = null // [Float32Array(NX*NY*3)] values 0..1
+let ribbonKeys = null // [Float32Array(NS*PER)] decoded values
+let NS = 0
+
+export const keysReady = Promise.all([
+  loadPixels(asset('img/login/aurora-coarse.png')),
+  loadPixels(asset('img/login/aurora-ribbons.png')),
+]).then(([c, r]) => {
+  if (c) {
+    const K = c.h / NY
+    coarseKeys = []
+    for (let k = 0; k < K; k++) {
       const a = new Float32Array(NX * NY * 3)
       for (let j = 0; j < NY; j++)
         for (let i = 0; i < NX; i++) {
-          const p = ((k * NY + j) * NX + i) * 4
+          const p = ((j * K + k) * NX + i) * 4
           const q = (j * NX + i) * 3
-          a[q] = d[p] / 255
-          a[q + 1] = d[p + 1] / 255
-          a[q + 2] = d[p + 2] / 255
+          a[q] = c.d[p] / 255
+          a[q + 1] = c.d[p + 1] / 255
+          a[q + 2] = c.d[p + 2] / 255
         }
-      keys.push(a)
+      coarseKeys.push(a)
     }
-    resolve(true)
   }
-  img.onerror = () => resolve(false)
-  img.src = asset('img/login/aurora-coarse.png')
+  if (r) {
+    NS = r.w / PER
+    ribbonKeys = []
+    const acc = new Int32Array(r.w)
+    for (let k = 0; k < r.h; k++) {
+      const a = new Float32Array(r.w)
+      for (let v = 0; v < r.w; v++) {
+        const p = (k * r.w + v) * 4
+        acc[v] = (acc[v] + ((r.d[p] << 8) | r.d[p + 1])) & 0xffff
+        const q = acc[v] >= 32768 ? acc[v] - 65536 : acc[v]
+        const o = v % PER
+        a[v] = o < KX ? q / 10 : o < 4 * KX ? q / 20 : q / 100
+      }
+      ribbonKeys.push(a)
+    }
+  }
+  return !!(c && r)
 })
 waitFor(keysReady)
 
-const grid = new Float32Array(NX * NY * 3)
-// Catmull-Rom across keyframes at aurora frame a
-function coarseAt(a) {
-  if (!keys) return null
+// Catmull-Rom across keyframes at aurora frame a into `out`
+function interpKeys(keys, a, out) {
   const u = (a - 1) / KEY_STEP
   const i1 = Math.max(0, Math.min(keys.length - 1, Math.floor(u)))
   const f = Math.max(0, Math.min(1, u - i1))
@@ -70,13 +106,73 @@ function coarseAt(a) {
   const w1 = 1.5 * f3 - 2.5 * f2 + 1
   const w2 = -1.5 * f3 + 2 * f2 + 0.5 * f
   const w3 = 0.5 * f3 - 0.5 * f2
-  for (let q = 0; q < grid.length; q++) grid[q] = w0 * p0[q] + w1 * p1[q] + w2 * p2[q] + w3 * p3[q]
-  return grid
+  for (let q = 0; q < out.length; q++) out[q] = w0 * p0[q] + w1 * p1[q] + w2 * p2[q] + w3 * p3[q]
+  return out
+}
+
+// B-spline basis of the ribbon curves at the RCOLS sample columns (and its x derivative)
+const colB = new Float32Array(RCOLS * 4)
+const colD = new Float32Array(RCOLS * 4)
+const colI = new Int32Array(RCOLS)
+for (let c = 0; c < RCOLS; c++) {
+  const x = (c * 960) / (RCOLS - 1)
+  const u = (x - BX0) / BSX + 1
+  const i = Math.floor(u)
+  const f = u - i
+  colI[c] = i - 1
+  colB.set([(1 - f) ** 3 / 6, (3 * f ** 3 - 6 * f ** 2 + 4) / 6, (-3 * f ** 3 + 3 * f ** 2 + 3 * f + 1) / 6, f ** 3 / 6], c * 4)
+  colD.set([-((1 - f) ** 2) / 2 / BSX, (9 * f ** 2 - 12 * f) / 6 / BSX, (-9 * f ** 2 + 6 * f + 3) / 6 / BSX, f ** 2 / 2 / BSX], c * 4)
+}
+
+let grid = null
+let rib = null
+let ribTex = null // Float32Array RCOLS x (2*NS) x RGBA
+let ribActive = []
+
+function ribbonsAt(a) {
+  if (!ribbonKeys) return 0
+  if (!rib) {
+    rib = new Float32Array(NS * PER)
+    ribTex = new Float32Array(RCOLS * 2 * NS * 4)
+  }
+  interpKeys(ribbonKeys, a, rib)
+  ribActive = []
+  for (let s = 0; s < NS; s++) {
+    const o = s * PER
+    let amax = 0
+    for (let q = KX; q < 4 * KX; q++) amax = Math.max(amax, Math.abs(rib[o + q]))
+    if (amax < 0.5) continue
+    const sig = Math.max(0.8, rib[o + 4 * KX])
+    const row = ribActive.length
+    ribActive.push(s)
+    const inv = 1 / (2 * sig * sig)
+    const r0 = row * 2 * RCOLS * 4
+    const r1 = r0 + RCOLS * 4
+    for (let c = 0; c < RCOLS; c++) {
+      let y = 0, dy = 0, ar = 0, ag = 0, ab = 0
+      for (let m = 0; m < 4; m++) {
+        const k = Math.max(0, Math.min(KX - 1, colI[c] + m))
+        const b = colB[c * 4 + m]
+        y += b * rib[o + k]
+        dy += colD[c * 4 + m] * rib[o + k]
+        ar += b * rib[o + KX + k]
+        ag += b * rib[o + 2 * KX + k]
+        ab += b * rib[o + 3 * KX + k]
+      }
+      ribTex[r0 + c * 4] = y
+      ribTex[r0 + c * 4 + 1] = 1 / Math.sqrt(1 + dy * dy)
+      ribTex[r0 + c * 4 + 2] = inv
+      ribTex[r0 + c * 4 + 3] = 0
+      ribTex[r1 + c * 4] = ar / 255
+      ribTex[r1 + c * 4 + 1] = ag / 255
+      ribTex[r1 + c * 4 + 2] = ab / 255
+      ribTex[r1 + c * 4 + 3] = 0
+    }
+  }
+  return ribActive.length
 }
 
 // ------------------------------------------------------------------ shader
-export const MAX_RIBBONS = 48
-
 const VS = `#version 300 es
 in vec2 aPos;
 out vec2 vUv;
@@ -87,15 +183,9 @@ precision highp float;
 in vec2 vUv;
 out vec4 outColor;
 uniform sampler2D uGrid;   // NX x NY control points (RGB)
-uniform float uDim;        // overall multiplier (exit fade handled in DOM)
-// ribbons: per ribbon 3 vec4s
-//  a: x0, x1 (stage px extent), y0 (centre y at x=480), slope (dy/dx)
-//  b: bend (px at the ends, quadratic), wave amp (px), wave length (px), wave phase
-//  c: core width (px), glow width (px), intensity, colour mix (0 violet .. 1 cyan .. 2 white)
-uniform vec4 uRA[${MAX_RIBBONS}];
-uniform vec4 uRB[${MAX_RIBBONS}];
-uniform vec4 uRC[${MAX_RIBBONS}];
+uniform sampler2D uRib;    // RCOLS x (2 * count): (Y, 1/sqrt(1+Y'^2), 1/(2 s^2)), (Ar, Ag, Ab)
 uniform int uCount;
+uniform float uDim;
 
 const float S = 30.0;
 vec3 cp(int i, int j) {
@@ -120,28 +210,19 @@ vec3 coarse(vec2 p) {
   return acc;
 }
 
-vec3 ribbonColor(float m) {
-  vec3 violet = vec3(0.42, 0.45, 1.0);
-  vec3 cyan = vec3(0.25, 0.66, 1.0);
-  vec3 white = vec3(0.92, 0.96, 1.0);
-  return m < 1.0 ? mix(violet, cyan, m) : mix(cyan, white, m - 1.0);
-}
-
 void main() {
   vec2 p = vec2(vUv.x * 960.0, (1.0 - vUv.y) * 720.0);
   vec3 col = coarse(p);
-  for (int i = 0; i < ${MAX_RIBBONS}; i++) {
+  float h = float(2 * uCount);
+  float u = (p.x / 960.0 * ${RCOLS - 1}.0 + 0.5) / ${RCOLS}.0;
+  for (int i = 0; i < 64; i++) {
     if (i >= uCount) break;
-    vec4 a = uRA[i], b = uRB[i], c = uRC[i];
-    float xn = (p.x - 480.0) / 480.0;
-    float yc = a.z + a.w * (p.x - 480.0) + b.x * xn * xn + b.y * sin(6.2831853 * p.x / max(b.z, 1.0) + b.w);
-    // slope of the centreline -> perpendicular distance
-    float dy = a.w + b.x * 2.0 * xn / 480.0 + b.y * 6.2831853 / max(b.z, 1.0) * cos(6.2831853 * p.x / max(b.z, 1.0) + b.w);
-    float d = (p.y - yc) / sqrt(1.0 + dy * dy);
-    float along = smoothstep(a.x - 120.0, a.x + 120.0, p.x) * (1.0 - smoothstep(a.y - 120.0, a.y + 120.0, p.x));
-    float core = exp(-0.5 * d * d / max(c.x * c.x, 0.01));
-    float glow = exp(-0.5 * d * d / max(c.y * c.y, 0.01));
-    col += ribbonColor(c.w) * c.z * along * (core + 0.35 * glow);
+    vec4 c = texture(uRib, vec2(u, (float(2 * i) + 0.5) / h));
+    float d = (p.y - c.x) * c.y;
+    float e = d * d * c.z;
+    if (e > 14.0) continue;
+    vec3 amp = texture(uRib, vec2(u, (float(2 * i) + 1.5) / h)).rgb;
+    col += amp * exp(-e);
   }
   outColor = vec4(col * uDim, 1.0);
 }`
@@ -159,6 +240,7 @@ export class AuroraRenderer {
     const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, premultipliedAlpha: true })
     this.gl = gl
     this.canvas = canvas
+    this.linear = !!gl.getExtension('OES_texture_float_linear')
     const prog = gl.createProgram()
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS))
     gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS))
@@ -173,44 +255,43 @@ export class AuroraRenderer {
     gl.bindVertexArray(this.vao)
     gl.enableVertexAttribArray(loc)
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-    this.tex = gl.createTexture()
-    gl.bindTexture(gl.TEXTURE_2D, this.tex)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    const mk = (filter) => {
+      const t = gl.createTexture()
+      gl.bindTexture(gl.TEXTURE_2D, t)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+      return t
+    }
+    this.tex = mk(gl.NEAREST)
+    this.ribTex = mk(this.linear ? gl.LINEAR : gl.NEAREST)
     this.u = {}
-    for (const n of ['uGrid', 'uDim', 'uRA', 'uRB', 'uRC', 'uCount']) this.u[n] = gl.getUniformLocation(prog, n)
-    this.ra = new Float32Array(MAX_RIBBONS * 4)
-    this.rb = new Float32Array(MAX_RIBBONS * 4)
-    this.rc = new Float32Array(MAX_RIBBONS * 4)
+    for (const n of ['uGrid', 'uRib', 'uCount', 'uDim']) this.u[n] = gl.getUniformLocation(prog, n)
   }
 
-  // ribbons: [{a:[4], b:[4], c:[4]}]
-  render(t, w, h, ribbons = []) {
+  render(t, w, h) {
     const { gl, canvas } = this
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w
       canvas.height = h
     }
-    const g = coarseAt(auroraFrame(t))
+    const a = auroraFrame(t)
+    if (coarseKeys && !grid) grid = new Float32Array(NX * NY * 3)
+    const g = coarseKeys ? interpKeys(coarseKeys, a, grid) : null
+    const n = ribbonsAt(a)
     gl.viewport(0, 0, w, h)
     gl.useProgram(this.prog)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.tex)
     if (g) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, NX, NY, 0, gl.RGB, gl.FLOAT, g)
     gl.uniform1i(this.u.uGrid, 0)
-    gl.uniform1f(this.u.uDim, g ? 1 : 0)
-    const n = Math.min(MAX_RIBBONS, ribbons.length)
-    for (let i = 0; i < n; i++) {
-      this.ra.set(ribbons[i].a, i * 4)
-      this.rb.set(ribbons[i].b, i * 4)
-      this.rc.set(ribbons[i].c, i * 4)
-    }
-    gl.uniform4fv(this.u.uRA, this.ra)
-    gl.uniform4fv(this.u.uRB, this.rb)
-    gl.uniform4fv(this.u.uRC, this.rc)
+    gl.activeTexture(gl.TEXTURE1)
+    gl.bindTexture(gl.TEXTURE_2D, this.ribTex)
+    if (n) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, RCOLS, 2 * n, 0, gl.RGBA, gl.FLOAT, ribTex.subarray(0, RCOLS * 2 * n * 4))
+    gl.uniform1i(this.u.uRib, 1)
     gl.uniform1i(this.u.uCount, n)
+    gl.uniform1f(this.u.uDim, g ? 1 : 0)
     gl.bindVertexArray(this.vao)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
   }

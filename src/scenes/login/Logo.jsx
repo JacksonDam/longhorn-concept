@@ -11,8 +11,8 @@ const WORDS = asset('img/login/wordmark.svg')
 const VAIO = asset('img/login/vaio.svg')
 preload([FLAG, WORDS, VAIO])
 
-const { x, y, w, cut, h } = LOGO
-const FlagImg = memo(() => <img src={FLAG} alt="" draggable={false} style={{ display: 'block', width: w, height: cut }} />)
+const { x, y, w, h } = LOGO
+const FlagImg = memo(() => <img src={FLAG} alt="" draggable={false} style={{ display: 'block', width: w, height: h }} />)
 
 export function Logo({ t, submitT }) {
   const k = submitT == null ? null : t - submitT
@@ -26,13 +26,13 @@ export function Logo({ t, submitT }) {
         moving={flagMoving}
         samples={10}
         shutter={0.9 / 29.97}
-        style={{ left: x, top: y, width: w, height: cut }}
+        style={{ left: x, top: y, width: w, height: h }}
         pose={(tt) => {
           const p = flagPose(tt)
           return {
             transform: p.transform ?? 'none',
             opacity: p.opacity ?? 1,
-            transformOrigin: '75% 55%',
+            transformOrigin: LOGO.flagOrigin,
           }
         }}
       >
@@ -42,7 +42,7 @@ export function Logo({ t, submitT }) {
         src={WORDS}
         alt=""
         draggable={false}
-        style={{ position: 'absolute', left: x, top: y + cut, width: w, height: h - cut, opacity: words.opacity }}
+        style={{ position: 'absolute', left: x, top: y, width: w, height: h, opacity: words.opacity }}
       />
       <img
         src={VAIO}
