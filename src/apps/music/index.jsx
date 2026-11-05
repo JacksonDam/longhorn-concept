@@ -57,7 +57,7 @@ function MusicContent({ win, t, live, w, h }) {
     <div style={{ position: 'absolute', left: 0, top: -EXPLORER_TOP, width: W, height: H }}>
       <BodyBg w={W} h={H} />
       {s.preview && (
-        <Header t={t} openT={t0} page={vs.page} track={vs.track} trackHover={live ? vs.trackHover : -1} playing={playingIndex(t, vs.page)} slabs="none" actions={A} />
+        <Header t={t} openT={t0} page={vs.page} next={vs.next} track={vs.track} trackHover={live ? vs.trackHover : -1} playing={playingIndex(t, vs.page)} slabs="none" actions={A} />
       )}
       {left === 'tasks' && (
         <>
@@ -84,8 +84,10 @@ function MusicOverlay({ win, t, skip }) {
   return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} />
 }
 
-// the content a motion-blur copy shows: the settled state after the latest change
-function snapshot(win, tk) {
+// the content a motion-blur copy shows: the settled state after the latest change (the intro
+// at rel 9 / 74 as the video's copies show it, the page and selection once settled, and any
+// other change of this window `settle` s after its event)
+function snapshot(win, tk, ev, settle) {
   const t0 = openT(win)
   const vk = viewState(tk, t0)
   const pts = [t0 + 9 / FPS, t0 + 74 / FPS]
@@ -93,8 +95,7 @@ function snapshot(win, tk) {
   if (vk.page) pts.push(vk.page.t + 21 / FPS)
   let best = pts[0]
   for (const p of pts) if (p <= tk && p > best) best = p
-  // any later ui change (settings, search, scroll) shows as of tk
-  return best
+  return Math.max(best, ev + settle)
 }
 
 // the live layer re-renders per frame only while time-driven visuals run (os/PlexWindow
@@ -112,6 +113,18 @@ function liveTime(win, t, base) {
   const m = mediaState(t)
   if (m.playing) ct = Math.max(ct, t - m.position)
   return Math.min(t, ct)
+}
+
+// what a blur copy shows at time t (copies never show hover): re-render only when it changes
+function copyKey(win, t) {
+  const t0 = openT(win)
+  const rel = toRel(t, t0)
+  const vs = viewState(t, t0)
+  const s = settings(t, win)
+  const stage = rel < 9 ? 'a' + Math.floor(rel * 4) : rel < 74 ? 'b' + Math.floor(rel) : 'c'
+  return [stage, vs.sel?.key, vs.page?.album?.key ?? '-', vs.page ? Math.min(23, Math.floor(toRel(t, vs.page.t))) : -1, vs.track,
+    s.size, s.view, s.group, s.arrange, s.tasks, s.folders, s.preview, searchText(t, win), valueOf(t, wid(win, 'grid.scroll'), null),
+    valueOf(t, wid(win, 'mv.sec.enjoy'), 0), valueOf(t, wid(win, 'mv.sec.guide'), 0), valueOf(t, wid(win, 'mv.sec.other'), 0)].join('|')
 }
 
 // title: the equaliser glyph and "my Music" (light "my", heavy "Music"), as measured
@@ -222,7 +235,10 @@ const music = {
   Overlay: MusicOverlay,
   snapshot,
   liveTime,
+  copyKey,
+  relevant: (e) => e.type.startsWith('media.') || e.type === 'explorer.nav',
   copies: 10,
+  prewarm: true,
 }
 export default music
 export { DEFAULTS }
