@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { asset } from '../../core/preload.js'
 import { emit } from '../../core/events.js'
-import { Chevron } from './icons.jsx'
+import { Chevron, OutlookIcon, WinampIcon } from './icons.jsx'
 
 export const BAR_TOP = 699
 
@@ -14,13 +14,6 @@ const BAR_ROWS = [
   [59, 121, 198], [58, 118, 191], [55, 115, 188], [55, 113, 180], [53, 110, 178], [50, 108, 174],
   [48, 106, 172], [47, 105, 170], [38, 96, 161],
 ]
-// the foot under the sidebar (x 858-960), rows 700..719
-const FOOT_ROWS = [
-  [91, 138, 198], [75, 122, 183], [70, 118, 173], [69, 116, 170], [67, 115, 173], [66, 115, 173],
-  [64, 115, 174], [63, 113, 173], [64, 114, 173], [64, 114, 173], [63, 111, 166], [61, 109, 163],
-  [58, 106, 156], [53, 101, 151], [50, 97, 142], [45, 93, 138], [47, 95, 140], [46, 95, 139],
-  [38, 88, 132], [32, 81, 126],
-]
 const rowsGradient = (rows, a) =>
   'linear-gradient(to bottom,' +
   rows.map(([r, g, b], i) => `rgba(${r},${g},${b},${a}) ${i}px, rgba(${r},${g},${b},${a}) ${i + 1}px`).join(',') +
@@ -29,11 +22,11 @@ const rowsGradient = (rows, a) =>
 // Task buttons. Two measured layouts: without and with the "My Music" button.
 // x: button left edge, w: width; icon/text offsets are from the left edge.
 export const TASKS = {
-  inbox: { label: 'Inbox - Microsoft Outlook', icon: 'ic-outlook.webp' },
+  inbox: { label: 'Inbox - Microsoft Outlook', Icon: OutlookIcon },
   yahoo: { label: 'Yahoo.com', icon: 'ic-ie.webp' },
   music: { label: 'My Music', icon: 'ic-mymusic.webp' },
   doc: { label: 'Document 12 - Microsoft Word', icon: 'ic-word.svg' },
-  winamp: { label: 'Winamp3', icon: 'ic-winamp3.webp' },
+  winamp: { label: 'Winamp3', Icon: WinampIcon },
 }
 export const LAYOUT4 = {
   x0: 248,
@@ -59,7 +52,7 @@ export const LAYOUT5 = {
 
 const btnText = {
   position: 'absolute',
-  top: 700.5,
+  top: 700,
   height: 16,
   lineHeight: '16px',
   fontFamily: "'Libre Franklin', Tahoma, sans-serif",
@@ -78,11 +71,15 @@ export const TaskButton = memo(function TaskButton({ b, onClick, hover }) {
       {hover && (
         <div style={{ position: 'absolute', left: b.x + 1, top: 700, width: b.w - 2, height: 19, background: 'rgba(255,255,255,0.14)' }} />
       )}
-      <img
-        src={asset('img/desktop/' + t.icon)}
-        alt=""
-        style={{ position: 'absolute', left: b.x + b.icon, top: 702, width: 16, height: 16 }}
-      />
+      {t.Icon ? (
+        <t.Icon x={b.x + b.icon} y={702} />
+      ) : (
+        <img
+          src={asset('img/desktop/' + t.icon)}
+          alt=""
+          style={{ position: 'absolute', left: b.x + b.icon, top: 702, width: 16, height: 16 }}
+        />
+      )}
       <div
         style={{
           ...btnText,
@@ -140,7 +137,6 @@ export const Bar = memo(function Bar() {
   return (
     <>
       <div style={{ position: 'absolute', left: 0, top: BAR_TOP, width: 858, height: 21, background: rowsGradient(BAR_ROWS, 0.55) }} />
-      <div style={{ position: 'absolute', left: 858, top: 700, width: 102, height: 20, background: rowsGradient(FOOT_ROWS, 0.55) }} />
     </>
   )
 })
@@ -172,7 +168,7 @@ export const StartLabel = memo(function StartLabel() {
 
 export function Clock({ label }) {
   return (
-    <div style={{ position: 'absolute', left: 858, width: 76, textAlign: 'right', top: 702, fontSize: 12, lineHeight: '16px', color: 'rgba(225,238,250,0.9)' }}>
+    <div style={{ position: 'absolute', left: 858, width: 76, textAlign: 'right', top: 702.5, fontFamily: "'Libre Franklin', Tahoma, sans-serif", fontWeight: 600, fontSize: 11.2, lineHeight: '16px', color: 'rgba(222,234,246,0.9)' }}>
       {label}
     </div>
   )

@@ -18,11 +18,9 @@ const IMAGES = [
   'buddy-duck.webp',
   'buddy-kick.webp',
   'photo-standin.webp',
-  'ic-outlook.webp',
   'ic-ie.webp',
   'ic-mymusic.webp',
   'ic-word.svg',
-  'ic-winamp3.webp',
   'flag.svg',
   'album-standin.webp',
 ].map((f) => asset('img/desktop/' + f))

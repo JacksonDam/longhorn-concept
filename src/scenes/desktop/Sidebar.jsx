@@ -202,12 +202,16 @@ export const TILES = [
   ['thumbs', ThumbsTile],
 ]
 
+// The glass backdrop is precomputed from the wallpaper (it only ever has the wallpaper
+// behind it): blur 2 px, then per column an alpha-like gain k(x) (0.33 at the left edge
+// to 0.72 at the right) plus per-column and per-row tints, fitted on the empty panel of
+// video frames 521-523 (and the clock foot under it, rows 700-720). See the spec.
 const Glass = memo(function Glass() {
   return (
     <img
       src={asset('img/desktop/glass.webp')}
       alt=""
-      style={{ position: 'absolute', left: PANEL.x, top: PANEL.y, width: PANEL.w, height: PANEL.h }}
+      style={{ position: 'absolute', left: PANEL.x, top: 0, width: PANEL.w, height: 720 }}
     />
   )
 })

@@ -58,8 +58,8 @@ export const IconDefs = memo(function IconDefs() {
           <stop offset="1" stopColor="#3b3f58" />
         </linearGradient>
         <radialGradient id="dk-chev" cx="0.5" cy="0.4" r="0.6">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#d8dde8" />
+          <stop offset="0" stopColor="#eef0f4" />
+          <stop offset="1" stopColor="#c9ced8" />
         </radialGradient>
       </defs>
     </svg>
@@ -264,7 +264,30 @@ export function Chevron({ x, y }) {
   return (
     <svg {...svg(15, 15, { left: x, top: y })}>
       <circle cx="7.5" cy="7.5" r="7" fill="url(#dk-chev)" />
-      <path d="M3.9 6 L7.5 9.6 L11.1 6" fill="none" stroke="#1f3f72" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.9 6 L7.5 9.6 L11.1 6" fill="none" stroke="#33415c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+// Taskbar: Outlook (pre-release blue): a blue tile with white corner brackets and a clock (16 x 16)
+export function OutlookIcon({ x, y }) {
+  return (
+    <svg {...svg(16, 16, { left: x, top: y })}>
+      <rect x="0.5" y="0.5" width="15" height="15" rx="1.5" fill="#2c62cf" stroke="#173f94" strokeWidth="0.8" />
+      <path d="M1.8 5 V1.8 H5 M11 1.8 H14.2 V5 M14.2 11 V14.2 H11 M5 14.2 H1.8 V11" fill="none" stroke="#eaf3ff" strokeWidth="1.5" />
+      <circle cx="8" cy="8" r="4.1" fill="none" stroke="#f4f8ff" strokeWidth="1.9" />
+      <path d="M8 5.6 V8.2 H10.2" fill="none" stroke="#f4f8ff" strokeWidth="1.3" />
+    </svg>
+  )
+}
+
+// Taskbar: Winamp3 in the demo's blue: a silver diamond with a lightning bolt (16 x 16)
+export function WinampIcon({ x, y }) {
+  return (
+    <svg {...svg(16, 16, { left: x, top: y })}>
+      <path d="M8 0.8 L15.2 8 L8 15.2 L0.8 8 Z" fill="#dce8f8" stroke="#1d3f86" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M8 3 L13 8 L8 13 L3 8 Z" fill="none" stroke="#7fa3dc" strokeWidth="0.8" />
+      <path d="M9.6 3.6 L5.6 8.6 L8.2 8.6 L6.4 12.4 L10.6 7.2 L8 7.2 Z" fill="#2f63c9" stroke="#123a8a" strokeWidth="0.5" />
     </svg>
   )
 }

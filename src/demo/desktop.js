@@ -35,4 +35,9 @@ export const desktopDemo = [
   { frame: 693.5, type: 'desk.flypress', on: false },
   { frame: 693.5, type: 'desk.flyout', open: false },
   { frame: 693.5, type: 'music.open' },
+
+  // the window is minimised from its title bar (music scene); a click on the taskbar's
+  // My Music button restores it
+  { frame: 1402.6, type: 'tb.press', id: 'music' },
+  { frame: 1402.6, type: 'music.restore' },
 ]
