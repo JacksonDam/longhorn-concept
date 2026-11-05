@@ -9,8 +9,8 @@ import { preloaded } from './core/preload.js'
 import { texturesReady } from './gl/slab.js'
 import { LoginScene, LOGIN_EXIT } from './scenes/login/LoginScene.jsx'
 import { DesktopScene } from './scenes/desktop/DesktopScene.jsx'
-import { PowerScreens, COVER } from './scenes/session/PowerScreens.jsx'
-import { screens } from './os/session.js'
+import { OffScreen, Black, blackLevel } from './scenes/session/PowerScreens.jsx'
+import { screen } from './os/session.js'
 import { emit } from './core/events.js'
 import { frameTime } from './core/clock.js'
 import { sessionScenario } from './demo/session.js'
@@ -22,31 +22,27 @@ const DEMO = CAPTURE || params.has('demo')
 const SCENARIO = params.get('scenario') === 'session' ? sessionScenario : null
 const hiddenCursor = () => ({ hidden: true })
 
-// Scene flow (os/session.js): login -> desktop (submit) -> login again (log off / switch user);
-// Shut Down (login or desktop) -> shutting-down screen -> off screen -> boot (power button) ->
-// login. The scene being left stays mounted under the next one until it is covered.
+// Scene flow (os/session.js), after the two reference videos: login -> desktop (submit, the
+// element-wise login exit over the desktop); log off / switch user: a hard cut back to the login
+// screen; shut down (login or desktop): the login screen fades to black, then the off screen;
+// its power button boots: the login screen fades in from black.
 function Scenes() {
   const t = useTime()
   useEvents()
-  const list = screens(t)
-  const cur = list[list.length - 1]
-  const prev = list.length > 1 ? list[list.length - 2] : null
-  let desk = null
-  if (cur.name === 'desktop') desk = cur
-  else if (prev?.name === 'desktop' && ((cur.name === 'login' && t < cur.t0 + LOGIN_EXIT) || (cur.name === 'shutdown' && t < cur.t0 + COVER)))
-    desk = prev
-  const loginVisible =
-    cur.name === 'login' ||
-    (cur.name === 'desktop' && t < cur.t0 + LOGIN_EXIT) ||
-    (cur.name === 'shutdown' && prev?.name === 'login' && t < cur.t0 + COVER)
-  const enter = cur.name === 'login' && cur.from ? { t0: cur.t0, from: cur.from } : null
-  const power = cur.name === 'shutdown' || cur.name === 'off' || cur.name === 'boot'
+  const cur = screen(t)
+  const desk = cur.name === 'desktop' ? cur : null
+  const loginVisible = cur.name !== 'off' && (cur.name !== 'desktop' || t < cur.t0 + LOGIN_EXIT)
+  const black = blackLevel(cur, t)
   const hover = cur.name === 'off' && !!last(t, (e) => e.type === 'power.hover' && e.t >= cur.t0)?.on
   return (
     <>
       {desk && <DesktopScene key={desk.t0} since={desk.t0} />}
-      <LoginScene visible={loginVisible} enter={enter} />
-      {power && <PowerScreens screen={cur} t={t} hover={hover} />}
+      <LoginScene visible={loginVisible} />
+      {cur.name === 'off' ? (
+        <OffScreen t0={cur.t0} t={t} hover={hover} />
+      ) : (
+        <Black level={black} block={cur.name === 'shutdown' || cur.name === 'boot'} />
+      )}
     </>
   )
 }

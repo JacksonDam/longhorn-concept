@@ -53,11 +53,9 @@ const shutDown = () => {
   if (!CAPTURE && !submitEvent(now())) emit('session.shutdown')
 }
 
-// visible: the login screen is showing (or leaving / arriving); otherwise only the aurora's
-// canvas stays mounted, paused, so the next visit starts without a GL context or shader compile.
-// enter: { t0 } when the screen arrives from the desktop or the boot screen: the login exit,
-// played backwards (layer fades in, tiles flip in, flag spins in).
-export function LoginScene({ visible = true, enter = null }) {
+// visible: the login screen is showing (or leaving); otherwise only the aurora's canvas stays
+// mounted, paused, so the next visit (log off, boot) starts without a GL context or shader compile.
+export function LoginScene({ visible = true }) {
   const t = useTime()
   useEvents()
   useKeys(visible)
@@ -69,15 +67,8 @@ export function LoginScene({ visible = true, enter = null }) {
     )
   }
   const submit = submitEvent(t)
-  // exit clock: seconds into the exit (after submit), or backwards through it while arriving
-  const exitK = (tt) => {
-    if (submit) return tt - submit.t
-    if (enter) {
-      const k = enter.t0 + LOGIN_EXIT - tt
-      return k > 0 ? k : null
-    }
-    return null
-  }
+  // exit clock: seconds into the exit after submit
+  const exitK = (tt) => (submit ? tt - submit.t : null)
   const k = exitK(t)
   const row = rowState(t)
   const submitT = submit ? submit.t : null

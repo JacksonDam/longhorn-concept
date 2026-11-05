@@ -15,7 +15,7 @@
 //                    (before the first login and on the login / shutdown / off / boot screens)
 // sessionEvent(t) -> the 'login.submit' event that started the current session, or null
 // screen(t)       -> { name: 'login' | 'desktop' | 'shutdown' | 'off' | 'boot', t0, from, user }
-//                    (t0 = when it started; from = the screen it replaced, for transitions)
+//                    (t0 = when it started; from = the screen it replaced)
 // loginSince(t)   -> start of the current login screen (its selection/password state counts from here)
 // wallpaper(t)    -> { kind: 'photo' } | { kind: 'color', color }; WALLPAPERS: Display Properties' choices
 import { all, last, getVersion } from '../core/events.js'
@@ -32,10 +32,15 @@ const byId = Object.fromEntries(USERS.map((u) => [u.id, u]))
 export const userPicture = (id) => asset(`img/login/users/${id}.webp`)
 export const userPictureWashed = (id) => asset(`img/login/users/${id}-hover.webp`)
 
-// screen timings (seconds): kept here so the scenes and App agree
-export const SHUTDOWN_DUR = 3.2 // "shutting down" screen, then the off screen
-export const BOOT_DUR = 3.0 // boot screen, then the login screen fades in
-const LEAVE_DUR = 0.6 // longest time a leaving desktop stays visible under the next screen
+// Screen timings (seconds), from the second reference video (ref2, days-video.md, f02775-f02888):
+// log off is a hard cut from the desktop to the login screen; shutting down shows the login screen
+// (held 28 frames when coming from the desktop) and fades it linearly to black over 61 frames.
+// Booting fades the login screen back in from black (not in either video: kept short and plain).
+const FRAME = 1001 / 30000
+export const SHUTDOWN_HOLD = 28 * FRAME
+export const SHUTDOWN_FADE = 61 * FRAME
+export const BOOT_DUR = 30 * FRAME
+export const shutdownDur = (s) => (s.from === 'desktop' ? SHUTDOWN_HOLD : 0) + SHUTDOWN_FADE
 
 const TYPES = new Set(['login.submit', 'session.logoff', 'session.switch', 'session.shutdown', 'session.boot'])
 
@@ -74,7 +79,7 @@ function build(t) {
 function settle(out, t) {
   for (;;) {
     const c = out[out.length - 1]
-    if (c.name === 'shutdown' && t >= c.t0 + SHUTDOWN_DUR) out.push({ name: 'off', t0: c.t0 + SHUTDOWN_DUR, from: 'shutdown', user: null })
+    if (c.name === 'shutdown' && t >= c.t0 + shutdownDur(c)) out.push({ name: 'off', t0: c.t0 + shutdownDur(c), from: 'shutdown', user: null })
     else if (c.name === 'boot' && t >= c.t0 + BOOT_DUR) out.push({ name: 'login', t0: c.t0 + BOOT_DUR, from: 'boot', user: null })
     else return
   }
@@ -92,10 +97,7 @@ export function previousScreen(t) {
 }
 
 export function currentUser(t) {
-  const list = screens(t)
-  let s = list[list.length - 1]
-  // while the next screen is still covering the desktop it is leaving, the desktop keeps its user
-  if (s.name !== 'desktop' && s.from === 'desktop' && t < s.t0 + LEAVE_DUR) s = list[list.length - 2]
+  const s = screen(t)
   if (s.name !== 'desktop') return null
   const u = byId[s.user] || byId.sondra
   return { id: u.id, name: u.name, email: u.email || `${u.id}@hotmail.com`, picture: userPicture(u.id), washed: userPictureWashed(u.id) }
@@ -107,9 +109,13 @@ export function sessionEvent(t) {
 }
 
 // start of the current login screen (its state: selection, password, submit, counts from here)
+// (a visit starts with a login screen, with shutting down from the desktop, or with booting)
 export function loginSince(t) {
   const s = screens(t)
-  for (let i = s.length - 1; i >= 0; i--) if (s[i].name === 'login') return s[i].t0
+  for (let i = s.length - 1; i >= 0; i--) {
+    const c = s[i]
+    if (c.name === 'login' || c.name === 'boot' || (c.name === 'shutdown' && c.from === 'desktop')) return c.t0
+  }
   return -Infinity
 }
 
