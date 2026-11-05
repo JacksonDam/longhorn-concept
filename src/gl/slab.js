@@ -219,6 +219,11 @@ export class SlabScene {
     }
     this.objects.forEach((o, i) => (o.mesh.visible = i < n))
   }
+  // optional: free the materials when the owner unmounts (geometries and targets are shared)
+  dispose() {
+    for (const o of this.objects) o.material.dispose()
+    this.objects = []
+  }
 }
 
 // Camera for a canvas of css size (cw x ch) whose 1 world unit = 1 stage px at z = 0,

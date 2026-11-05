@@ -1,6 +1,6 @@
 // Like gl/Slab3D, but driven by an explicit time `t` (so each motion-blur copy of the
 // window can render its own sub-frame pose) and without reading the clock itself.
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useStageScale } from '../../core/Stage.jsx'
 import { renderSlabs, SlabScene } from '../../gl/slab.js'
 
@@ -12,6 +12,7 @@ const shared = new Map() // cacheKey -> { key, canvas }
 export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, phase = -0.5, P = 1000, origin, style, cacheKey }) {
   const ref = useRef(null)
   const scene = useMemo(() => new SlabScene(), [])
+  useEffect(() => () => scene.dispose(), [scene])
   const { s } = useStageScale()
   const scale = Math.min(3, s * (window.devicePixelRatio || 1))
   useLayoutEffect(() => {
