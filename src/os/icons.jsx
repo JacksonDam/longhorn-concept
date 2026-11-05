@@ -408,15 +408,48 @@ export const StarIcon = () =>
     </>,
   )
 
+// the title's equaliser glyph: four columns of glowing cells (3, 4, 2 and 3 high), drawn past
+// its 13 x 10 box as the video shows it; fitted to the median of frames 800-1348.
 export const TitleEq = () =>
   svg(
     13,
     10,
-    <g fill="#e2f1ff">
-      {[3, 5, 4, 2, 4, 5].map((n, i) =>
-        Array.from({ length: n }, (_, j) => <rect key={i + '-' + j} x={i * 2.1} y={9 - j * 1.9} width="1.6" height="1.4" />),
-      )}
-    </g>,
+    <>
+      <defs>
+        <radialGradient id="eq-c" cx="0.5" cy="0.45" r="0.6">
+          <stop offset="0" stopColor="#faf6fc" />
+          <stop offset="1" stopColor="#badff5" />
+        </radialGradient>
+      </defs>
+      <g fill="#b4ddf5" fillOpacity="0.25">
+        <rect x="-1.31" y="8.5" width="4.84" height="3.68" rx="0.79" />
+        <rect x="-1.31" y="5.18" width="4.84" height="3.68" rx="0.79" />
+        <rect x="-1.31" y="1.86" width="4.84" height="3.68" rx="0.79" />
+        <rect x="2.71" y="8.5" width="4.84" height="3.68" rx="0.79" />
+        <rect x="2.71" y="5.18" width="4.84" height="3.68" rx="0.79" />
+        <rect x="2.71" y="1.86" width="4.84" height="3.68" rx="0.79" />
+        <rect x="2.71" y="-1.46" width="4.84" height="3.68" rx="0.79" />
+        <rect x="6.73" y="8.5" width="4.84" height="3.68" rx="0.79" />
+        <rect x="6.73" y="5.18" width="4.84" height="3.68" rx="0.79" />
+        <rect x="10.75" y="8.5" width="4.84" height="3.68" rx="0.79" />
+        <rect x="10.75" y="5.18" width="4.84" height="3.68" rx="0.79" />
+        <rect x="10.75" y="1.86" width="4.84" height="3.68" rx="0.79" />
+      </g>
+      <g fill="url(#eq-c)">
+        <rect x="-0.76" y="9.04" width="3.75" height="2.59" rx="0.25" />
+        <rect x="-0.76" y="5.72" width="3.75" height="2.59" rx="0.25" />
+        <rect x="-0.76" y="2.4" width="3.75" height="2.59" rx="0.25" />
+        <rect x="3.26" y="9.04" width="3.75" height="2.59" rx="0.25" />
+        <rect x="3.26" y="5.72" width="3.75" height="2.59" rx="0.25" />
+        <rect x="3.26" y="2.4" width="3.75" height="2.59" rx="0.25" />
+        <rect x="3.26" y="-0.92" width="3.75" height="2.59" rx="0.25" />
+        <rect x="7.28" y="9.04" width="3.75" height="2.59" rx="0.25" />
+        <rect x="7.28" y="5.72" width="3.75" height="2.59" rx="0.25" />
+        <rect x="11.3" y="9.04" width="3.75" height="2.59" rx="0.25" />
+        <rect x="11.3" y="5.72" width="3.75" height="2.59" rx="0.25" />
+        <rect x="11.3" y="2.4" width="3.75" height="2.59" rx="0.25" />
+      </g>
+    </>,
   )
 
 // minimise / maximise / close, measured from f800 (placed at window-local 723, 7)
