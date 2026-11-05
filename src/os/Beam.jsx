@@ -75,49 +75,52 @@ const HAZE = table([
   [6, 60, 190, 470, 660, 0.14],
   [7, 40, 120, 420, 600, 0],
 ])
-function Haze({ rel }) {
-  if (rel <= 3.4 || rel >= 7) return null
-  const [x0, y0, x1, y1, a] = HAZE(rel)
+// the haze: one pre-blurred box (rasterised once on its own layer), placed per frame by a
+// translate + scale of the unit box below (box 400 x 280 at the origin)
+const HB = { w: 400, h: 280 }
+const HazeBox = memo(function HazeBox() {
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: x0,
-        top: y0,
-        width: x1 - x0,
-        height: y1 - y0 + 30,
-        borderRadius: 40,
-        background: 'linear-gradient(180deg, rgba(235,243,255,0.6), rgba(255,255,255,1))',
-        opacity: a,
-        filter: 'blur(18px)',
-      }}
-    />
+    <div style={{ position: 'absolute', left: 0, top: 0, width: HB.w, height: HB.h, borderRadius: 40, background: 'linear-gradient(180deg, rgba(235,243,255,0.6), rgba(255,255,255,1))', filter: 'blur(18px)' }} />
+  )
+})
+// off: the element stays mounted but parked off-stage (painted and rastered once, drawn nowhere)
+const OFF = { transform: 'translateX(-4000px)', opacity: 1e-4 }
+function Haze({ rel, dx = 0 }) {
+  const on = rel > 3.4 && rel < 7
+  let st = OFF
+  if (on) {
+    const [x0, y0, x1, y1, a] = HAZE(rel)
+    st = { transform: `translate(${x0 + dx}px, ${y0}px) scale(${(x1 - x0) / HB.w}, ${(y1 - y0 + 30) / HB.h})`, opacity: a }
+  }
+  return (
+    <div style={{ position: 'absolute', left: 0, top: 0, width: HB.w, height: HB.h, transformOrigin: '0 0', willChange: 'transform, opacity', ...st }}>
+      <HazeBox />
+    </div>
   )
 }
 
 // rel: frames since the trigger; fan: [start, peak, end]; spark: [start, peak, end]
 const env = (rel, [a, b, c]) => (rel <= a || rel >= c ? 0 : rel < b ? (rel - a) / (b - a) : 1 - (rel - b) / (c - b))
 
-// dx: horizontal shift of the whole effect (taskbar button x relative to the video's my Music slot)
+// The beam is mounted as long as its window exists (`rel` null = idle): its layers are rasterised
+// once and only their transforms / opacities change. dx: horizontal shift of the whole effect
+// (taskbar button x relative to the video's my Music slot).
 export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true, haze = false, fanOp = 1, dx = 0 }) {
-  const f = clamp(env(rel, fan)) * fanOp
-  const s = clamp(env(rel, spark))
-  if (f <= 0 && s <= 0 && !(haze && rel > 3.4 && rel < 7)) return null
+  const r = rel ?? -1e9
+  const f = clamp(env(r, fan)) * fanOp
+  const s = clamp(env(r, spark))
   // the fan grows upwards while it brightens
-  const grow = rise ? clamp((rel - fan[0]) / (fan[1] - fan[0] + 1.5), 0.35, 1) : 1
+  const grow = rise ? clamp((r - fan[0]) / (fan[1] - fan[0] + 1.5), 0.35, 1) : 1
+  const layer = { position: 'absolute', left: 0, top: 0, width: 960, height: 720, willChange: 'transform, opacity' }
   return (
-    <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, pointerEvents: 'none', transform: dx ? `translateX(${dx}px)` : undefined }}>
-      {haze && <Haze rel={rel} />}
-      {f > 0 && (
-        <div style={{ position: 'absolute', inset: 0, opacity: f, transform: `scaleY(${grow})`, transformOrigin: '455px 704px' }}>
-          <Fan />
-        </div>
-      )}
-      {s > 0 && (
-        <div style={{ position: 'absolute', inset: 0, opacity: s }}>
-          <Sparkle />
-        </div>
-      )}
+    <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, pointerEvents: 'none' }}>
+      <Haze rel={haze ? r : -1e9} dx={dx} />
+      <div style={{ ...layer, ...(f > 0 ? { opacity: f, transform: `translateX(${dx}px) scaleY(${grow})`, transformOrigin: `${455}px 704px` } : OFF) }}>
+        <Fan />
+      </div>
+      <div style={{ ...layer, ...(s > 0 ? { opacity: s, transform: `translateX(${dx}px)` } : OFF) }}>
+        <Sparkle />
+      </div>
     </div>
   )
 }

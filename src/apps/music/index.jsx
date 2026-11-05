@@ -222,6 +222,7 @@ const music = {
   Overlay: MusicOverlay,
   snapshot,
   liveTime,
+  relevant: (e) => e.type.startsWith('media.') || e.type === 'explorer.nav',
   copies: 10,
 }
 export default music

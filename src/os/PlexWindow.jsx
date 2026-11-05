@@ -12,7 +12,7 @@
 // that change every frame (the open's lighting, the app's Overlay such as my Music's 3D slabs)
 // sit outside the memoised content.
 import { memo, useRef } from 'react'
-import { emit, getLog } from '../core/events.js'
+import { emit, getLog, getVersion } from '../core/events.js'
 import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
@@ -297,16 +297,36 @@ const OverlayLayer = memo(
   (a, b) => a.t === b.t && a.skip === b.skip && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
 )
 const STAGGER = 2 // frames between copy snapshot updates
-// the time of the latest event at or before t (binary search)
-function lastEventT(t) {
-  const log = getLog()
-  let lo = 0, hi = log.length
+// times of the events that concern a window's content (sorted), cached per log version:
+// its ui-kit ids (`${id}@${openedAt}/...`), events of its app ('<app>.*', hovers on '<app>.*'),
+// and anything app.relevant(e, win) accepts
+const relCache = new Map() // key -> { version, times }
+function relevantTimes(win, app) {
+  const key = win.id + '@' + win.openedAt
+  const v = getVersion()
+  const c = relCache.get(key)
+  if (c && c.version === v) return c.times
+  const pre = key + '/'
+  const ap = app.id + '.'
+  const times = []
+  for (const e of getLog()) {
+    if (e.t < win.openedAt) continue
+    const id = e.id == null ? '' : String(e.id)
+    if (id.startsWith(pre) || e.type.startsWith(ap) || id.startsWith(ap) || (app.relevant && app.relevant(e, win))) times.push(e.t)
+  }
+  relCache.set(key, { version: v, times })
+  return times
+}
+// the latest relevant event time at or before t (binary search)
+function lastEventT(win, app, t) {
+  const a = relevantTimes(win, app)
+  let lo = 0, hi = a.length
   while (lo < hi) {
     const mid = (lo + hi) >> 1
-    if (log[mid].t <= t) lo = mid + 1
+    if (a[mid] <= t) lo = mid + 1
     else hi = mid
   }
-  return lo > 0 ? log[lo - 1].t : -Infinity
+  return lo > 0 ? a[lo - 1] : -Infinity
 }
 const DEFAULT_SETTLE = 1.2 // s: how long content may animate after an event (hover fades, menus, tooltips)
 
@@ -316,7 +336,7 @@ const DEFAULT_SETTLE = 1.2 // s: how long content may animate after an event (ho
 // time-driven visuals return t from app.liveTime(win, t, base) while those run.
 function liveContentT(win, app, t) {
   if (focusedField(t)?.startsWith(win.id + '@' + win.openedAt + '/')) return t // a caret blinks
-  const le = Math.max(win.openedAt, lastEventT(t))
+  const le = Math.max(win.openedAt, lastEventT(win, app, t))
   const settle = app.settle ?? DEFAULT_SETTLE
   const base = t - le < settle ? t : le + settle
   return app.liveTime ? app.liveTime(win, t, base) : base
@@ -325,7 +345,7 @@ function liveContentT(win, app, t) {
 // the content time a blur copy shows (app.snapshot overrides): the settled state after the
 // latest event at or before tk
 function defaultSnapshot(win, app, tk) {
-  return Math.max(win.openedAt, lastEventT(tk)) + (app.settle ?? DEFAULT_SETTLE)
+  return Math.max(win.openedAt, lastEventT(win, app, tk)) + (app.settle ?? DEFAULT_SETTLE)
 }
 
 export function PlexWindow({ win, app, t, active }) {
@@ -356,7 +376,12 @@ export function PlexWindow({ win, app, t, active }) {
       // before the open is visible: copies are rasterised in their first visible pose, all but
       // invisible, so the first blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
-    } else style = { opacity: 0 }
+    } else {
+      // idle copies: parked off-stage at a near-zero opacity. Blink keeps painting them (it skips
+      // opacity-0 subtrees, which made the first blurred frame paint every copy) while the
+      // compositor draws nothing on screen; content changes repaint them off the critical path.
+      style = win.state === 'open' && !m.hidden ? { transform: 'translateX(-4000px)', opacity: 1e-4 } : { opacity: 0 }
+    }
     const rr = blur && k < nEff ? m.rect(tt) : r
     let ct = m.frozen != null ? live : liveContentT(win, app, t)
     if (k > 0 && m.frozen == null) {
@@ -387,7 +412,7 @@ export function PlexWindow({ win, app, t, active }) {
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>{layers}</div>
-      {m.beam && <Beam {...m.beam} />}
+      <Beam {...(m.beam || { rel: null })} />
     </div>
   )
 }
