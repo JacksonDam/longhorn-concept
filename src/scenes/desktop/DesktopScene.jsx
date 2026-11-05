@@ -25,7 +25,7 @@ import { framesSince, ramp } from './timing.js'
 
 const IMAGES = [
   'wallpaper.webp',
-  'glass.webp',
+  'glass-tint.webp',
   'user-sondra.webp',
   'buddy-dog.webp',
   'buddy-duck.webp',

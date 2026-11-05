@@ -16,6 +16,7 @@ import {
   GoOnlineOrb,
   Thumb,
 } from './icons.jsx'
+import { GLASS_K } from './glassFit.js'
 
 export const PANEL = { x: 858, y: 0, w: 102, h: 700 }
 const L = PANEL.x // panel left, all coordinates below are absolute stage px
@@ -218,25 +219,47 @@ export const TILES = [
   ['thumbs', ThumbsTile],
 ]
 
-// The glass backdrop is precomputed from the wallpaper (it only ever has the wallpaper
-// behind it): blur 2 px, then per column an alpha-like gain k(x) (0.33 at the left edge
-// to 0.72 at the right) plus per-column and per-row tints, fitted on the empty panel of
-// video frames 521-523 (and the clock foot under it, rows 700-720). See the spec.
-const glassBg = (top) => ({
-  position: 'absolute',
-  left: PANEL.x,
-  width: PANEL.w,
-  backgroundImage: `url(${asset('img/desktop/glass.webp')})`,
-  backgroundSize: `${PANEL.w}px 720px`,
-  backgroundPosition: `0 ${-top}px`,
-  top,
-})
-// the panel (moves when the chevron hides the sidebar) and the clock foot under it (stays)
-const Glass = memo(function Glass() {
-  return <div style={{ ...glassBg(0), height: 700 }} />
-})
-const GlassFoot = memo(function GlassFoot() {
-  return <div style={{ ...glassBg(700), height: 20 }} />
+// The glass is live: it blurs whatever is behind it (backdrop-filter: the wallpaper choice,
+// windows dragged under the sidebar, the Refresh dim) and tints the blur:
+//   out(x, y) = k(x) * blur(backdrop) + tint(x, y)
+// k(x), the transmission, is a black layer with alpha 1 - k(x) on the blurring element (0.35
+// at the left edge to 0.75 at the right, 0.23 under the bright border line at x 859-860);
+// the tint (bluish, with per-row bands and separators) is added on top by a plus-lighter layer,
+// glass-tint.webp. Fitted by tools/desktop/fit_glass.py on the empty panel of video frames
+// 521-523 and the clock foot (rows 700-720) of the later frames, against Chrome's own blur of
+// the wallpaper. See docs/desktop-spec.md.
+export const GLASS_BLUR = 2.4
+const BLUR = `blur(${GLASS_BLUR}px)`
+const TRANSMISSION =
+  'linear-gradient(to right,' + GLASS_K.map(([c, k]) => `rgba(0,0,0,${(1 - k).toFixed(3)}) ${c + 0.5}px`).join(',') + ')'
+// The glass carries its own opacity (the entrance fade): an ancestor with opacity < 1 (or a
+// filter, mask, blend mode or isolation) would become the backdrop root, the blur would see
+// nothing and the tint would add to nothing. data-glass: tools/desktop/fit_glass.py empties
+// both layers to capture the bare blur.
+const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
+  const box = {
+    position: 'absolute',
+    left: PANEL.x,
+    top,
+    width: PANEL.w,
+    height,
+    transform: dx ? `translateX(${dx}px)` : undefined,
+    opacity: o,
+    visibility: o > 0 ? 'visible' : 'hidden',
+  }
+  return (
+    <>
+      <div data-glass="" style={{ ...box, backdropFilter: BLUR, WebkitBackdropFilter: BLUR, background: TRANSMISSION }} />
+      <div
+        data-glass=""
+        style={{
+          ...box,
+          mixBlendMode: 'plus-lighter',
+          background: `url(${asset('img/desktop/glass-tint.webp')}) 0 ${-top}px / ${PANEL.w}px 720px`,
+        }}
+      />
+    </>
+  )
 })
 
 const show = (o) => ({ position: 'absolute', inset: 0, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' })
@@ -247,12 +270,24 @@ export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, li
   const hl = mediaHL?.hover ?? 0
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      <div style={show(opacity.panel)}>{GLASS_FOOT}</div>
+      {/* the clock foot stays; the panel moves when the chevron hides the sidebar. The panel's
+          glass slides by its own transform: the tile wrapper's transform makes it a stacking
+          context, which would isolate the tint's blend from the backdrop. */}
+      <Glass top={PANEL.h} height={720 - PANEL.h} o={opacity.panel} />
+      <Glass top={0} height={PANEL.h} o={slide >= PANEL.w ? 0 : opacity.panel} dx={slide} />
       <div style={{ position: 'absolute', inset: 0, transform: slide ? `translateX(${slide}px)` : undefined, visibility: slide >= PANEL.w ? 'hidden' : 'visible' }}>
-        <div style={show(opacity.panel)}>
-          {GLASS}
-          <div style={{ position: 'absolute', left: PANEL.x, top: 0, width: PANEL.w, height: PANEL.h, background: 'rgb(170,190,225)', opacity: haze }} />
-        </div>
+        <div
+          style={{
+            position: 'absolute',
+            left: PANEL.x,
+            top: 0,
+            width: PANEL.w,
+            height: PANEL.h,
+            background: 'rgb(170,190,225)',
+            opacity: opacity.panel * haze,
+            visibility: opacity.panel * haze > 0 ? 'visible' : 'hidden',
+          }}
+        />
         <div
           style={{
             position: 'absolute',
@@ -281,5 +316,3 @@ export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, li
     </div>
   )
 }
-const GLASS = <Glass />
-const GLASS_FOOT = <GlassFoot />
