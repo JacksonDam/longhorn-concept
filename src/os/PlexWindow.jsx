@@ -485,6 +485,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   // how inactive the window looks (in eighths: at 144 Hz a cross-fade repaints the lighter shadow
   // 8 times, not 19; the chrome wash is a compositor-only fade)
   const inactive = Math.round((1 - look) * 8) / 8
+  // how far the window's top chrome reaches (title bar + the app's bars): the rim runs along it
+  // and an inactive window's wash covers it
+  const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -545,14 +548,13 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
-        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={topH || 72} r={radius} /> : null}
+        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
       </div>,
     )
   }
   // the inactive look's chrome wash over the live window, shown at rest only (os/look.jsx)
   const atRest = !blur && !m.hidden && !m.pose && win.state === 'open'
-  const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const mk = m.maxK(t)
   const wash = chromeTop > 0 && mounted > 0 && (
     <LookLayer key="look" x={r.x} y={r.y} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4} op={atRest ? inactive : 0} />
