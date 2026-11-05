@@ -1,51 +1,139 @@
 // The row of user tiles: layout (5 slots, or 4 after a selection), hover looks, the slide that
 // closes the gap after a selection (motion blurred) and the drop-away exit on submit.
 import { emit } from '../../core/events.js'
-import { CAPTURE } from '../../core/clock.js'
-import { clamp, ease, F } from '../../core/anim.js'
+import { CAPTURE, FPS } from '../../core/clock.js'
+import { MotionBlur } from '../../core/MotionBlur.jsx'
+import { rowState } from './select.js'
+import { submitEvent } from './state.js'
+import { tileExit } from './exit.js'
+import { clamp, F } from '../../core/anim.js'
 import { Tile } from './Tile.jsx'
-import { USERS, hoverOf } from './state.js'
-import { SLOTS5 } from './layout.js'
+import { USERS } from './state.js'
+import { all } from '../../core/events.js'
 
-const HOVER_IN = F(2.2)
-const HOVER_OUT = F(1.6)
-const BIG = 0.27
-const SMALL = 0.1
+// Hover look, continuous across events: every login.hover event retargets colour (0/1),
+// scale (1, 1.1 colour-only hover, 1.27 enlarged hover) and label emphasis from wherever
+// they are, with linear ramps measured on the reference (grow 3.6 frames, shrink 1.6).
+const LEVEL = { off: 1, small: 1.1, big: 1.27 }
+const COLOR_IN = F(2)
+const COLOR_OUT = F(2)
+const GROW = F(3.6)
+const SHRINK = F(1.6)
 
-// hover look of a tile at t
-export function hoverLook(t, id) {
-  const h = hoverOf(t, id)
-  const amp = h.big ? BIG : SMALL
-  if (h.on) {
-    const c = clamp((t - h.t) / HOVER_IN)
-    const s = ease.outCubic(clamp((t - h.t) / F(3)))
-    return { color: c, scale: 1 + amp * s, label: h.big ? s : 0 }
-  }
-  if (h.t === -Infinity) return { color: 0, scale: 1, label: 0 }
-  const k = 1 - clamp((t - h.t) / HOVER_OUT)
-  return { color: k, scale: 1 + amp * k, label: h.big ? k : 0 }
+function ramp(from, to, dt, durUp, durDown) {
+  const dur = to > from ? durUp : durDown
+  return from + (to - from) * clamp(dt / dur)
 }
 
-function hoverHandlers(id) {
+export function hoverLook(t, id) {
+  let c = 0, s = 1, l = 0
+  let te = -Infinity, c0 = 0, s0 = 1, l0 = 0, ct = 0, st = 1, lt = 0
+  for (const e of all(t, (e) => e.type === 'login.hover' && e.id === id)) {
+    // value of each channel at this event, then retarget
+    c0 = ramp(c0, ct, e.t - te, COLOR_IN, COLOR_OUT)
+    s0 = ramp(s0, st, e.t - te, GROW, SHRINK)
+    l0 = ramp(l0, lt, e.t - te, GROW, SHRINK)
+    te = e.t
+    ct = e.on ? 1 : 0
+    st = e.on ? (e.big ? LEVEL.big : LEVEL.small) : LEVEL.off
+    lt = e.on && e.big ? 1 : 0
+  }
+  c = ramp(c0, ct, t - te, COLOR_IN, COLOR_OUT)
+  s = ramp(s0, st, t - te, GROW, SHRINK)
+  l = ramp(l0, lt, t - te, GROW, SHRINK)
+  return { color: c, scale: s, label: l }
+}
+
+function handlers(id, selected) {
   if (CAPTURE) return {}
   return {
     onPointerEnter: () => emit('login.hover', { id, on: true, big: true }),
     onPointerLeave: () => emit('login.hover', { id, on: false, big: true }),
     onPointerDown: (e) => {
       e.stopPropagation()
-      emit('login.select', { id })
+      if (!selected && !submitEvent(Infinity)) emit('login.select', { id })
     },
   }
 }
 
-export function TileRow({ t }) {
+// white light pooling under the pressed tile (frames ~173-186)
+function PressGlow({ x, k }) {
+  const a = clamp((k - 4.5) / 3) * (1 - clamp((k - 16.5) / 3))
+  if (a <= 0) return null
+  const w = 70 + 30 * clamp((k - 4.5) / 4)
   return (
-    <>
-      {USERS.map((u, i) => (
-        <Tile key={u.id} user={u} x={SLOTS5[i]} look={hoverLook(t, u.id)} {...hoverHandlers(u.id)} />
-      ))}
-    </>
+    <div
+      style={{
+        position: 'absolute',
+        left: x - w / 2,
+        top: 652,
+        width: w,
+        height: 34,
+        borderRadius: '50%',
+        background: 'radial-gradient(closest-side, rgba(255,255,255,0.95), rgba(220,240,255,0.55) 55%, rgba(200,230,255,0) 100%)',
+        opacity: a,
+        pointerEvents: 'none',
+      }}
+    />
   )
 }
 
-void ease
+const BOX = { w: 110, top: 590, h: 110 }
+
+export function TileRow({ t, row, submitT }) {
+  const { tiles, sel, change } = row
+  return (
+    <>
+      {USERS.map((u, i) => {
+        const st = tiles[i]
+        const isSel = i === sel && change
+        const k = isSel ? (t - change.t) * FPS : Infinity
+        let look = hoverLook(t, u.id)
+        let labelOpacity = st.labelFade ?? 1
+        let opacity = 1
+        let labelGlow = 0
+        if (isSel) {
+          // the pressed tile pops (enlarged look) and hands over to the 3D slab at k 1.5-2.5
+          look = { ...look, label: Math.max(look.label, clamp((k - 1) / 1.5)) }
+          opacity = 1 - clamp((k - 1.5) / 1)
+          labelGlow = clamp((k - 4) / 2)
+          labelOpacity = 1 - clamp((k - 16.5) / 2.5)
+        } else if (st.slab) opacity = 0
+        const exit = submitT != null ? tileExit(t - submitT, i, sel) : null
+        // the blur layer is the tile's own box (so exit flips pivot on the tile)
+        const box = { left: st.x - BOX.w / 2, top: BOX.top, width: BOX.w, height: BOX.h }
+        const pose = (tt) => {
+          const x = st.sliding ? rowState(tt).tiles[i].x : st.x
+          const e = submitT != null ? tileExit(tt - submitT, i, sel) : null
+          return {
+            transform: `translateX(${(x - st.x).toFixed(3)}px)` + (e ? e.transform : ''),
+            transformOrigin: '50% 37%',
+            opacity: e ? e.opacity : 1,
+          }
+        }
+        return (
+          <MotionBlur
+            key={u.id}
+            t={t}
+            moving={st.sliding || (exit != null && exit.moving)}
+            samples={10}
+            shutter={1 / FPS}
+            style={{ ...box, pointerEvents: 'none' }}
+            layerStyle={{ pointerEvents: 'none' }}
+            pose={pose}
+          >
+            <div style={{ position: 'absolute', left: -box.left, top: -box.top }}>
+              <Tile
+                user={u}
+                x={st.x}
+                look={{ ...look, opacity, labelOpacity, labelGlow }}
+                {...handlers(u.id, i === sel)}
+              />
+              {isSel && <PressGlow x={st.x} k={k} />}
+            </div>
+          </MotionBlur>
+        )
+      })}
+    </>
+  )
+}

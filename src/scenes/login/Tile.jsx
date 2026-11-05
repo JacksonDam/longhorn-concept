@@ -52,7 +52,7 @@ export const TileFace = memo(function TileFace({ id, color, glass }) {
 })
 
 export function Tile({ user, x, y = 0, look, onPointerEnter, onPointerLeave, onPointerDown }) {
-  const { color = 0, scale = 1, label = 0, labelOpacity = 1, opacity = 1 } = look
+  const { color = 0, scale = 1, label = 0, labelOpacity = 1, opacity = 1, labelGlow = 0 } = look
   const cx = x
   return (
     <>
@@ -70,6 +70,7 @@ export function Tile({ user, x, y = 0, look, onPointerEnter, onPointerLeave, onP
           transformOrigin: '50% 52%',
           opacity,
           cursor: 'pointer',
+          pointerEvents: opacity > 0 ? 'auto' : 'none',
         }}
       >
         <TileFace id={user.id} color={Math.round(color * 24) / 24} glass={user.id === 'sondra'} />
@@ -85,11 +86,11 @@ export function Tile({ user, x, y = 0, look, onPointerEnter, onPointerLeave, onP
           fontSize: 12 + label * 1.5,
           fontWeight: 600 + label * 150,
           lineHeight: '14px',
-          color: 'rgb(214,232,255)',
-          opacity: labelOpacity * opacity,
+          color: labelGlow > 0 ? `rgb(${214 + 41 * labelGlow},${232 + 23 * labelGlow},255)` : 'rgb(214,232,255)',
+          opacity: labelOpacity,
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
-          textShadow: '0 1px 1.5px rgba(5,30,120,0.55)',
+          textShadow: labelGlow > 0 ? `0 0 ${4 * labelGlow}px rgba(255,255,255,${0.9 * labelGlow})` : '0 1px 1.5px rgba(5,30,120,0.55)',
         }}
       >
         {user.name}

@@ -9,6 +9,9 @@ import { Aurora } from './Aurora.jsx'
 import { Logo } from './Logo.jsx'
 import { BarBand, ShutDown, Clock, clockText } from './Bar.jsx'
 import { TileRow } from './TileRow.jsx'
+import { Selected } from './Selected.jsx'
+import { Panel } from './Panel.jsx'
+import { rowState } from './select.js'
 import { currentSelection, submitEvent, passwordLength } from './state.js'
 import { LOGIN_EXIT, layerOpacity } from './exit.js'
 
@@ -50,6 +53,8 @@ export function LoginScene() {
   useKeys()
   const submit = submitEvent(t)
   const k = submit ? t - submit.t : null
+  const row = rowState(t)
+  const submitT = submit ? submit.t : null
   return (
     <div
       style={{ position: 'absolute', inset: 0, overflow: 'hidden', opacity: k == null ? 1 : layerOpacity(k) }}
@@ -66,10 +71,12 @@ export function LoginScene() {
         <Aurora />
       )}
       {!REFBG && <BarBand />}
-      <Logo t={t} submitT={submit ? submit.t : null} />
+      <Logo t={t} submitT={submitT} />
       <ShutDown />
-      <TileRow t={t} />
+      <TileRow t={t} row={row} submitT={submitT} />
       <Clock text={clockText(DEMO)} />
+      <Panel t={t} row={row} submitT={submitT} />
+      <Selected t={t} records={row.records} submitT={submitT} />
     </div>
   )
 }
