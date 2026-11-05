@@ -17,8 +17,11 @@
 // screen(t)       -> { name: 'login' | 'desktop' | 'shutdown' | 'off' | 'boot', t0, from, user }
 //                    (t0 = when it started; from = the screen it replaced)
 // loginSince(t)   -> start of the current login screen (its selection/password state counts from here)
-// wallpaper(t)    -> { kind: 'photo' } | { kind: 'color', color }; WALLPAPERS: Display Properties' choices
+// wallpaper(t)    -> { kind: 'photo' } | { kind: 'image', key, src } | { kind: 'color', color };
+//                    WALLPAPERS: Display Properties' choices ('desk.wallpaper' { kind, color?, key? })
+// userInfo(id)    -> the (cached, frozen) user record for a login id
 import { all, last, getVersion } from '../core/events.js'
+import { lastOfType } from './logIndex.js'
 import { asset } from '../core/preload.js'
 
 export const USERS = [
@@ -96,11 +99,21 @@ export function previousScreen(t) {
   return s.length > 1 ? s[s.length - 2] : null
 }
 
+// one frozen object per user, so callers can memoise on it
+const userObjs = new Map()
+export function userInfo(id) {
+  let o = userObjs.get(id)
+  if (!o) {
+    const u = byId[id] || byId.sondra
+    o = Object.freeze({ id: u.id, name: u.name, email: u.email || `${u.id}@hotmail.com`, picture: userPicture(u.id), washed: userPictureWashed(u.id) })
+    userObjs.set(id, o)
+  }
+  return o
+}
 export function currentUser(t) {
   const s = screen(t)
   if (s.name !== 'desktop') return null
-  const u = byId[s.user] || byId.sondra
-  return { id: u.id, name: u.name, email: u.email || `${u.id}@hotmail.com`, picture: userPicture(u.id), washed: userPictureWashed(u.id) }
+  return userInfo(s.user)
 }
 
 export function sessionEvent(t) {
@@ -121,6 +134,8 @@ export function loginSince(t) {
 
 export const WALLPAPERS = [
   { kind: 'photo', name: 'Stonehenge' },
+  // an original green leaf stand-in for the frog-on-a-leaf wallpaper of the second reference
+  { kind: 'image', key: 'leaf', name: 'Leaf', src: asset('img/desktop/wallpaper-leaf.webp') },
   { kind: 'color', color: '#3a6ea5', name: 'Blue' },
   { kind: 'color', color: '#2b4f2b', name: 'Green' },
   { kind: 'color', color: '#5c3b6e', name: 'Plum' },
@@ -128,8 +143,10 @@ export const WALLPAPERS = [
   { kind: 'color', color: '#000000', name: 'Black' },
 ]
 
+const PHOTO = { kind: 'photo' }
 export function wallpaper(t) {
-  const e = last(t, (e) => e.type === 'desk.wallpaper')
-  if (!e || e.kind !== 'color') return { kind: 'photo' }
+  const e = lastOfType(t, 'desk.wallpaper')
+  if (!e || (e.kind !== 'color' && e.kind !== 'image')) return PHOTO
+  if (e.kind === 'image') return WALLPAPERS.find((w) => w.key === e.key) || PHOTO
   return { kind: 'color', color: e.color || '#3a6ea5' }
 }

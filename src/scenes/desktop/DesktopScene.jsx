@@ -1,15 +1,15 @@
 // Desktop shell: wallpaper, the window layer, sidebar, taskbar, the my Music flyout, the
 // Start menu, the shell's flyouts and menus.
 // `since` is the time of 'login.submit'; the desktop's entrance animates from it.
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { WindowLayer } from '../../os/WindowLayer.jsx'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { FPS } from '../../core/clock.js'
-import { emit, last } from '../../core/events.js'
+import { lastOfType } from '../../os/logIndex.js'
 import { asset, preload } from '../../core/preload.js'
 import { clamp, ease } from '../../core/anim.js'
 import { ContextMenu, DropMenu, contextHandler, closeMenu } from '../../ui/index.js'
-import { currentUser, wallpaper } from '../../os/session.js'
+import { userInfo, wallpaper } from '../../os/session.js'
 import { mediaState } from '../../os/media.js'
 import { IconDefs } from './icons.jsx'
 import { Sidebar, PANEL } from './Sidebar.jsx'
@@ -18,7 +18,7 @@ import { TaskbarLayer } from './TaskbarLayer.jsx'
 import { Flyout, flyoutState, closeFlyout, hoverLevel } from './Flyout.jsx'
 import { StartMenu } from './StartMenu.jsx'
 import { WeatherFlyout, CalendarFlyout } from './Flyouts.jsx'
-import { closePopups, sidebarVisible } from './shellState.js'
+import { closePopups, sidebarVisible, setSessionFloor } from './shellState.js'
 import { USER_MENU, STATUS_MENU } from './sidebarMenus.js'
 import { DESK_MENU } from './deskMenu.js'
 import { framesSince, ramp } from './timing.js'
@@ -36,6 +36,7 @@ const IMAGES = [
   'ic-word.svg',
   'flag.svg',
   'album-standin.webp',
+  'wallpaper-leaf.webp',
 ].map((f) => asset('img/desktop/' + f))
 preload(IMAGES)
 
@@ -58,6 +59,7 @@ function Wallpaper({ wp, dim }) {
     <>
       <div style={{ position: 'absolute', inset: 0, background: wp.kind === 'color' ? wp.color : '#000', visibility: wp.kind === 'color' ? 'visible' : 'hidden' }} />
       <div style={{ position: 'absolute', inset: 0, visibility: wp.kind === 'photo' ? 'visible' : 'hidden' }}>{PHOTO}</div>
+      {wp.kind === 'image' && <img src={wp.src} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, objectFit: 'cover' }} />}
       <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: dim, visibility: dim > 0 ? 'visible' : 'hidden' }} />
     </>
   )
@@ -86,27 +88,12 @@ function sidebarOpacity(f) {
 
 const SIDEBAR_HITS = <SidebarHits />
 
-export function DesktopScene({ since }) {
+// since: the session's 'login.submit' time, Infinity between sessions (the scene stays mounted
+// under the login screen and draws nothing of the shell); user: the session's login id.
+export function DesktopScene({ since, user: userId }) {
   const t = useTime()
   useEvents()
-  const f = framesSince(t, since)
-  const op = sidebarOpacity(f)
-  const haze = Math.min(ramp(f, 516, 518), 1 - ramp(f, 518, 520.5)) * 0.1
-  const fly = flyoutState(t)
-  // media strip hover highlight: fades in over 3.1 frames, out over 5.5 (the brighter
-  // flashes around the flyout's opening and closing are its own motion-blurred ghost)
-  const mediaHL = { hover: hoverLevel(t, 'sb.media', 3.1, 5.5) }
-  const user = currentUser(t)
-  const ms = mediaState(t)
-  const media = { title: ms.track.display, playing: ms.playing, scroll: ms.playing || ms.position > 0 ? marquee(ms.track.display, ms.position) : 0 }
-  // the clock's chevron slides the sidebar out to the right and back (6 frames)
-  const sb = sidebarVisible(t)
-  const k = ease.inOut(clamp(((t - sb.at) * FPS) / 6))
-  const slide = PANEL.w * (sb.visible ? 1 - k : k) * (sb.at === -Infinity ? 0 : 1)
-  // desktop context menu > Refresh: a short dip of the wallpaper
-  const rf = last(t, (e) => e.type === 'desk.refresh')
-  const rdf = rf ? (t - rf.t) * FPS : Infinity
-  const dim = rdf < 6 ? 0.25 * (1 - Math.abs(rdf - 1.5) / 4.5) * (rdf < 1.5 ? rdf / 1.5 : 1) : 0
+  const pendingEl = useRef(null)
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return
@@ -116,7 +103,30 @@ export function DesktopScene({ since }) {
     addEventListener('keydown', onKey)
     return () => removeEventListener('keydown', onKey)
   }, [])
-  return (
+  const pending = since === Infinity
+  // between sessions nothing changes: reuse the element tree (React bails out on it)
+  if (pending && pendingEl.current) return pendingEl.current
+  if (!pending) pendingEl.current = null
+  setSessionFloor(since)
+  const f = framesSince(t, since)
+  const op = sidebarOpacity(f)
+  const haze = Math.min(ramp(f, 516, 518), 1 - ramp(f, 518, 520.5)) * 0.1
+  const fly = flyoutState(t)
+  // media strip hover highlight: fades in over 3.1 frames, out over 5.5 (the brighter
+  // flashes around the flyout's opening and closing are its own motion-blurred ghost)
+  const mediaHL = { hover: hoverLevel(t, 'sb.media', 3.1, 5.5) }
+  const user = userId ? userInfo(userId) : null
+  const ms = mediaState(t)
+  const media = { title: ms.track.display, playing: ms.playing, scroll: ms.playing || ms.position > 0 ? marquee(ms.track.display, ms.position) : 0 }
+  // the clock's chevron slides the sidebar out to the right and back (6 frames)
+  const sb = sidebarVisible(t)
+  const k = ease.inOut(clamp(((t - sb.at) * FPS) / 6))
+  const slide = PANEL.w * (sb.visible ? 1 - k : k) * (sb.at === -Infinity ? 0 : 1)
+  // desktop context menu > Refresh: a short dip of the wallpaper
+  const rf = lastOfType(t, 'desk.refresh')
+  const rdf = rf ? (t - rf.t) * FPS : Infinity
+  const dim = rdf < 6 ? 0.25 * (1 - Math.abs(rdf - 1.5) / 4.5) * (rdf < 1.5 ? rdf / 1.5 : 1) : 0
+  const el = (
     <div
       style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}
       onPointerDown={() => {
@@ -140,7 +150,8 @@ export function DesktopScene({ since }) {
       <DropMenu id="sb.status" items={STATUS_MENU} />
     </div>
   )
+  if (pending) pendingEl.current = el
+  return el
 }
 
 void closeMenu
-void emit

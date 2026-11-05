@@ -14,12 +14,14 @@ import { screen } from './os/session.js'
 import { emit } from './core/events.js'
 import { frameTime } from './core/clock.js'
 import { sessionScenario } from './demo/session.js'
+import { shellScenario } from './demo/shell.js'
 
 const params = new URLSearchParams(location.search)
 const DEMO = CAPTURE || params.has('demo')
 // ?scenario=session replaces the video's input with the scripted session flows (demo/session.js),
 // for stepping and benchmarking the log off / switch user / shut down / boot transitions
-const SCENARIO = params.get('scenario') === 'session' ? sessionScenario : null
+// ?scenario=shell: the desktop shell's own scripted input (demo/shell.js)
+const SCENARIO = { session: sessionScenario, shell: shellScenario }[params.get('scenario')] || null
 const hiddenCursor = () => ({ hidden: true })
 
 // Scene flow (os/session.js), after the two reference videos: login -> desktop (submit, the
@@ -36,7 +38,10 @@ function Scenes() {
   const hover = cur.name === 'off' && !!last(t, (e) => e.type === 'power.hover' && e.t >= cur.t0)?.on
   return (
     <>
-      {desk && <DesktopScene key={desk.t0} since={desk.t0} />}
+      {/* the desktop stays mounted (pre-mounted under the login screen from the first frame, so a
+          login doesn't mount it on the submit frame); between sessions it waits with since =
+          Infinity (nothing of the shell shows) and its state is scoped to the session start */}
+      <DesktopScene since={desk ? desk.t0 : Infinity} user={desk ? desk.user : null} />
       <LoginScene visible={loginVisible} />
       {cur.name === 'off' ? (
         <OffScreen t0={cur.t0} t={t} hover={hover} />
