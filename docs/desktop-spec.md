@@ -133,6 +133,10 @@ Files (src/scenes/desktop unless noted):
   `src/os/media.js`: the silent player; `src/os/logIndex.js`: indexed event lookups.
 - `src/apps/display`: Display Properties (Stonehenge, the leaf stand-in, plain colours).
 - `src/demo/shell.js` + `?scenario=shell`: scripted shell input for bench/capture (frames 1-520).
+- Details: task buttons show their full label as a tooltip and have a Restore / Minimize /
+  Maximize / Close menu on right-click; the calendar pages through months and selects days;
+  a mail row moves the sidebar's selection, marks the mail read and opens it; Windows Tour and
+  Top 10 Tasks open Help on their pages; the Start header opens Control Panel > User Accounts.
 
 Bench (prod build, ?scenario=shell, 1-520): p50 0.6 ms, p95 3.5 ms, max 6.1 ms. The video
 replay's RMSE is unchanged by the shell (every segment within 0.01 of the pre-shell capture).
