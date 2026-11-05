@@ -39,6 +39,24 @@ semi-transparent copies. Reproduce it the same way:
   glassy rounded slabs (picture face, glass edges, softbox reflection, fresnel rim) rendered by
   one shared three.js renderer, accumulated in half float, copied into a DOM canvas.
 
+## Glass (sidebar, clock foot, taskbar)
+The Plex glass is live, so it shows whatever is behind it: the wallpaper choice, windows dragged
+under it, the Refresh dim.
+- Sidebar panel and clock foot (`scenes/desktop/Sidebar.jsx` `Glass`):
+  `out = k(x) * blur(backdrop) + tint(x, y)`. One element blurs (`backdrop-filter:
+  blur(GLASS_BLUR)`, 2.4 stage px) under a black layer of alpha 1 - k(x) (a CSS gradient through
+  the stops in `glassFit.js`, k 0.32-0.75 left to right); a second element adds the tint
+  (`glass-tint.webp`, 102x720) with `mix-blend-mode: plus-lighter`. Both are fitted by
+  `tools/desktop/fit_glass.py` against the empty panel of video frames 521-523 and the clock foot
+  of the later frames (docs/desktop-spec.md has the numbers and how to refit).
+- Taskbar (`Taskbar.jsx` `Bar`): its per-row colours at alpha 0.55 over the same blur.
+- Rules: the glass elements carry their own opacity and transform. An ancestor with opacity < 1,
+  a filter, mask, clip-path, blend mode or isolation becomes the backdrop root (the blur then
+  sees nothing and the tint adds to nothing), and a transformed or isolated wrapper isolates the
+  tint's plus-lighter blend. So never wrap them in a fade or slide group; and anything that should
+  show through the glass must be drawn before it in the same stacking context (windows are:
+  `WindowLayer` sits under the sidebar and the taskbar).
+
 ## Verifying against the video
 - Dev server: `npx vite --port <port> --strictPort` (main tree uses 5299 on 127.0.0.1; another project uses 5199).
 - `node tools/capture.mjs "180-200,300" --out out/cap --url http://localhost:<port>/longhorn-concept/?capture`
