@@ -77,12 +77,29 @@ OS in the same style. Everything still derives from (time, event log).
   running-at-login windows exist minimised. `src/os/taskbar.js`: where each window's taskbar
   button is (the shell registers a locator), so windows minimise into their own button.
 - `src/os/apps.js`: auto-registry of `src/apps/*/index.{js,jsx}`. An app is
-  `{ id, title, taskbarLabel, icon, size, position, explorer, Content, Proxy?, ... }`;
+  `{ id, title, taskbarLabel, icon, size, position, explorer, Content, usesActive?, ... }`;
   `src/os/PlexWindow.jsx` draws it (frame, title bar, drag/resize/maximise, open/minimise/restore/
   close animations with multi-sample blur), `src/os/ExplorerChrome.jsx` is the my Music-style
-  toolbar block, `src/os/WindowLayer.jsx` renders all windows. Blur copies render `app.Proxy`
-  (a cheap stand-in) when the app has one. `src/os/ErrorBoundary.jsx` keeps a crash inside its
-  window.
+  toolbar block, `src/os/WindowLayer.jsx` renders all windows. Every motion-blur copy draws the
+  app's full Content (memoised snapshots, re-rendered when the content settles on new state,
+  `copyKey`); there are no stand-in copies. Copies mount one per frame from the open (two
+  frames in) and are rasterised in their first visible pose before the window shows. Layers
+  that are parked (closed, never shown, still mounting) carry `content-visibility: hidden`, so a
+  session that opened many windows costs nothing per frame for them; a closed window also lets
+  its compositing layers go. Idle copies of a shown window rest on its rect at opacity 0 (Chrome
+  keeps the rasters of will-change layers there), and keep the size the window settled at while
+  it is resized or maximised. Each window's layers sit in one group positioned by a transform,
+  so a drag moves one transform. `usesActive: true` marks Content that draws differently when
+  the window isn't active (otherwise focus changes don't re-render it).
+  `src/os/ErrorBoundary.jsx` keeps a crash inside its window.
+- Input and the log: continuous input (window drags and resizes) goes through
+  `core/time.jsx nextFrame`, one event per frame at the frame's time, emitted in the same render
+  as the clock tick. The log grows in place at its end (`core/events.js` epoch: bumps only when
+  it is replaced or an event lands before its end), so `os/logIndex.js` (by type and type + id,
+  `lastOfTypes` / `allOfTypes` / `typesKey`), the window manager's fold (`os/wm.js`, with
+  checkpoints for looking back) and the per-window event times extend incrementally: an event
+  costs O(1) however long the session's log is. State that only reads some event types keys its
+  cache on `typesKey(types)`, not the log version, so window moves don't invalidate it.
 - Window chrome rules (details in docs/briefs/os.md, "Window chrome rules"): only the window's
   outline is rounded (title bar top corners, bottom corners, radii in `src/os/frame.js`; the
   client area is clipped to them);
@@ -138,8 +155,12 @@ scenes, never an opacity group around them (see Glass).
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
 http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
-`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?scenario=shell&`,
-`?scenario=session&` with frames past the video's end).
+`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=every&` (every app
+opened, minimised, restored, closed; `node tools/appbench.mjs --dpr 1.5` prints the per-app,
+per-phase costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
+Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ...] [--prefill
+5000,20000] [--trace|--profile]` drags windows with CDP mouse events at a mouse's report rate in
+the real-time app (vsync off) and prints each run's frame-cost percentiles.
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
 
