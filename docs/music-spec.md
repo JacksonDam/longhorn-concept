@@ -46,6 +46,48 @@ video frames; "rel" counts frames from an animation's reference point (see Timin
   Track 3 (title and number) and track 4's number are blue #2a9ff0. No hover feedback is
   visible in the video while the cursor crosses the list (checked frame diffs 1000-1352).
 
+## Toolbar icons (os/icons.jsx, redrawn and fitted 2026-11-05)
+- Sources: none published. The toolbar art is the demo's own prototype art (glass orbs in a
+  sunken well, glass Home/Search/Favorites, the note pair, tilted page thumbnails). Longhorn
+  Plex theme resources (shellstyle/msstyles bitmaps, builds 3683-4074) are not online as
+  extracted images, and those builds' travel buttons differ from the demo anyway, so every icon
+  is redrawn in SVG from the video (assets-src/SOURCES.md section 7). The page thumbnails stay
+  abstract: blocks laid out like the video's, not the 2003 sites themselves.
+- Reference: the per-pixel median of frames 800-1348 step 3 (`tools/icons/median.py`). The
+  toolbar is still from 760 to 1354; the median removes the compression noise and the cursor.
+- Fitting (`tools/icons/fit.mjs`, generators in `tools/icons/gen`, fitted values in
+  `tools/icons/params`, JSX via `tools/icons/tojsx.mjs`): each icon is a parametric SVG (layered
+  linear/radial gradients, clip paths, masks; no filters), drawn over a capture of the toolbar
+  with that icon blanked and scored against the median, both blurred. Our side is blurred a little
+  more (`--vblur` 1.15-1.35, the video's own softness), otherwise the fit thickens outlines and
+  grows the well to imitate the blur. Geometry and colours are bounded to the measured ranges so
+  the crisp drawing still reads right at the app's 1.5x, and each fit was checked by eye at 8x.
+- Back / forward (stage px): the well is the hull of circles (74.1, 63.6) r 15.2 and (104.5, 64.2)
+  r 10.1, filled top to bottom from the shadowed top wall (#3e79cb) to the lit lower lip
+  (#7eaded); three feathered copies of the hull, 1 px apart, darken the toolbar above it. The
+  back orb (75.7, 63.3) r 13.6 and the forward orb (104.1, 63.8) r 8 each have a soft dark
+  outline ring (darkest at the top, fading down where the lip shows), a body lit from the upper
+  right (the forward one darker), a fresnel rim, a top cap and, on the back orb, a caustic low
+  left. The back arrow has a soft shadow along its base. The forward hit area moved to
+  window-local (50, 32, 18, 18) over the orb. RMSE (f1300, crop 54,42,64,42) 19.15 -> 5.41.
+- my music: two glass eighth notes, heads (406.8, 71.1) 12 x 9.8 and (416.8, 72.5) 11.6 x 10,
+  tilted; stems at x 408.9 / 419.0 from y 53.2 / 55.5, 3.4 px tubes (navy rim #0c3a87, lit
+  core); wedge flags; each head has a specular spot upper left. 20.95 -> 8.88 (398,46,32,44).
+- Home: MSN butterfly over a glass bowl (154.2, 68.8) r 11.1: white sail wing, navy outer wing,
+  glowing ball (158.4, 61.4) r 3.1, bowl rim lit low. 24.66 -> 8.67 (132,42,40,52).
+- Search: lens (236.4, 61.9) r 7.8 (light ring with a soft dark edge, lit lower crescent), a
+  two-tone handle from (230.1, 67.7) to (219.2, 75.9), 3.3 px. 24.80 -> 8.17 (192,48,54,40).
+- Favorites: star (719.3, 64.0), R 14.7, inner ratio 0.42, rounded tips, rim lit at the top and
+  blue below, soft inner glow. 12.02 -> 7.90 (701,45,36,44).
+- Pages: quads turned away to the right (ofoto (300.6, 51.9) (329.1, 53.2) (327.6, 76.6)
+  (302.5, 79.1); yahoo and google alike, about 26 x 26), content mapped through the quad's
+  homography, a bright left edge and a soft light halo. ofoto 35.31 -> 12.72, yahoo
+  24.46 -> 10.28, google 24.65 -> 8.18 (32 x 46 crops at 298 / 487 / 596, 47).
+- Title glyph: four columns of glowing cells (3, 4, 2, 3 high), cells 3.75 x 2.59 on a 4.02 x
+  3.32 pitch from x 392.2, bottom 38.6. 22.89 -> 10.91 (389,26,22,15).
+- Cost: the toolbar is still one SVG image per explorer window size; rasterising it at 1.5x
+  takes about 4-6 ms once (copies pre-mount from session start + 1 s, so not on an animation).
+
 ## Slabs (gl/Slab3D renderer, own canvas 230 x 240 at window-local 175, 118, P = 900)
 - Both slabs are 136 x 136 x 26 rounded boxes (fitted size/depth: silhouette IoU grid search).
 - Poses per frame are fitted from silhouettes (`tools/music/fitslab.py`: colour segmentation,
