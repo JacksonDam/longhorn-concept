@@ -24,7 +24,7 @@ function Playlist({ win, t, w, h }) {
   const total = TRACKS.filter((tr) => set.has(tr.title)).reduce((s, tr) => s + tr.duration, 0)
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      <div style={{ position: 'absolute', left: 16, top: 12, fontFamily: FONT, fontSize: 19, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap' }}>
+      <div onPointerDown={(e) => e.button === 0 && focusField(id('name'))} style={{ position: 'absolute', left: 16, top: 12, fontFamily: FONT, fontSize: 19, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap' }}>
         create <span style={{ fontWeight: 500, color: C.heading }}>playlist</span>
       </div>
       <div onPointerDown={(e) => e.button === 0 && focusField(id('name'))} style={{ position: 'absolute', left: 16, top: 46, fontFamily: FONT, fontSize: 11, color: C.text }}>Playlist name:</div>
@@ -46,7 +46,7 @@ function Playlist({ win, t, w, h }) {
         }}
         onOpen={(it) => toggle(it.key)}
       />
-      <div style={{ position: 'absolute', left: 16, top: h - 72, fontFamily: FONT, fontSize: 10.5, color: '#8b91a6' }}>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('picked'), value: set.size === TRACKS.length ? [] : TRACKS.map((tr) => tr.title) })} style={{ position: 'absolute', left: 16, top: h - 72, fontFamily: FONT, fontSize: 10.5, color: '#8b91a6' }}>
         {set.size} tracks, {formatTime(total)}
       </div>
       <Checkbox id={id('play')} label="Play the playlist now" x={16} y={h - 54} def />
