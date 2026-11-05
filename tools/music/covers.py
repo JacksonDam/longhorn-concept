@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Original stand-in album covers for the my Music window (see docs/SUBSTITUTIONS.md).
 
+The drawings below are blended over a 5x5 colour field per tile (cover_fields.json, the mean
+colours of the reference tile), so each stand-in keeps the tile's overall colour layout.
+
 Each cover is generated from simple shapes that only echo the colours and rough layout of the
 tile it replaces in the reference video (no logos, faces, photos or text from the real covers).
 usage: python3 tools/music/covers.py   -> public/img/music/covers/<id>.webp (128x128) + tweet-lg.webp
@@ -86,8 +89,17 @@ class C:
         self.im = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
         return self
 
-    def save(self, name, size=128, soften=0.35):
-        im = self.im.convert('RGB').resize((size, size), Image.LANCZOS)
+    def save(self, name, size=128, soften=0.35, field=None, detail=0.85):
+        im = self.im.convert('RGB')
+        if field is not None:
+            # keep this drawing's shapes (high frequencies) over a smooth colour field that
+            # follows the tile's coarse colour layout: final = lowpass(field) + k * highpass(drawing)
+            f = np.array([[int(h[i:i + 2], 16) for i in (0, 2, 4)] for h in field], np.uint8).reshape(5, 5, 3)
+            f = Image.fromarray(f).resize((S, S), Image.BICUBIC).filter(ImageFilter.GaussianBlur(S / 14))
+            a = np.asarray(im, float)
+            lo = np.asarray(im.filter(ImageFilter.GaussianBlur(S / 14)), float)
+            im = Image.fromarray(np.clip(np.asarray(f, float) + detail * (a - lo), 0, 255).astype(np.uint8))
+        im = im.resize((size, size), Image.LANCZOS)
         if soften:
             im = im.filter(ImageFilter.GaussianBlur(soften))
         im.save(os.path.join(OUT, name + '.webp'), quality=90, method=6)
@@ -358,9 +370,11 @@ GRID = [
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     sheet = Image.new('RGB', (8 * 66, 4 * 66), (230, 236, 245))
+    import json
+    fields = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cover_fields.json')))
     made = {}
     for k, fn in covers.items():
-        made[k] = fn().save(k)
+        made[k] = fn().save(k, field=fields.get(k) if k != 'k_tweet' else None)
     tweet(C('#5a5858'), big=True).save('tweet-lg', size=512, soften=0)
     for i, k in enumerate(GRID):
         sheet.paste(made[k].resize((50, 50), Image.LANCZOS), ((i % 8) * 66 + 8, (i // 8) * 66 + 8))

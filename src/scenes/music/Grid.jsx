@@ -34,16 +34,14 @@ export const Tile = memo(function Tile({ album, hover }) {
         top: y,
         width: s,
         height: s,
-        boxSizing: 'border-box',
-        border: '2px solid rgba(250,252,255,0.95)',
+        // a thin glassy edge (light on the right and bottom) and a soft shadow below
         boxShadow: hover
-          ? '0 0 0 1px rgba(120,170,240,0.85), 0 4px 7px rgba(40,70,130,0.35)'
-          : '0 0 0 1px rgba(170,185,210,0.45), 0 3px 5px rgba(40,70,130,0.22)',
+          ? '1.5px 1.5px 0 rgba(246,248,255,0.95), 0 0 0 1px rgba(120,170,240,0.85), 0 5px 8px rgba(40,70,130,0.35)'
+          : '1.5px 1.5px 0 rgba(244,243,252,0.95), 0 0 0 0.6px rgba(190,198,222,0.7), 0 5px 7px rgba(50,70,110,0.2)',
         transform: hover ? 'translateY(-1px)' : undefined,
-        background: '#fff',
       }}
     >
-      <Cover album={album} size={s - 4} />
+      <Cover album={album} size={s} />
     </div>
   )
 })
@@ -68,21 +66,21 @@ const SelectedBody = memo(function SelectedBody({ album }) {
     <div
       style={{
         position: 'absolute',
-        left: -3,
-        top: -3,
-        width: 56,
-        height: 56,
+        left: -6,
+        top: -5,
+        width: 58,
+        height: 58,
         boxSizing: 'border-box',
         borderRadius: 3,
-        padding: 5,
+        padding: 6,
         background: 'linear-gradient(160deg, #e9f6ff 0%, #a9d4ff 35%, #c8e6ff 70%, #eef8ff 100%)',
         boxShadow: '0 0 0 1px rgba(150,190,235,0.9), 0 4px 8px rgba(40,80,160,0.35), inset 0 0 0 1px rgba(255,255,255,0.7)',
       }}
     >
       <div style={{ position: 'relative', width: 46, height: 46, overflow: 'hidden' }}>
         <Cover album={album} size={46} />
-        <div style={{ position: 'absolute', inset: 0, background: 'rgb(40, 90, 235)', mixBlendMode: 'color', opacity: 0.55 }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'rgb(30, 70, 200)', mixBlendMode: 'screen', opacity: 0.35 }} />
+        {/* blue glass over the cover (fitted on the reference: ~50% of rgb(30, 95, 170)) */}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(30, 95, 170, 0.48)' }} />
       </div>
     </div>
   )

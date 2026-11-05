@@ -6,11 +6,11 @@ export const WIN = { x: 45, y: 23, w: 777, h: 653, r: 8 }
 export const lx = (x) => x - WIN.x
 export const ly = (y) => y - WIN.y
 
-// album grid (stage px): tile top-left corners, 50 px tiles
+// album grid (stage px): cover top-left corners, 49 px covers
 export const GRID = {
-  xs: [246, 314.5, 381, 447.5, 514, 581, 649, 717],
-  ys: [394, 462.5, 529.5, 597],
-  size: 50,
+  xs: [248, 315, 381, 448, 514, 581, 649, 717],
+  ys: [395, 463, 529.5, 597.5],
+  size: 49,
 }
 
 // the header's 3D slab (device / album) centre and size in window-local px

@@ -22,7 +22,7 @@ import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from './B
 import { AlbumGrid } from './Grid.jsx'
 import { Header } from './Header.jsx'
 import { Beam } from './Beam.jsx'
-import { HEADER, PAGE_DELAY, openPose, openMoving, poseCss, smoothRamp, toRel } from './timeline.js'
+import { HEADER, PAGE_DELAY, openPose, openMoving, poseCss, smoothRamp, toRel, minimizePose, restorePose, MIN_END, RESTORE_END } from './timeline.js'
 import { ALBUMS } from './albums.js'
 
 export function musicWindowState(t) {
@@ -100,6 +100,22 @@ function openBlur(rel) {
   return { n: 4, shutter: 0.6 / FPS }
 }
 
+// the window drawn n times at sub-frame times, averaged (plus-lighter in an isolated group)
+function Blurred({ t, n, shutter, pose, st, vs }) {
+  const layers = []
+  for (let k = 0; k < n; k++) {
+    const tt = t + shutter * ((k + 0.5) / n - 0.5)
+    const p = pose(tt)
+    if (p.op <= 0) continue
+    layers.push(
+      <div key={k} style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter' }}>
+        <WindowContent t={tt} st={st} vs={vs} />
+      </div>,
+    )
+  }
+  return <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>{layers}</div>
+}
+
 // Dev-only comparison aid (?plate): a clean desktop frame of the reference video behind the
 // window, so captures of semi-transparent effects can be diffed against the video.
 const PLATE = import.meta.env.DEV && new URLSearchParams(location.search).has('plate')
@@ -125,32 +141,45 @@ function MusicWindowLayer({ t }) {
   if (!st.exists) return null
   const rel = toRel(t, st.openedAt)
   const vs = viewState(t, st.openedAt)
+  const props = { t, st, vs }
+  // minimise / restore
+  if (st.changedAt !== st.openedAt) {
+    const mrel = toRel(t, st.changedAt)
+    if (st.minimized) {
+      if (mrel >= MIN_END) return null
+      const fall = mrel > 4
+      return (
+        <>
+          <Blurred {...props} n={fall ? 16 : 6} shutter={(fall ? 1 : 0.6) / FPS} pose={(tt) => minimizePose(toRel(tt, st.changedAt))} />
+          <Beam rel={mrel} fan={[5, 6.8, 8.6]} spark={[6, 7.5, 9.5]} rise={false} />
+        </>
+      )
+    }
+    if (mrel < RESTORE_END) {
+      return (
+        <>
+          <Blurred {...props} n={mrel < 4 ? 16 : 8} shutter={1 / FPS} pose={(tt) => restorePose(toRel(tt, st.changedAt))} />
+          <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
+        </>
+      )
+    }
+  }
   const beam = <Beam rel={rel} />
   if (rel < 5) return beam
   if (!openMoving(rel)) {
     return (
       <>
         <div style={winBox}>
-          <WindowContent t={t} st={st} vs={vs} />
+          <WindowContent {...props} />
         </div>
         {beam}
       </>
     )
   }
   const { n, shutter } = openBlur(rel)
-  const layers = []
-  for (let k = 0; k < n; k++) {
-    const tt = t + shutter * ((k + 0.5) / n - 0.5)
-    const p = openPose(toRel(tt, st.openedAt))
-    layers.push(
-      <div key={k} style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter' }}>
-        <WindowContent t={tt} st={st} vs={vs} />
-      </div>,
-    )
-  }
   return (
     <>
-      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>{layers}</div>
+      <Blurred {...props} n={n} shutter={shutter} pose={(tt) => openPose(toRel(tt, st.openedAt))} />
       {beam}
     </>
   )

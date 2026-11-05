@@ -68,6 +68,45 @@ export function poseCss(p) {
   }
 }
 
+// ---------------------------------------------------------------- minimise / restore
+// window-local pose keys [rel, ty, sx, sy, rz (deg), opacity]; transform origin: top centre.
+// rel counts from the music.minimize / music.restore event (reference: 1354.5 / 1403.5).
+const MIN = table([
+  [0, 0, 1, 1, 0, 1],
+  [0.5, -9, 1, 1, 0, 1],
+  [1.5, -18.5, 1, 1, 0, 1],
+  [3.5, -18.5, 1.004, 1.005, 0, 1],
+  [4, -6, 1, 1, 0, 1],
+  [4.5, 32, 0.99, 0.97, 0, 1],
+  [5.5, 140, 0.95, 0.88, 0, 0.88],
+  [6.5, 300, 0.8, 0.68, 0, 0.7],
+  [7.5, 478, 0.58, 0.45, 0, 0.42],
+  [8.5, 625, 0.37, 0.3, 0, 0.12],
+  [9.5, 700, 0.25, 0.2, 0, 0],
+])
+export const MIN_END = 9.5
+const RESTORE = table([
+  [0, 700, 0.3, 0.25, 0, 0],
+  [0.5, 640, 0.42, 0.32, 0, 0.12],
+  [1.5, 330, 0.69, 0.6, 0, 0.55],
+  [2.5, 80, 0.94, 0.9, 0, 0.88],
+  [3, 25, 0.96, 0.95, 0, 1],
+  [3.5, 1, 0.97, 0.97, 0, 1],
+  [4.5, -32.6, 1.004, 1.004, 0, 1],
+  [5.5, -38, 1.005, 1.005, 0.2, 1],
+  [6.5, -35, 1.003, 1.003, -0.4, 1],
+  [7, -16, 1.001, 1.001, 0, 1],
+  [7.5, -1.7, 1, 1, 0, 1],
+  [8.5, 0, 1, 1, 0, 1],
+])
+export const RESTORE_END = 8.5
+const minPose = (row) => {
+  const [ty, sx, sy, rz, op] = row
+  return { tx: 0, ty, tz: 0, rx: 0, ry: 0, rz, sx, sy, op, origin: '50% 0%' }
+}
+export const minimizePose = (rel) => minPose(MIN(rel))
+export const restorePose = (rel) => minPose(RESTORE(rel))
+
 // ---------------------------------------------------------------- header slabs
 // ping-pong playback of the fitted idle range once the table runs out (interactive use)
 function pingPong(f, a, b) {
