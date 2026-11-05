@@ -4,7 +4,7 @@
 // pre-mounted blur copies (Blur.jsx), so moving frames are composites.
 import { memo } from 'react'
 import { FPS } from '../../core/clock.js'
-import { last } from '../../core/events.js'
+import { lastOfType } from '../../os/logIndex.js'
 import { ease, clamp, track } from '../../core/anim.js'
 import { Blur } from './Blur.jsx'
 import { GroupBg, TaskButton, TaskHits } from './Taskbar.jsx'
@@ -46,6 +46,13 @@ function offsets(tr, r) {
 const Button = memo(function Button({ b, win }) {
   return <TaskButton b={b} label={taskLabel(win)} Icon={TaskIcon(win)} />
 })
+// one element per (layout button, window record), so the blur copies' memo holds frame to frame
+const elCache = new WeakMap()
+function buttonEl(b, win) {
+  let m = elCache.get(b)
+  if (!m || m.win !== win) elCache.set(b, (m = { win, el: <Button b={b} win={win} /> }))
+  return m.el
+}
 
 // hover highlight of one button (only in copy 0, over the label)
 function ButtonLive({ t, b }) {
@@ -56,7 +63,7 @@ function ButtonLive({ t, b }) {
 // click flash, drawn above the group (it adds light to what is under it, so it must not
 // sit inside an isolated blur copy)
 function PressFlash({ t, b }) {
-  const e = last(t, (e) => e.type === 'tb.press' && e.id === b.id)
+  const e = lastOfType(t, 'tb.press', b.id)
   let press = 0
   if (e) {
     const df = (t - e.t) * FPS
@@ -173,7 +180,7 @@ export function TaskGroup({ t, f }) {
           }}
           live={<ButtonLive t={t} b={b} />}
         >
-          <Button b={b} win={byId.get(b.id)} />
+          {buttonEl(b, byId.get(b.id))}
         </Blur>
       ))}
       {removed && (

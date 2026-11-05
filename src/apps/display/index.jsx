@@ -7,7 +7,7 @@ import { asset } from '../../core/preload.js'
 import { scoped, Button, ListView, Tabs, TabPanel, wid, valueOf, selectionOf, C, FONT } from '../../ui/index.js'
 import { WALLPAPERS, wallpaper } from '../../os/session.js'
 
-const keyOf = (w) => (w.kind === 'photo' ? 'photo' : w.color)
+const keyOf = (w) => (w.kind === 'photo' ? 'photo' : w.kind === 'image' ? w.key : w.color)
 const ITEMS = WALLPAPERS.map((w) => ({ key: keyOf(w), cells: [w.name] }))
 const byKey = Object.fromEntries(WALLPAPERS.map((w) => [keyOf(w), w]))
 
@@ -16,7 +16,7 @@ const Monitor = memo(function Monitor({ x, y, choice }) {
     <div style={{ position: 'absolute', left: x, top: y, width: 170, height: 150 }}>
       <div style={{ position: 'absolute', left: 0, top: 0, width: 170, height: 124, borderRadius: 8, background: 'linear-gradient(180deg, #e9edf3, #b9c2cf)', boxShadow: 'inset 0 0 0 1px #8794a8, 2px 3px 6px rgba(20,40,80,0.25)' }} />
       <div style={{ position: 'absolute', left: 12, top: 11, width: 146, height: 102, overflow: 'hidden', background: choice.kind === 'color' ? choice.color : '#000', boxShadow: 'inset 0 0 0 1px #4d5a70' }}>
-        {choice.kind === 'photo' && <img src={asset('img/desktop/wallpaper.webp')} alt="" draggable={false} style={{ width: 146, height: 102, objectFit: 'cover' }} />}
+        {choice.kind !== 'color' && <img src={choice.kind === 'image' ? choice.src : asset('img/desktop/wallpaper.webp')} alt="" draggable={false} style={{ width: 146, height: 102, objectFit: 'cover' }} />}
         <div style={{ position: 'absolute', right: 0, top: 0, width: 16, height: 98, background: 'rgba(120,150,200,0.55)' }} />
         <div style={{ position: 'absolute', left: 0, bottom: 0, width: 146, height: 5, background: 'rgba(60,110,190,0.85)' }} />
       </div>
@@ -31,7 +31,7 @@ function Display({ win, t, w, h }) {
   const current = keyOf(wallpaper(t))
   const sel = selectionOf(t, id('list'))[0] ?? current
   const choice = byKey[sel] || WALLPAPERS[0]
-  const apply = () => emit('desk.wallpaper', choice.kind === 'photo' ? { kind: 'photo' } : { kind: 'color', color: choice.color })
+  const apply = () => emit('desk.wallpaper', choice.kind === 'color' ? { kind: 'color', color: choice.color } : choice.kind === 'image' ? { kind: 'image', key: choice.key } : { kind: 'photo' })
   const close = () => emit('win.close', { id: win.id })
   const tab = valueOf(t, id('tabs'), 'desktop')
   return (

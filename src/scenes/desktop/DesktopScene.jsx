@@ -5,7 +5,7 @@ import { memo, useEffect } from 'react'
 import { WindowLayer } from '../../os/WindowLayer.jsx'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { FPS } from '../../core/clock.js'
-import { emit, last } from '../../core/events.js'
+import { lastOfType } from '../../os/logIndex.js'
 import { asset, preload } from '../../core/preload.js'
 import { clamp, ease } from '../../core/anim.js'
 import { ContextMenu, DropMenu, contextHandler, closeMenu } from '../../ui/index.js'
@@ -36,6 +36,7 @@ const IMAGES = [
   'ic-word.svg',
   'flag.svg',
   'album-standin.webp',
+  'wallpaper-leaf.webp',
 ].map((f) => asset('img/desktop/' + f))
 preload(IMAGES)
 
@@ -58,6 +59,7 @@ function Wallpaper({ wp, dim }) {
     <>
       <div style={{ position: 'absolute', inset: 0, background: wp.kind === 'color' ? wp.color : '#000', visibility: wp.kind === 'color' ? 'visible' : 'hidden' }} />
       <div style={{ position: 'absolute', inset: 0, visibility: wp.kind === 'photo' ? 'visible' : 'hidden' }}>{PHOTO}</div>
+      {wp.kind === 'image' && <img src={wp.src} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, objectFit: 'cover' }} />}
       <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: dim, visibility: dim > 0 ? 'visible' : 'hidden' }} />
     </>
   )
@@ -104,7 +106,7 @@ export function DesktopScene({ since }) {
   const k = ease.inOut(clamp(((t - sb.at) * FPS) / 6))
   const slide = PANEL.w * (sb.visible ? 1 - k : k) * (sb.at === -Infinity ? 0 : 1)
   // desktop context menu > Refresh: a short dip of the wallpaper
-  const rf = last(t, (e) => e.type === 'desk.refresh')
+  const rf = lastOfType(t, 'desk.refresh')
   const rdf = rf ? (t - rf.t) * FPS : Infinity
   const dim = rdf < 6 ? 0.25 * (1 - Math.abs(rdf - 1.5) / 4.5) * (rdf < 1.5 ? rdf / 1.5 : 1) : 0
   useEffect(() => {
@@ -143,4 +145,3 @@ export function DesktopScene({ since }) {
 }
 
 void closeMenu
-void emit

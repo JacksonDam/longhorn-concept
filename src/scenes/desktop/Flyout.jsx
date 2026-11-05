@@ -6,7 +6,8 @@
 //   'hover' { id: 'fly.row.N' | 'fly.go', on }
 // "Go to my Music" emits 'music.open' and closes the flyout.
 import { memo } from 'react'
-import { emit, last } from '../../core/events.js'
+import { emit } from '../../core/events.js'
+import { lastOfType } from '../../os/logIndex.js'
 import { now, FPS } from '../../core/clock.js'
 import { Blur } from './Blur.jsx'
 import { launch } from './appInfo.jsx'
@@ -31,7 +32,7 @@ const ROW_DY = 19.19
 const ROW_H = 18
 
 export function flyoutState(t) {
-  const e = last(t, (e) => e.type === 'desk.flyout')
+  const e = lastOfType(t, 'desk.flyout')
   return { open: !!e?.open, at: e ? e.t : -Infinity }
 }
 export function toggleFlyout() {
@@ -57,11 +58,11 @@ const CLOSE_END = 2.7
 
 // level of a hover highlight from the latest hover event for `id` (ramps in/out over frames)
 export function hoverLevel(t, id, fin = 1.5, fout = 1) {
-  const e = last(t, (e) => e.type === 'hover' && e.id === id)
+  const e = lastOfType(t, 'hover', id)
   if (!e) return 0
   const df = (t - e.t) * FPS
   if (e.on) return clamp(df / fin)
-  const on = last(e.t - 1e-9, (x) => x.type === 'hover' && x.id === id)
+  const on = lastOfType(e.t - 1e-9, 'hover', id)
   const reached = on?.on ? clamp(((e.t - on.t) * FPS) / fin) : 0
   return reached * (1 - clamp(df / fout))
 }
@@ -234,7 +235,7 @@ function RowHighlights({ t }) {
 }
 
 function FooterHighlight({ t }) {
-  const e = last(t, (e) => e.type === 'desk.flypress')
+  const e = lastOfType(t, 'desk.flypress')
   if (!e) return null
   const df = (t - e.t) * FPS
   const lv = e.on ? clamp(df / 3.5) : 0
