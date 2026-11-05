@@ -101,10 +101,15 @@ export function slabPose(k, i, t, from) {
   }
   // blend from the bar pose into the flight keys
   const s15 = cr(BAR_SCALE, 15.5) * tileSize
-  FX[0][1] = x0
+  // the flight keys were measured for Sondra's slot; other slots fly the same path shifted
+  // by their offset, which eases out by the landing (k 22)
+  const home = SLOTS5[1]
+  FX[0][1] = home
   FY[0][1] = y0
   FS[0][1] = s15
-  const x = cr(FX, k), y = cr(FY, k), size = cr(FS, k)
+  const u = clamp((k - (LAUNCH - 0.5)) / 6.5)
+  const off = (x0 - home) * (1 - u * u * (3 - 2 * u))
+  const x = cr(FX, k) + off, y = cr(FY, k), size = cr(FS, k)
   let ry = cr(FR, k)
   const idle = idlePose(t, k)
   const rz = REST_RZ * clamp((k - LAUNCH) / 8)
