@@ -24,8 +24,10 @@ function getRenderer() {
     canvas: glCanvas,
     alpha: true,
     premultipliedAlpha: true,
-    antialias: true,
-    preserveDrawingBuffer: true,
+    // the default framebuffer only receives the already-antialiased accumulation (a pixel-aligned
+    // quad) and is copied out right away: no MSAA resolve or preserved buffer of 2048x2048 per frame
+    antialias: false,
+    preserveDrawingBuffer: false,
   })
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace
   renderer.setPixelRatio(1)

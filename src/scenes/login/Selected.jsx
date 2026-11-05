@@ -5,8 +5,9 @@ import { Slab3D } from '../../gl/Slab3D.jsx'
 import { loadTexture, renderSlabs, SlabScene, texturesReady } from '../../gl/slab.js'
 import { useEffect } from 'react'
 import { clamp, F } from '../../core/anim.js'
-import { FPS, CAPTURE } from '../../core/clock.js'
+import { FPS } from '../../core/clock.js'
 import { pic } from './Tile.jsx'
+import { preload } from '../../core/preload.js'
 import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
 import { slabExit } from './exit.js'
@@ -66,37 +67,72 @@ function poseFor(rec, submitT) {
   }
 }
 
-// soft white halo behind the resting slab
+// soft white halo behind the resting slab: the glow of a 157 px rounded box (two box-shadow
+// style glows, nothing inside the box), drawn once into an image at load; per frame it is only
+// moved, rotated and scaled (a bitmap draw, no blur work, same pixels for any seek order)
+const HALO = 157
+const HM = 80 // glow margin around the box
+const haloUrl = (() => {
+  const S = 2
+  const c = document.createElement('canvas')
+  c.width = c.height = (HALO + 2 * HM) * S
+  const g = c.getContext('2d')
+  g.scale(S, S)
+  const rr = (x, y, w, h, r) => {
+    g.beginPath()
+    g.roundRect(x, y, w, h, r)
+  }
+  const glow = (blur, spread, color) => {
+    // the shape is drawn far off-canvas; only its shadow lands on the canvas
+    g.save()
+    g.shadowColor = color
+    g.shadowBlur = blur * S
+    g.shadowOffsetX = 10000 * S
+    rr(HM - spread - 10000, HM - spread, HALO + 2 * spread, HALO + 2 * spread, 18 + spread)
+    g.fillStyle = '#000'
+    g.fill()
+    g.restore()
+  }
+  glow(34, 12, 'rgba(160,195,255,0.35)')
+  glow(14, 6, 'rgba(210,228,255,0.75)')
+  // like CSS box-shadow, nothing is drawn inside the box itself
+  g.globalCompositeOperation = 'destination-out'
+  rr(HM, HM, HALO, HALO, 18)
+  g.fill()
+  return c.toDataURL('image/png')
+})()
+preload([haloUrl])
+
 function Halo({ t, rec, submitT }) {
   const k = (t - rec.t0) * FPS
   let a = clamp((k - 26) / 8)
   if (rec.back != null) a *= 1 - clamp(((t - rec.back) * FPS) / 3)
   if (submitT != null) a *= 1 - clamp(((t - submitT) * FPS - 0.5) / 1.5)
-  if (a <= 0) return null
-  const p = slabPose(k, rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
+  const p = slabPose(Math.max(k, 26), rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
   const w = p.size * Math.abs(Math.cos(p.ry)) + 30 * (p.size / BASE) * Math.abs(Math.sin(p.ry)) - 8
   const h = p.size - 8
+  const D = HALO + 2 * HM
   return (
-    <div
+    <img
+      src={haloUrl}
+      alt=""
+      draggable={false}
       style={{
         position: 'absolute',
-        left: p.x - w / 2,
-        top: p.y - h / 2,
-        width: w,
-        height: h,
-        borderRadius: 18,
-        transform: `rotate(${((p.rz ?? 0) * 180) / Math.PI}deg)`,
-        boxShadow: '0 0 14px 6px rgba(210,228,255,0.75), 0 0 34px 12px rgba(160,195,255,0.35)',
-        opacity: a,
+        left: 0,
+        top: 0,
+        width: D,
+        height: D,
+        transform: `translate(${(p.x - D / 2).toFixed(2)}px, ${(p.y - D / 2).toFixed(2)}px) rotate(${(((p.rz ?? 0) * 180) / Math.PI).toFixed(3)}deg) scale(${(w / HALO).toFixed(4)}, ${(h / HALO).toFixed(4)})`,
+        opacity: Math.max(0, a),
         pointerEvents: 'none',
       }}
     />
   )
 }
 
-// Real time only: draw into a canvas cropped to the slabs (sizes rounded up to 64 px so the GL
-// render targets are reused) instead of a full-stage canvas: ~8x fewer pixels per accumulation
-// sample. ?capture keeps the full-stage canvas, so captures are bit-for-bit unchanged.
+// Draw into a canvas cropped to the slabs (sizes rounded up to 64 px so the GL render targets are
+// reused) instead of a full-stage canvas: ~8x fewer pixels per accumulation sample.
 const Q = 64
 function cropBox(items, times) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
@@ -120,7 +156,7 @@ function cropBox(items, times) {
 // compile the slab shader and upload the pictures at load, so the first click doesn't stall
 let warmed = false
 function warmUp() {
-  if (warmed || CAPTURE) return
+  if (warmed) return
   warmed = true
   const c = document.createElement('canvas')
   const ctx = c.getContext('2d')
@@ -140,20 +176,17 @@ export function Selected({ t, records, submitT }) {
     return rec.back != null || (k > LAUNCH - 1 && k < 31)
   }) || (submitT != null && t - submitT < F(12))
   const mb = blur('slab')
-  let canvas = { width: 960, height: 720, items, origin: undefined, style: { left: 0, top: 0 } }
-  if (!CAPTURE) {
-    const n = moving ? mb.samples : 1
-    const times = []
-    for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + mb.shutter * ((k + 0.5) / n + mb.phase))
-    const b = cropBox(items, times)
-    if (!b) return null
-    canvas = {
-      width: b.w,
-      height: b.h,
-      origin: [480 - b.x, 360 - b.y],
-      style: { left: b.x, top: b.y },
-      items: items.map((it) => ({ slab: it.slab, pose: (tt) => { const p = it.pose(tt); return { ...p, x: p.x - b.x, y: p.y - b.y } } })),
-    }
+  const n = moving ? mb.samples : 1
+  const times = []
+  for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + mb.shutter * ((k + 0.5) / n + mb.phase))
+  const b = cropBox(items, times)
+  if (!b) return null
+  const canvas = {
+    width: b.w,
+    height: b.h,
+    origin: [480 - b.x, 360 - b.y],
+    style: { left: b.x, top: b.y },
+    items: items.map((it) => ({ slab: it.slab, pose: (tt) => { const p = it.pose(tt); return { ...p, x: p.x - b.x, y: p.y - b.y } } })),
   }
   return (
     <>

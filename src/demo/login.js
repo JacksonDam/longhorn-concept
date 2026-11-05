@@ -37,5 +37,5 @@ export const loginDemo = [
   { frame: 416, type: 'login.pw', len: 4 },
   { frame: 423, type: 'login.pw', len: 5 },
   { frame: 430, type: 'login.pw', len: 6 },
-  { frame: 510, type: 'login.submit' },
+  { frame: 510, type: 'login.submit', id: 'sondra' },
 ]

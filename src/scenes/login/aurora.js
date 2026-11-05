@@ -274,7 +274,7 @@ function compile(gl, type, src) {
 
 export class AuroraRenderer {
   constructor(canvas) {
-    const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, premultipliedAlpha: true })
+    const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: false })
     this.gl = gl
     this.canvas = canvas
     this.linear = !!gl.getExtension('OES_texture_float_linear')

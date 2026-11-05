@@ -4,12 +4,18 @@ import { emit } from '../../core/events.js'
 import { CAPTURE, FPS } from '../../core/clock.js'
 import { MotionBlur } from '../../core/MotionBlur.jsx'
 import { rowState } from './select.js'
-import { submitEvent } from './state.js'
+import { submitEvent, hoversOf } from './state.js'
 import { tileExit } from './exit.js'
 import { clamp, F } from '../../core/anim.js'
 import { Tile } from './Tile.jsx'
+import { SLOTS5 } from './layout.js'
+import { stageScale } from '../../core/Stage.jsx'
+
+const snap = (v) => {
+  const d = stageScale() * (window.devicePixelRatio || 1)
+  return Math.round(v * d) / d
+}
 import { USERS } from './state.js'
-import { all } from '../../core/events.js'
 import { blur, layerHint } from './blur.js'
 
 // Hover look, continuous across events: every login.hover event retargets colour (0/1),
@@ -29,7 +35,7 @@ function ramp(from, to, dt, durUp, durDown) {
 export function hoverLook(t, id) {
   let c = 0, s = 1, l = 0
   let te = -Infinity, c0 = 0, s0 = 1, l0 = 0, ct = 0, st = 1, lt = 0
-  for (const e of all(t, (e) => e.type === 'login.hover' && e.id === id)) {
+  for (const e of hoversOf(t, id)) {
     // value of each channel at this event, then retarget
     c0 = ramp(c0, ct, e.t - te, COLOR_IN, COLOR_OUT)
     s0 = ramp(s0, st, e.t - te, GROW, SHRINK)
@@ -89,7 +95,7 @@ function PressGlow({ x, k }) {
 
 const BOX = { w: 110, top: 590, h: 110 }
 
-export function TileRow({ t, row, submitT }) {
+export function TileRow({ t, row, exitK }) {
   const { tiles, sel, change } = row
   return (
     <>
@@ -112,14 +118,20 @@ export function TileRow({ t, row, submitT }) {
           opacity = 0
           labelOpacity = 0
         }
-        const exit = submitT != null ? tileExit(t - submitT, i, sel) : null
-        // the blur layer is the tile's own box (so exit flips pivot on the tile)
-        const box = { left: st.x - BOX.w / 2, top: BOX.top, width: BOX.w, height: BOX.h }
+        const k0 = exitK(t)
+        const exit = k0 != null ? tileExit(k0, i, sel) : null
+        // the blur layer is the tile's own box, laid out at the tile's 5-slot position and moved
+        // only by transforms (static content: one raster, then composites; exit flips pivot on it)
+        const base = SLOTS5[i]
+        const box = { left: base - BOX.w / 2, top: BOX.top, width: BOX.w, height: BOX.h }
         const pose = (tt) => {
           const x = st.sliding ? rowState(tt).tiles[i].x : st.x
-          const e = submitT != null ? tileExit(tt - submitT, i, sel) : null
+          const ke = exitK(tt)
+          const e = ke != null ? tileExit(ke, i, sel) : null
           return {
-            transform: `translateX(${(x - st.x).toFixed(3)}px)` + (e ? e.transform : ''),
+            // while sliding, whole device pixels: a composited copy rasterised once then only
+            // translated by whole pixels looks the same whatever frame it was first drawn on
+            transform: `translateX(${(st.sliding ? snap(x - base) : x - base).toFixed(3)}px)` + (e ? e.transform : ''),
             transformOrigin: '50% 37%',
             opacity: e ? e.opacity : 1,
           }
@@ -137,11 +149,11 @@ export function TileRow({ t, row, submitT }) {
             <div style={{ position: 'absolute', left: -box.left, top: -box.top }}>
               <Tile
                 user={u}
-                x={st.x}
+                x={base}
                 look={{ ...look, opacity, labelOpacity, labelGlow }}
                 {...handlers(u.id, i === sel)}
               />
-              {isSel && <PressGlow x={st.x} k={k} />}
+              {isSel && <PressGlow x={base} k={k} />}
             </div>
           </MotionBlur>
         )
