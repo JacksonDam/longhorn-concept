@@ -48,6 +48,42 @@ semi-transparent copies. Reproduce it the same way:
 - `python3 tools/sheet.py out.png start end step [cols] [scale] [crop]` makes labelled contact
   sheets of reference frames.
 
+## The OS layer (added overnight 2026-11-05)
+The video's sequence is replayed by `?demo` / `?capture`; outside it the app is a small usable
+OS in the same style. Everything still derives from (time, event log).
+- `src/os/session.js`: screen flow (login, desktop, shutdown, off, boot), current user, wallpaper.
+  `src/scenes/session/` draws the power screens. App.jsx keeps the login and desktop scenes
+  mounted (hidden) so switching between them never mounts a scene.
+- `src/os/wm.js`: window state from 'win.*' events (legacy 'music.*' aliases); the four
+  running-at-login windows exist minimised. `src/os/taskbar.js`: where each window's taskbar
+  button is (the shell registers a locator), so windows minimise into their own button.
+- `src/os/apps.js`: auto-registry of `src/apps/*/index.{js,jsx}`. An app is
+  `{ id, title, taskbarLabel, icon, size, position, explorer, Content, Proxy?, ... }`;
+  `src/os/PlexWindow.jsx` draws it (frame, title bar, drag/resize/maximise, open/minimise/restore/
+  close animations with multi-sample blur), `src/os/ExplorerChrome.jsx` is the my Music-style
+  toolbar block, `src/os/WindowLayer.jsx` renders all windows. Blur copies render `app.Proxy`
+  (a cheap stand-in) when the app has one. `src/os/ErrorBoundary.jsx` keeps a crash inside its
+  window.
+- `src/os/media.js`: the silent media player shared by the sidebar strip, flyout, my Music, Winamp.
+- `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
+  tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
+- `src/scenes/desktop/`: wallpaper, sidebar, taskbar, Start menu, flyouts, desktop menu.
+- Design sources beyond the video: docs/briefs/days-video.md (second demo video: pictures apps,
+  log off), docs/briefs/start-menu-mockup.md (Start menu, my Programs & Services).
+
+## Performance (144 Hz)
+See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
+5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
+http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
+`?apps=opens&`, `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
+`tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
+
+## Usability audit
+`node tools/audit.mjs --url <base> --scenarios desktop,start,flyout,music,album,app:<id>,...`
+clicks every visible element of a scenario (state restored from the event log after each click)
+and lists the ones that did nothing; annotated PNGs and JSON go to out/audit/. Expect a few
+false positives: drag/resize strips, plain text, already-selected options, disabled buttons.
+
 ## Content rules
 - Recreate Microsoft's UI faithfully (layout, chrome, icons, logos, wallpapers): it is the subject.
 - Do not reproduce third-party copyrighted media: real album covers, photos of real people,
