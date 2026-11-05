@@ -205,9 +205,9 @@ const albumSlab = {
   d: DEV.d,
   radius: 8,
   map: TWEET_COVER,
-  edgeColor: [0.42, 0.33, 0.14],
-  edgeMix: 0.65,
-  spec: 0.4,
+  edgeColor: [0.62, 0.6, 0.55],
+  edgeMix: 0.55,
+  spec: 0.16,
   rim: 0.4,
   backFlip: false,
 }

@@ -89,15 +89,16 @@ class C:
         self.im = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
         return self
 
-    def save(self, name, size=128, soften=0.35, field=None, detail=0.85):
+    def save(self, name, size=128, soften=0.35, field=None, detail=0.85, lo_r=14):
         im = self.im.convert('RGB')
         if field is not None:
             # keep this drawing's shapes (high frequencies) over a smooth colour field that
             # follows the tile's coarse colour layout: final = lowpass(field) + k * highpass(drawing)
-            f = np.array([[int(h[i:i + 2], 16) for i in (0, 2, 4)] for h in field], np.uint8).reshape(5, 5, 3)
+            g = int(round(len(field) ** 0.5))
+            f = np.array([[int(h[i:i + 2], 16) for i in (0, 2, 4)] for h in field], np.uint8).reshape(g, g, 3)
             f = Image.fromarray(f).resize((S, S), Image.BICUBIC).filter(ImageFilter.GaussianBlur(S / 14))
             a = np.asarray(im, float)
-            lo = np.asarray(im.filter(ImageFilter.GaussianBlur(S / 14)), float)
+            lo = np.asarray(im.filter(ImageFilter.GaussianBlur(S / lo_r)), float)
             im = Image.fromarray(np.clip(np.asarray(f, float) + detail * (a - lo), 0, 255).astype(np.uint8))
         im = im.resize((size, size), Image.LANCZOS)
         if soften:
@@ -221,29 +222,24 @@ def k_tweet():  # gold strip, smoky grey field, an abstract hummingbird in fligh
 
 
 def tweet(c, big=False):
-    """gold foil band on the left, a high-key grey field framed by dark sweeping shapes,
-    and an original hummingbird drawn across the light centre (no photo, no face)"""
-    c.grad('#9a9a9a', '#7c7c7c', 110, .28, 0, 1, 1)
-    c.ell(.64, .46, .2, .3, '#c9c9c7', blur=9)
-    c.ell(.62, .95, .3, .14, '#b4b3b0', blur=8)
-    # dark sweeping shapes (left and right of the light centre, and over the top)
-    c.poly([(.3, 0), (.52, 0), (.46, .2), (.44, .5), (.47, .8), (.42, 1), (.28, 1), (.34, .6), (.3, .3)], '#2c2b2b', blur=3)
-    c.poly([(.78, .05), (.9, .02), (.96, .3), (.93, .7), (.98, 1), (.84, 1), (.86, .6), (.82, .3)], '#353434', blur=3)
-    c.ell(.64, .1, .2, .1, '#3a3939', blur=5)
-    # gold foil band with a soft highlight and fine vertical streaks
-    c.grad('#b88a2c', '#e9c25c', 0, 0, 0, .2, 1).grad('#e9c25c', '#a87c22', 0, .2, 0, .36, 1)
-    c.rect((.06, 0, .16, 1), '#fff2c0', blur=6, alpha=110)
-    c.ell(.12, .12, .14, .16, '#fff8dc', blur=8, alpha=150)
-    for k in range(9):
-        x = .02 + k * .037
-        c.rect((x, 0, x + .006, 1), '#7a5a18', blur=.8, alpha=25)
-    c.poly([(.33, 0), (.4, .25), (.37, .55), (.3, .75), (.33, 1), (.27, 1), (.3, .5), (.29, .2)], '#3a3027', blur=4, alpha=200)
-    c.rect((.04, .05, .2, .08), '#6a4c12', alpha=170, blur=.5)
+    """pale gold on the left fading into a grey field, dark ribbons sweeping down across it,
+    and an original hummingbird drawn on the light centre (no photo, no face)"""
+    c.grad('#ead79a', '#d6bf72', 0, 0, 0, .3, 1).grad('#d6bf72', '#8c9092', 0, .3, 0, .46, 1).grad('#8c9092', '#7e8286', 0, .46, 0, 1, 1)
+    c.ell(.12, .14, .16, .2, '#fff6d8', blur=10, alpha=170)
+    c.ell(.64, .44, .18, .28, '#c6c8ca', blur=10)
+    c.ell(.62, .96, .3, .12, '#9ea2a4', blur=8)
+    # dark ribbons: one sweeping from the top centre down to the lower left, one down the right
+    c.poly([(.4, 0), (.6, 0), (.5, .22), (.42, .5), (.3, .78), (.16, 1), (.02, 1), (.18, .72), (.32, .42)], '#2c2e32', blur=4)
+    c.poly([(.82, .06), (.97, .02), (1, .3), (.97, .7), (1, 1), (.8, 1), (.86, .62), (.84, .3)], '#3a3c40', blur=4)
+    for k in range(7):
+        x0 = .36 + k * .025
+        c.line([(x0 + .08, 0), (x0, .35), (x0 - .14, .75), (x0 - .26, 1)], '#4a4c50' if k % 2 else '#1e2024', .008, blur=.6, alpha=170)
+    c.rect((.04, .05, .2, .08), '#8a6c22', alpha=150, blur=.5)
     # hummingbird: body, raised wing and long bill, mid grey on the light centre
-    c.poly([(.5, .62), (.62, .5), (.72, .48), (.68, .56), (.56, .66)], '#4e4d4c', blur=.8)
-    c.poly([(.6, .52), (.64, .26), (.72, .3), (.67, .5)], '#5e5d5b', blur=.8)
-    c.line([(.72, .49), (.88, .43)], '#4e4d4c', .012, blur=.4)
-    c.poly([(.5, .62), (.42, .72), (.47, .63)], '#5a5958', blur=.8)
+    c.poly([(.5, .62), (.62, .5), (.72, .48), (.68, .56), (.56, .66)], '#55575a', blur=.8)
+    c.poly([(.6, .52), (.64, .26), (.72, .3), (.67, .5)], '#626467', blur=.8)
+    c.line([(.72, .49), (.88, .43)], '#55575a', .012, blur=.4)
+    c.poly([(.5, .62), (.42, .72), (.47, .63)], '#5e6063', blur=.8)
     return c.grain(5 if not big else 3)
 
 
@@ -374,8 +370,10 @@ if __name__ == '__main__':
     fields = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cover_fields.json')))
     made = {}
     for k, fn in covers.items():
-        made[k] = fn().save(k, field=fields.get(k) if k != 'k_tweet' else None)
-    tweet(C('#5a5858'), big=True).save('tweet-lg', size=512, soften=0)
+        made[k] = fn().save(k, field=fields.get(k))
+    # the album page slab: 6x6 colour field of the album face (rectified from the fitted slab pose)
+    tf = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tweet_field.json')))
+    tweet(C('#5a5858'), big=True).save('tweet-lg', size=512, soften=0, field=tf, detail=0.8, lo_r=6)
     for i, k in enumerate(GRID):
         sheet.paste(made[k].resize((50, 50), Image.LANCZOS), ((i % 8) * 66 + 8, (i // 8) * 66 + 8))
     sheet.save(os.path.join(ROOT, 'out', 'covers-sheet.png'))
