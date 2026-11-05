@@ -13,6 +13,7 @@ import {
   Skyline,
   PlayButton,
   SmallButton,
+  MediaCapsule,
   GoOnlineOrb,
   Thumb,
 } from './icons.jsx'
@@ -62,17 +63,17 @@ export const BUDDIES = [
 ]
 
 function BuddyPic({ kind, baseline }) {
-  const x = 864
-  const y = baseline - 14
-  if (kind === 'away') return <BuddyAway x={x} y={y - 2} />
-  if (kind === 'swimmer') return <SwimmerPic x={x} y={y - 3} />
-  if (kind === 'orange') return <OrangePic x={x} y={y - 4} />
+  const x = 866
+  const y = baseline - 14.5
+  if (kind === 'away') return <BuddyAway x={x - 1} y={y - 3} />
+  if (kind === 'swimmer') return <SwimmerPic x={x} y={y} />
+  if (kind === 'orange') return <OrangePic x={x - 1} y={y + 0.5} />
   const src = { kick: 'buddy-kick.webp', dog: 'buddy-dog.webp', duck: 'buddy-duck.webp' }[kind]
   return (
     <img
       src={asset('img/desktop/' + src)}
       alt=""
-      style={{ position: 'absolute', left: x, top: y - 3, width: 18, height: 18, outline: '1px solid rgba(40,50,70,0.35)' }}
+      style={{ position: 'absolute', left: x, top: y, width: 16, height: 17, outline: '1px solid rgba(40,50,70,0.25)' }}
     />
   )
 }
@@ -122,7 +123,7 @@ const MailTile = memo(function MailTile() {
                 }}
               />
             )}
-            {m.icon === 'open' ? <EnvelopeOpen x={869} y={b - 12} /> : <EnvelopeClosed x={869} y={b - 15} hot={m.icon === 'hot'} />}
+            {m.icon === 'open' ? <EnvelopeOpen x={866} y={b - 11} /> : <EnvelopeClosed x={867} y={b - 14.5} hot={m.icon === 'hot'} />}
             <div style={{ ...text(888, b, 9), ...clipRight }}>{m.text}</div>
           </div>
         )
@@ -134,13 +135,14 @@ const MailTile = memo(function MailTile() {
 const MediaTile = memo(function MediaTile() {
   return (
     <>
-      <div style={{ ...text(870, 271, 9, { color: 'rgba(235,240,255,0.8)' }), width: 86, overflow: 'hidden' }}>
+      <div style={{ ...text(867, 272, 8, { color: 'rgba(235,240,255,0.8)', letterSpacing: '0.1px' }), width: 90, overflow: 'hidden' }}>
         U2 - One more Voice With Love
       </div>
-      <PlayButton x={866} y={278} />
-      <SmallButton x={894} y={283} kind="stop" />
-      <SmallButton x={914} y={283} kind="prev" />
-      <SmallButton x={932} y={283} kind="next" />
+      <MediaCapsule x={888} y={281} />
+      <PlayButton x={865} y={278} />
+      <SmallButton x={894} y={284} kind="stop" />
+      <SmallButton x={914} y={284} kind="prev" />
+      <SmallButton x={932} y={284} kind="next" />
     </>
   )
 })
@@ -172,7 +174,7 @@ const PhotoTile = memo(function PhotoTile() {
 const OnlineTile = memo(function OnlineTile() {
   return (
     <>
-      <GoOnlineOrb x={866} y={597} />
+      <GoOnlineOrb x={864} y={599.5} />
       <div style={text(886.2, 616.5, 10.3)}>Go Online</div>
     </>
   )
@@ -183,8 +185,8 @@ const ThumbsTile = memo(function ThumbsTile() {
     <>
       <Thumb x={875} y={627} kind={0} />
       <Thumb x={912} y={627} kind={1} />
-      <Thumb x={875} y={660} kind={2} />
-      <Thumb x={912} y={660} kind={3} />
+      <Thumb x={875} y={661} kind={2} />
+      <Thumb x={912} y={661} kind={3} />
     </>
   )
 })
