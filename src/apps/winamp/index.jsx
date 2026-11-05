@@ -37,14 +37,14 @@ const Display = memo(function Display({ w }) {
   )
 })
 
-function Viz({ x, y, w, h, pos, playing, t, pausedAt }) {
+function Viz({ x, y, w, h, pos, playing, t, pausedAt, peaks }) {
   const bw = w / BARS
   const decay = playing ? 1 : Math.max(0, 1 - (t - pausedAt) * 3)
   return (
     <div style={{ position: 'absolute', left: x, top: y, width: w, height: h }}>
       {Array.from({ length: BARS }, (_, i) => {
         const v = level(i, pos) * decay
-        return <div key={i} style={{ position: 'absolute', left: i * bw + 1, bottom: 0, width: bw - 2, height: Math.max(1, v * h), background: 'linear-gradient(0deg, #2f8cf5, #8fd4ff 70%, #e6f7ff)', opacity: 0.9 }} />
+        return <div key={i} style={{ position: 'absolute', left: i * bw + (peaks ? bw / 2 - 1 : 1), bottom: 0, width: peaks ? 2 : bw - 2, height: Math.max(1, v * h), background: 'linear-gradient(0deg, #2f8cf5, #8fd4ff 70%, #e6f7ff)', opacity: 0.9 }} />
       })}
     </div>
   )
@@ -70,6 +70,8 @@ function Winamp({ win, t, w, h, active }) {
   const m = mediaState(t)
   const tr = m.track
   const vol = valueOf(t, id('vol'), 0.8)
+  const remain = valueOf(t, id('remain'), false)
+  const viz = valueOf(t, id('viz'), 0) // bars, thin bars, off
   const showList = valueOf(t, id('list'), true)
   const top = appTopHeight()
   const ctl = (k, icon, tip, fn, x, on) => (
@@ -103,11 +105,16 @@ function Winamp({ win, t, w, h, active }) {
       <div style={{ position: 'absolute', left: 0, top: top + 8, width: w }}>
         <Display w={w} />
       </div>
-      <div style={{ position: 'absolute', left: 24, top: top + 16, fontFamily: HEAVY, fontSize: 30, color: '#9fdcff', letterSpacing: 1, textShadow: '0 0 6px rgba(80,170,255,0.6)' }}>{formatTime(m.position)}</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('remain'), value: !remain })} style={{ position: 'absolute', left: 24, top: top + 16, fontFamily: HEAVY, fontSize: 30, color: '#9fdcff', letterSpacing: 1, textShadow: '0 0 6px rgba(80,170,255,0.6)' }}>
+        {remain ? '-' + formatTime(tr.duration - m.position) : formatTime(m.position)}
+      </div>
       <div style={{ position: 'absolute', left: 26, top: top + 56, fontFamily: FONT, fontSize: 10, color: '#7fa8e0' }}>{m.playing ? '▶ playing' : m.position > 0 ? '❙❙ paused' : '■ stopped'}</div>
       <Marquee x={124} y={top + 16} w={w - 150} text={`${m.index + 1}. ${tr.display || tr.title} (${formatTime(tr.duration)})`} t={t} playing={m.playing} />
       <div style={{ position: 'absolute', left: 124, top: top + 34, fontFamily: FONT, fontSize: 9.5, color: '#7fa8e0', whiteSpace: 'nowrap' }}>128 kbps  44 kHz  stereo</div>
-      <Viz x={124} y={top + 50} w={w - 150} h={40} pos={m.position} playing={m.playing} t={t} pausedAt={pausedAt} />
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('viz'), value: (viz + 1) % 3 })}>
+        {viz < 2 && <Viz x={124} y={top + 50} w={w - 150} h={40} pos={m.position} playing={m.playing} t={t} pausedAt={pausedAt} peaks={viz === 1} />}
+        {viz === 2 && <div style={{ position: 'absolute', left: 124, top: top + 50, width: w - 150, height: 40 }} />}
+      </div>
       <div style={{ position: 'absolute', left: 14, top: top + 104, fontFamily: FONT, fontSize: 10, color: '#cfe6ff' }}>{formatTime(m.position)}</div>
       <Slider id={id('seek')} x={50} y={top + 104} w={w - 110} variant="chrome" value={m.position / tr.duration} onChange={(v) => emit('media.seek', { pos: v * tr.duration })} />
       <div style={{ position: 'absolute', right: 14, top: top + 104, fontFamily: FONT, fontSize: 10, color: '#cfe6ff' }}>{formatTime(tr.duration)}</div>

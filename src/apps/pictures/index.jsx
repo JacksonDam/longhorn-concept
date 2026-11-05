@@ -164,7 +164,9 @@ function Header({ win }) {
       <div style={{ position: 'absolute', left: 0, top: -123 }}>
         <Swoosh />
       </div>
-      <Frame />
+      <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
+        <Frame />
+      </div>
       <Title />
       <HeaderButton id={wid(win, 'hb.show')} x={318} icon={<Projector />} a="View" b="Slide Show" onClick={() => slideshow(null, true)} />
       <HeaderButton id={wid(win, 'hb.album')} x={418} icon={<AlbumIcon />} a="Create" b="Album" onClick={() => openWin('album', 'album')} />
@@ -217,14 +219,14 @@ function TaskPane({ win, t, st }) {
       {L('print', 94, 'Print Pictures', 'print', printBox)}
       {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()))}
       <Head a="find" b="pictures" y={132} />
-      <div style={{ ...small, left: PANE_X - 8, top: 155 }}>Containing the words:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 155 }} onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>Containing the words:</div>
       <TextField id={wid(win, 'words')} x={PANE_X - 8} y={170} w={136} h={17} size={10.5} pad={4} />
-      <div style={{ ...small, left: PANE_X - 8, top: 194 }}>Show all images by:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 194 }} onPointerDown={(e) => e.button === 0 && set(win, 'tag', null)}>Show all images by:</div>
       {tags.map((tg, i) => L('tag' + tg, 209 + i * 16, tg, undefined, () => set(win, 'tag', st.tag === tg ? null : tg), st.tag === tg))}
       {L('more', 257, st.moreTags ? 'Back...' : 'More...', undefined, () => set(win, 'moretags', !st.moreTags))}
-      <div style={{ ...small, left: PANE_X - 8, top: 282 }}>Refine By Date:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 282 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
       <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} />
-      <div style={{ ...small, left: PANE_X - 8, top: 450 }}>Of this file type:</div>
+      <div style={{ ...small, left: PANE_X - 8, top: 450 }} onPointerDown={(e) => e.button === 0 && set(win, 'type', 'all')}>Of this file type:</div>
       {L('tpic', 466, 'Pictures', 'picture', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
       <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'display', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
       {L('talb', 484, 'Albums', 'folder', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
@@ -349,7 +351,9 @@ function Grid({ win, t, groups, x, y, w, h, tw, th, active, st, onOpen, edits })
           {blocks.map(({ g, y: gy, h: gh }) =>
             gy + gh < pos - 40 || gy > pos + h + 40 ? null : (
               <div key={g.id} style={{ position: 'absolute', left: 0, top: gy, width }}>
-                <GroupHead title={g.title} caption={g.caption} w={width} />
+                <div onPointerDown={(e) => e.button === 0 && g.photos[0] && openDetail(win, g.photos[0])}>
+                  <GroupHead title={g.title} caption={g.caption} w={width} />
+                </div>
                 {g.photos.map((p, i) => (
                   <div
                     key={p.id}

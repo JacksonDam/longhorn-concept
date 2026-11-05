@@ -82,7 +82,7 @@ function IM({ win, t, w, h }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
       <AppTop id={id('m')} w={w} menus={menus} toolbar={toolbar} />
-      <div style={{ position: 'absolute', left: 12, top: top + 8, fontFamily: FONT, fontSize: 11, color: '#5b7299', whiteSpace: 'nowrap' }}>
+      <div onPointerDown={(e) => e.button === 0 && openWin(`compose:${Math.round(now() * 1000)}`, 'compose', { mode: 'new' })} style={{ position: 'absolute', left: 12, top: top + 8, fontFamily: FONT, fontSize: 11, color: '#5b7299', whiteSpace: 'nowrap' }}>
         To: <span style={{ fontFamily: HEAVY, color: '#2c6cc4' }}>{buddy}</span> <span style={{ color: '#8b91a6' }}>&lt;{emailOf(buddy)}&gt;</span>
       </div>
       <div style={{ position: 'absolute', left: 10, top: top + 28, width: w - 78, height: histH, borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.borderLight}` }} />

@@ -47,9 +47,11 @@ function Tile({ win, t, cat, open }) {
   return (
     <div style={{ position: 'relative', width: 268, minHeight: 104 }}>
       <div style={{ position: 'absolute', left: 0, top: 4 }}>
-        <GlassIcon glyph={cat.glyph} />
+        <div onPointerDown={(e) => e.button === 0 && (cat.items.length > 3 ? emit('ui.value', { id: wid(win, 'more:' + cat.key), value: !open }) : cat.items[0].go())}>
+          <GlassIcon glyph={cat.glyph} />
+        </div>
       </div>
-      <div style={{ position: 'absolute', left: 72, top: 0, fontFamily: HEAVY, fontSize: 13.5, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{cat.label}</div>
+      <div onPointerDown={(e) => e.button === 0 && (cat.items.length > 3 ? emit('ui.value', { id: wid(win, 'more:' + cat.key), value: !open }) : cat.items[0].go())} style={{ position: 'absolute', left: 72, top: 0, fontFamily: HEAVY, fontSize: 13.5, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{cat.label}</div>
       {shown.map((it, i) => {
         const k = cat.key + ':' + i
         const l = lit.get(k) || 0
