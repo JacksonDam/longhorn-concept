@@ -28,6 +28,15 @@ let curV = getVersion()
 const timeStore = store(() => curT)
 const eventStore = store(() => curV)
 
+// Continuous input (window drags and resizes) is coalesced to one event per frame: nextFrame(fn)
+// runs fn(t) at the start of the next clock tick, inside the same render as the tick, so a move
+// costs one render however fast the mouse reports (a gaming mouse sends 500-1000 a second). The
+// event it emits carries the frame's time, so the log stays the record of what was drawn.
+const pending = []
+export function nextFrame(fn) {
+  pending.push(fn)
+}
+
 export function TimeProvider({ children }) {
   const t = useSyncExternalStore(timeStore.subscribe, timeStore.get)
   // commit each clock tick synchronously inside its animation frame, so the frame that paints
@@ -35,9 +44,12 @@ export function TimeProvider({ children }) {
   useEffect(
     () =>
       onFrame((tt) => {
-        if (tt === curT) return
+        if (tt === curT && !pending.length) return
         curT = tt
-        flushSync(timeStore.notify)
+        flushSync(() => {
+          for (const fn of pending.splice(0)) fn(tt)
+          timeStore.notify()
+        })
       }),
     [],
   )

@@ -16,6 +16,7 @@ import { ErrorBoundary } from './ErrorBoundary.jsx'
 import { emit, getLog, getVersion, getEpoch } from '../core/events.js'
 import { eventsOf } from './logIndex.js'
 import { FPS, now } from '../core/clock.js'
+import { nextFrame } from '../core/time.jsx'
 import { toStage } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
 import { focusedField } from '../ui/state.js'
@@ -228,6 +229,35 @@ function bodyClip(w, h, rt, rb, cut) {
   return v
 }
 
+// The rect an idle motion-blur copy keeps: the window's place, but the size the window settled at
+// (the last resize, or maximise / restore-down, that held for a few frames), so dragging the
+// resize grip or a maximise tween re-renders the live layer only, not every copy every frame;
+// copy k catches up STAGGER frames after copy k - 1, once the size has settled.
+function settledSize(win, app, t, r, k) {
+  const lag = (6 + k * STAGGER) / FPS
+  const tl = t - lag
+  const maxed = win.maximizedAt != null && win.maximizedAt > tl ? !win.maximized : win.maximized
+  if (maxed) return r.w === WORK.w && r.h === WORK.h ? r : { ...r, w: WORK.w, h: WORK.h }
+  const def = app.size || { w: 420, h: 300 }
+  let w = def.w, h = def.h
+  const rs = eventsOf('win.resize', win.id)
+  let lo = 0, hi = rs.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (rs[mid].t <= t) lo = mid + 1
+    else hi = mid
+  }
+  // the latest resize that held for lag (back through a burst of them)
+  for (let i = lo - 1, until = t; i >= 0 && rs[i].t > win.openedAt; until = rs[i].t, i--) {
+    if (until - rs[i].t >= lag) {
+      w = rs[i].w
+      h = rs[i].h
+      break
+    }
+  }
+  return r.w === w && r.h === h ? r : { ...r, w, h }
+}
+
 // title-bar controls and drag handle (live layer only)
 function TitleControls({ win, w, topH, active, h, app }) {
   const drag = useRef(null)
@@ -246,12 +276,18 @@ function TitleControls({ win, w, topH, active, h, app }) {
     const d = drag.current
     if (!d) return
     const p = toStage(e.clientX, e.clientY)
-    const x = Math.round(d.x0 + p.x - d.sx), y = Math.round(Math.max(0, d.y0 + p.y - d.sy))
-    if (x !== d.lx || y !== d.ly) {
-      d.lx = x
-      d.ly = y
-      emit('win.move', { id, x, y })
-    }
+    d.px = Math.round(d.x0 + p.x - d.sx)
+    d.py = Math.round(Math.max(0, d.y0 + p.y - d.sy))
+    // one 'win.move' per frame, at the frame's time (core/time.jsx nextFrame)
+    if (d.queued) return
+    d.queued = true
+    nextFrame((t) => {
+      d.queued = false
+      if (d.px === d.lx && d.py === d.ly) return
+      d.lx = d.px
+      d.ly = d.py
+      emit('win.move', { id, x: d.px, y: d.py }, t)
+    })
   }
   const onUp = () => (drag.current = null)
   const btn = (x, type) => (
@@ -277,13 +313,17 @@ function TitleControls({ win, w, topH, active, h, app }) {
     const d = size.current
     if (!d) return
     const p = toStage(e.clientX, e.clientY)
-    const nw = Math.round(Math.max(minS.w, Math.min(WORK.w - win.rect.x, d.w0 + p.x - d.sx)))
-    const nh = Math.round(Math.max(minS.h, Math.min(WORK.h - win.rect.y, d.h0 + p.y - d.sy)))
-    if (nw !== d.lw || nh !== d.lh) {
-      d.lw = nw
-      d.lh = nh
-      emit('win.resize', { id, w: nw, h: nh })
-    }
+    d.pw = Math.round(Math.max(minS.w, Math.min(WORK.w - win.rect.x, d.w0 + p.x - d.sx)))
+    d.ph = Math.round(Math.max(minS.h, Math.min(WORK.h - win.rect.y, d.h0 + p.y - d.sy)))
+    if (d.queued) return
+    d.queued = true
+    nextFrame((t) => {
+      d.queued = false
+      if (d.pw === d.lw && d.ph === d.lh) return
+      d.lw = d.pw
+      d.lh = d.ph
+      emit('win.resize', { id, w: d.pw, h: d.ph }, t)
+    })
   }
   return (
     <>
@@ -547,7 +587,8 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       // blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = rest
-    const rr = blur && k < nEff ? m.rect(tt) : r
+    // (an idle copy keeps the size its window settled at: see settledSize)
+    const rr = blur && k < nEff ? m.rect(tt) : k > 0 ? settledSize(win, app, t, r, k) : r
     const mk = m.maxK(blur && k < nEff ? tt : t)
     const radius = radiiAt(mk)
     // a closed window's live layer turns into a just-opened window's (a reopen then re-renders
@@ -577,7 +618,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       <div
         key={k}
         style={{
-          position: 'absolute', left: rr.x, top: rr.y, width: rr.w, height: rr.h,
+          position: 'absolute', left: rr.x - r.x, top: rr.y - r.y, width: rr.w, height: rr.h,
           // parked layers of windows that can't appear soon (running at login, still mounting)
           // are not composited: no layer, no raster, Blink only keeps their paint; prewarmed and
           // closed windows keep their layers (a reopen then only rasterises)
@@ -604,7 +645,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   const atRest = !blur && !m.hidden && !m.pose && win.state === 'open'
   const mk = m.maxK(t)
   const wash = chromeTop > 0 && mounted > 0 && (
-    <LookLayer key="look" x={r.x} y={r.y} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={radiiAt(mk).top} op={atRest ? inactive : 0} />
+    <LookLayer key="look" x={0} y={0} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={radiiAt(mk).top} op={atRest ? inactive : 0} />
   )
   // The window's shadow: one layer of its own (the motion-blur copies carry none, so their
   // layers and rasters stay the window's size), rasterised once and then only transformed: it
@@ -621,7 +662,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     <div
       key="shadow"
       style={{
-        position: 'absolute', left: sh.rr.x, top: sh.rr.y, width: sh.rr.w, height: sh.rr.h, pointerEvents: 'none',
+        position: 'absolute', left: sh.rr.x - r.x, top: sh.rr.y - r.y, width: sh.rr.w, height: sh.rr.h, pointerEvents: 'none',
         transform: sh.style.transform, transformOrigin: sh.style.transformOrigin,
         opacity: sh.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)), mixBlendMode: 'plus-lighter',
         willChange: live0.style === PARKED && !keepLayers ? undefined : 'transform, opacity',
@@ -632,7 +673,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   )
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
-      <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>
+      {/* the window's layers sit relative to its rect, which only moves this group: dragging a
+          window changes one transform, no layout or paint (the layers' left / top stay) */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transform: `translate(${r.x}px, ${r.y}px)` }}>
         {shadow}
         {layers}
         {wash}
