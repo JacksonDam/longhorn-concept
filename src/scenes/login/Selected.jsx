@@ -66,28 +66,30 @@ function poseFor(rec, submitT) {
   }
 }
 
-// soft white halo behind the resting slab
+// soft white halo behind the resting slab: a fixed-size glowing frame (rasterised once on its own
+// layer, pre-mounted with the slab) that is only moved, rotated and scaled per frame
+const HALO = 157
 function Halo({ t, rec, submitT }) {
   const k = (t - rec.t0) * FPS
   let a = clamp((k - 26) / 8)
   if (rec.back != null) a *= 1 - clamp(((t - rec.back) * FPS) / 3)
   if (submitT != null) a *= 1 - clamp(((t - submitT) * FPS - 0.5) / 1.5)
-  if (a <= 0) return null
-  const p = slabPose(k, rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
+  const p = slabPose(Math.max(k, 26), rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
   const w = p.size * Math.abs(Math.cos(p.ry)) + 30 * (p.size / BASE) * Math.abs(Math.sin(p.ry)) - 8
   const h = p.size - 8
   return (
     <div
       style={{
         position: 'absolute',
-        left: p.x - w / 2,
-        top: p.y - h / 2,
-        width: w,
-        height: h,
+        left: 0,
+        top: 0,
+        width: HALO,
+        height: HALO,
         borderRadius: 18,
-        transform: `rotate(${((p.rz ?? 0) * 180) / Math.PI}deg)`,
+        transform: `translate(${(p.x - HALO / 2).toFixed(2)}px, ${(p.y - HALO / 2).toFixed(2)}px) rotate(${(((p.rz ?? 0) * 180) / Math.PI).toFixed(3)}deg) scale(${(w / HALO).toFixed(4)}, ${(h / HALO).toFixed(4)})`,
         boxShadow: '0 0 14px 6px rgba(210,228,255,0.75), 0 0 34px 12px rgba(160,195,255,0.35)',
-        opacity: a,
+        opacity: Math.max(0, a),
+        willChange: 'transform, opacity',
         pointerEvents: 'none',
       }}
     />
