@@ -16,12 +16,13 @@ export function demoCursor(t) {
   const keys = cursorKeys
   if (!keys.length) return null
   const f = t * (30000 / 1001) + 1
-  if (f <= keys[0][0]) return { x: keys[0][1], y: keys[0][2] }
+  if (f <= keys[0][0]) return keys[0][1] == null ? { hidden: true } : { x: keys[0][1], y: keys[0][2] }
   for (let i = 1; i < keys.length; i++) {
     if (f <= keys[i][0]) {
       const [f0, x0, y0] = keys[i - 1]
       const [f1, x1, y1] = keys[i]
-      if (x0 == null || x1 == null) return { hidden: true }
+      if (x1 == null) return { hidden: true }
+      if (x0 == null) return f >= f1 - 1e-6 ? { x: x1, y: y1 } : { hidden: true }
       const k = (f - f0) / (f1 - f0)
       return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k }
     }
