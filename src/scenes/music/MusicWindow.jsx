@@ -126,10 +126,10 @@ function openBlur(rel) {
 // the window drawn n times at sub-frame times, averaged (plus-lighter in an isolated group)
 // frozen: render the content as at this time (e.g. while closing). Inside a copy the slabs
 // render one sample each: the copies already provide the temporal samples.
-function Blurred({ t, n, shutter, pose, st, vs, frozen }) {
+function Blurred({ t, n, shutter, phase = -0.5, pose, st, vs, frozen }) {
   const layers = []
   for (let k = 0; k < n; k++) {
-    const tt = t + shutter * ((k + 0.5) / n - 0.5)
+    const tt = t + shutter * ((k + 0.5) / n + phase)
     const p = pose(tt)
     if (p.op <= 0) continue
     layers.push(
@@ -198,7 +198,7 @@ function MusicWindowLayer({ t }) {
       const fall = mrel > 3.8
       return (
         <>
-          <Blurred {...props} n={fall ? 16 : 6} shutter={(fall ? 1.32 : 1) / FPS} pose={(tt) => minimizePose(toRel(tt, st.changedAt))} />
+          <Blurred {...props} n={fall ? 16 : 6} shutter={(fall ? 1.32 : 1) / FPS} phase={mrel > 5.8 ? 0 : -0.5} pose={(tt) => minimizePose(toRel(tt, st.changedAt))} />
           <Beam rel={mrel} fan={[5, 6.8, 8.6]} spark={[6, 7.5, 9.5]} rise={false} />
         </>
       )
@@ -206,7 +206,7 @@ function MusicWindowLayer({ t }) {
     if (mrel < RESTORE_END) {
       return (
         <>
-          <Blurred {...props} n={16} shutter={(mrel > 4.5 ? 1.36 : 1) / FPS} pose={(tt) => restorePose(toRel(tt, st.changedAt))} />
+          <Blurred {...props} n={16} shutter={(mrel > 4.5 ? 1.36 : 1) / FPS} phase={mrel < 2 ? -1 : -0.5} pose={(tt) => restorePose(toRel(tt, st.changedAt))} />
           <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
         </>
       )
