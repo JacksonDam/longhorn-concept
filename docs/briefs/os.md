@@ -30,9 +30,11 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
   `src/apps/lib/chrome.jsx` (AppTop, GlassRow, Band, StatusBar) for an app's top bars.
 - **Shadow.** Every window casts the video's soft drop shadow (os/shadow.jsx, fitted on the my
   Music window: black, offset 9 px down, sigma 8, spread -1, alpha 0.33; nothing above the
-  window). It is drawn inside each window layer, so motion-blur copies carry it. Maximised
-  windows have square corners and no shadow (they tile the work area; both tween with the
-  maximise). Apps with `chrome: 'none'` or `shadow: false` have none.
+  window; the second video, ref2 f01490, shows the same kind of shadow). Motion-blur copies
+  carry it in their layers, the live window on a layer that follows it (os/shadow.jsx,
+  PlexWindow); nothing is blurred per frame. Maximised windows have square corners and no
+  shadow (they tile the work area; both tween with the maximise). Apps with `chrome: 'none'` or
+  `shadow: false` have none.
 - **Active / inactive.** The focused window keeps the video's look. Other windows are calmer:
   a pale cool wash over the title bar and the top chrome (lighter, less saturated, toolbar labels
   lower in contrast), the title row dimmed towards the bar (a dimmer title and window buttons) and

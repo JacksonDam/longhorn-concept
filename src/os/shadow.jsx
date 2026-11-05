@@ -3,11 +3,11 @@
 // window's frames 1375-1390), a soft black shadow of the window's rounded outline, offset down.
 // The second video (ref2 f01490, Edit Video over the explorer) shows the same kind of shadow.
 //
-// Cost: the shadow is pre-rendered once (canvas, at load) into nine-slice pieces and drawn as
-// four strips around the window inside each window layer (live and motion-blur copies), so it is
-// rasterised with the layer and then only transformed with it; no blur is ever computed per
-// frame. The strips are separate elements so that a change of the shadow's opacity (focus
-// cross-fade, maximise) only re-rasters the strips, never the window under them.
+// Cost: the shadow is pre-rendered once (canvas, at load) into nine-slice pieces (one stylesheet)
+// and drawn as four strips around the window: inside each motion-blur copy's layer (rasterised
+// with it, then only transformed), and for the live window on a layer of its own that follows
+// the live layer's pose and opacity (PlexWindow), so the focus cross-fade (a lighter shadow while
+// inactive) is compositor work. No blur is ever computed per frame.
 import { memo } from 'react'
 import { preload } from '../core/preload.js'
 
