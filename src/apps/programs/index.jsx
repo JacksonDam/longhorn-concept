@@ -76,31 +76,41 @@ function Tile({ win, t, cat, open }) {
   )
 }
 
-const TaskPane = memo(function TaskPane({ win }) {
+const TaskPane = memo(function TaskPane({ fold, onFold }) {
   const link = (k, label, icon, fn, y) => (
     <div key={k} style={{ position: 'absolute', left: 14, top: y, display: 'flex', gap: 6, alignItems: 'center', fontFamily: FONT, fontSize: 11, color: C.textDark, whiteSpace: 'nowrap' }} onPointerDown={(e) => e.button === 0 && fn()}>
       <Ico kind={icon} size={16} />
       {label}
     </div>
   )
-  return (
-    <>
-      <div style={{ position: 'absolute', left: 14, top: 14, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
-        program <span style={{ fontWeight: 500, color: C.heading }}>tasks</span>
-      </div>
-      {link('add', 'Add new programs', 'programs', () => messageBox({ title: 'Add New Programs', icon: 'info', text: 'There are no new programs available to add from your network or from a CD.\nInsert a program CD into the DVD-RW Drive (D:) to install from it.' }), 44)}
-      {link('cfg', 'Configure a program', 'display', () => openWin('control', 'control'), 64)}
-      {link('rm', 'Remove a program', 'recycle', () => openWin('cpl:programs', 'applet', { applet: 'programs' }), 84)}
-      {link('upd', 'Search for updates', 'ie', () => openUrl('windowsupdate.microsoft.com'), 104)}
-      <div style={{ position: 'absolute', left: 14, top: 146, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
-        other <span style={{ fontWeight: 500, color: C.heading }}>places</span>
-      </div>
-      {link('docs', 'my Documents', 'folder', () => openWin('documents', 'documents'), 176)}
-      {link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), 196)}
-      {link('cp', 'Control Panel', 'programs', () => openWin('control', 'control'), 216)}
-      {void win}
-    </>
+  // headings fold their groups
+  const head = (k, a, b, y) => (
+    <div key={k} style={{ position: 'absolute', left: 14, top: y, width: 170, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }} onPointerDown={(e) => e.button === 0 && onFold(k)}>
+      {a} <span style={{ fontWeight: 500, color: C.heading }}>{b}</span>
+      <svg width="9" height="6" style={{ position: 'absolute', right: 4, top: 9 }}>
+        <path d={fold[k] ? 'M0 0 L9 0 L4.5 6 Z' : 'M0 6 L9 6 L4.5 0 Z'} fill="#8ebbe9" />
+      </svg>
+    </div>
   )
+  let y = 14
+  const out = [head('pt', 'program', 'tasks', y)]
+  y += 30
+  if (!fold.pt) {
+    out.push(link('add', 'Add new programs', 'programs', () => messageBox({ title: 'Add New Programs', icon: 'info', text: 'There are no new programs available to add from your network or from a CD.\nInsert a program CD into the DVD-RW Drive (D:) to install from it.' }), y))
+    out.push(link('cfg', 'Configure a program', 'display', () => openWin('control', 'control'), y + 20))
+    out.push(link('rm', 'Remove a program', 'recycle', () => openWin('cpl:programs', 'applet', { applet: 'programs' }), y + 40))
+    out.push(link('upd', 'Search for updates', 'ie', () => openUrl('windowsupdate.microsoft.com'), y + 60))
+    y += 82
+  }
+  y += 20
+  out.push(head('op', 'other', 'places', y))
+  y += 30
+  if (!fold.op) {
+    out.push(link('docs', 'my Documents', 'folder', () => openWin('documents', 'documents'), y))
+    out.push(link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), y + 20))
+    out.push(link('cp', 'Control Panel', 'programs', () => openWin('control', 'control'), y + 40))
+  }
+  return out
 })
 
 const sel2 = (a, b) => (
@@ -157,9 +167,9 @@ function Programs({ win, t, w, h, live }) {
   let y = 0
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      {!hide && <TaskPane win={win} />}
-      <div style={{ position: 'absolute', left: 200, top: 10, height: 16, display: 'flex', gap: 30, fontFamily: FONT, fontSize: 11.5, whiteSpace: 'nowrap' }}>
-        <span onPointerDown={(e) => e.button === 0 && dropBelow(wid(win, 'dd.g'), e.currentTarget, groupItems)}>
+      {!hide && <TaskPane fold={{ pt: valueOf(t, wid(win, 'fold:pt'), false), op: valueOf(t, wid(win, 'fold:op'), false) }} onFold={(k) => emit('ui.value', { id: wid(win, 'fold:' + k), value: !valueOf(t, wid(win, 'fold:' + k), false) })} />}
+      <div style={{ position: 'absolute', left: 200, top: 10, height: 16, display: 'flex', gap: 0, fontFamily: FONT, fontSize: 11.5, whiteSpace: 'nowrap' }}>
+        <span style={{ paddingRight: 30 }} onPointerDown={(e) => e.button === 0 && dropBelow(wid(win, 'dd.g'), e.currentTarget, groupItems)}>
           {sel2('Group programs', group === 'all' ? 'all together' : 'by category')} {'▾'}
         </span>
         <span onPointerDown={(e) => e.button === 0 && dropBelow(wid(win, 'dd.o'), e.currentTarget, orderItems)}>
