@@ -5,16 +5,13 @@
 //   login.select   { id }           a user tile was clicked
 //   login.deselect {}               Escape / click on the background
 //   login.pw       { len }          password length after a key press
-//   login.submit   {}               Enter / go button
+//   login.submit   { id }           Enter / go button (logs in as the selected user)
+// Each visit to the login screen (start, log off, switch user, boot) starts afresh: only events
+// since the current login screen began count (os/session.js loginSince).
 import { all, last } from '../../core/events.js'
+import { USERS, loginSince } from '../../os/session.js'
 
-export const USERS = [
-  { id: 'jenny', name: 'Jenny' },
-  { id: 'sondra', name: 'Sondra', email: 'sondra_hsm@hotmail.com' },
-  { id: 'tommy', name: 'Tommy' },
-  { id: 'kelly', name: 'Kelly' },
-  { id: 'angela', name: 'Angela' },
-]
+export { USERS }
 export const userById = Object.fromEntries(USERS.map((u) => [u.id, u]))
 
 const isSel = (e) => e.type === 'login.select' || e.type === 'login.deselect'
@@ -22,7 +19,8 @@ const isSel = (e) => e.type === 'login.select' || e.type === 'login.deselect'
 // The selection timeline: [{ t, id|null }] in order (consecutive duplicates dropped).
 export function selections(t) {
   const out = []
-  for (const e of all(t, isSel)) {
+  const since = loginSince(t)
+  for (const e of all(t, (e) => isSel(e) && e.t >= since)) {
     const id = e.type === 'login.select' ? e.id : null
     if (out.length && out[out.length - 1].id === id) continue
     out.push({ t: e.t, id })
@@ -37,7 +35,8 @@ export function currentSelection(t) {
 
 // Hover state of tile `id` at t: { on, big, t } (t = time of the last change)
 export function hoverOf(t, id) {
-  const e = last(t, (e) => e.type === 'login.hover' && e.id === id)
+  const since = loginSince(t)
+  const e = last(t, (e) => e.type === 'login.hover' && e.id === id && e.t >= since)
   return e ? { on: !!e.on, big: !!e.big, t: e.t } : { on: false, big: false, t: -Infinity }
 }
 
@@ -49,5 +48,12 @@ export function passwordLength(t) {
 }
 
 export function submitEvent(t) {
-  return last(t, (e) => e.type === 'login.submit')
+  const since = loginSince(t)
+  return last(t, (e) => e.type === 'login.submit' && e.t >= since)
+}
+
+// hover events of tile `id` on the current login screen
+export function hoversOf(t, id) {
+  const since = loginSince(t)
+  return all(t, (e) => e.type === 'login.hover' && e.id === id && e.t >= since)
 }

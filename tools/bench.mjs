@@ -73,7 +73,7 @@ try {
   await send('Page.enable')
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: dpr, mobile: false })
-  await send('Page.navigate', { url: base + '?bench' })
+  await send('Page.navigate', { url: base + (base.includes('?') ? '&' : '?') + 'bench' })
   for (let i = 0; i < 600 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
   for (let i = 0; i < 600 && !(await evaluate('!!(window.__lh && window.__lh.seekFrame)')); i++) await sleep(100)
   await evaluate('window.__lh.ready()')
