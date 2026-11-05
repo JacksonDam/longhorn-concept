@@ -4,7 +4,7 @@
 import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, hoverKeys, pt, find, selectionOf, C, FONT, HEAVY } from '../../ui/index.js'
+import { scoped, wid, valueOf, hoverKeys, pt, find, selectionOf, C, FONT, HEAVY } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl } from '../lib/common.js'
 import { getWindow } from '../../os/wm.js'
@@ -37,27 +37,51 @@ const Tile = memo(function Tile({ a, lit, sel }) {
   )
 })
 
-const Pane = memo(function Pane() {
+const Icon = memo(function Icon({ a, lit, sel }) {
+  return (
+    <div style={{ position: 'relative', width: 80, height: 76 }}>
+      {(lit > 0 || sel) && <div style={{ position: 'absolute', inset: 0, borderRadius: 5, opacity: sel ? 1 : lit, background: sel ? C.rowSel : C.rowHover }} />}
+      <div style={{ position: 'absolute', left: 21, top: 6 }}>
+        <Ico kind={a.icon} size={38} />
+      </div>
+      <div style={{ position: 'absolute', left: 2, right: 2, top: 48, textAlign: 'center', fontFamily: FONT, fontSize: 10.5, lineHeight: '13px', color: '#3a4260' }}>{a.label}</div>
+    </div>
+  )
+})
+
+const Pane = memo(function Pane({ classic, onClassic, fold, onFold }) {
   const link = (k, label, icon, fn, y) => (
     <div key={k} style={{ position: 'absolute', left: 14, top: y, display: 'flex', gap: 6, alignItems: 'center', fontFamily: FONT, fontSize: 11, color: C.textDark, whiteSpace: 'nowrap' }} onPointerDown={(e) => e.button === 0 && fn()}>
       <Ico kind={icon} size={16} />
       {label}
     </div>
   )
-  return (
-    <>
-      <div style={{ position: 'absolute', left: 14, top: 18, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
-        control <span style={{ fontWeight: 500, color: C.heading }}>panel</span>
-      </div>
-      <div style={{ position: 'absolute', left: 14, top: 46, width: 160, fontFamily: FONT, fontSize: 10.5, lineHeight: '15px', color: C.textDark }}>Pick a task below to change how your computer looks and works.</div>
-      <div style={{ position: 'absolute', left: 14, top: 104, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
-        see <span style={{ fontWeight: 500, color: C.heading }}>also</span>
-      </div>
-      {link('wu', 'Windows Update', 'ie', () => openUrl('windowsupdate.microsoft.com'), 132)}
-      {link('help', 'Help and Support', 'help', () => openWin('help', 'help', { topic: 'background' }), 152)}
-      {link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), 172)}
-    </>
+  const head = (k, a, b, y) => (
+    <div key={k} style={{ position: 'absolute', left: 14, top: y, width: 170, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }} onPointerDown={(e) => e.button === 0 && onFold(k)}>
+      {a} <span style={{ fontWeight: 500, color: C.heading }}>{b}</span>
+      <svg width="9" height="6" style={{ position: 'absolute', right: 4, top: 9 }}>
+        <path d={fold[k] ? 'M0 0 L9 0 L4.5 6 Z' : 'M0 6 L9 6 L4.5 0 Z'} fill="#8ebbe9" />
+      </svg>
+    </div>
   )
+  let y = 18
+  const out = [head('cp', 'control', 'panel', y)]
+  y += 28
+  if (!fold.cp) {
+    out.push(link('classic', classic ? 'Switch to Category View' : 'Switch to Classic View', 'programs', onClassic, y))
+    y += 24
+    out.push(<div key="d" style={{ position: 'absolute', left: 14, top: y, width: 160, fontFamily: FONT, fontSize: 10.5, lineHeight: '15px', color: C.textDark }} onPointerDown={(e) => e.button === 0 && onClassic()}>Pick a task below to change how your computer looks and works.</div>)
+    y += 40
+  }
+  y += 14
+  out.push(head('sa', 'see', 'also', y))
+  y += 28
+  if (!fold.sa) {
+    out.push(link('wu', 'Windows Update', 'ie', () => openUrl('windowsupdate.microsoft.com'), y))
+    out.push(link('help', 'Help and Support', 'help', () => openWin('help', 'help', { topic: 'background' }), y + 20))
+    out.push(link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), y + 40))
+  }
+  return out
 })
 
 function Control({ win, t, h, live }) {
@@ -65,22 +89,24 @@ function Control({ win, t, h, live }) {
   const lit = hoverKeys(t, id + ':h')
   const sel = selectionOf(t, id)[0]
   useAppletProp(win, t, live)
+  const classic = valueOf(t, wid(win, 'classic'), false)
+  const fold = { cp: valueOf(t, wid(win, 'fold:cp'), false), sa: valueOf(t, wid(win, 'fold:sa'), false) }
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      <Pane />
-      <div style={{ position: 'absolute', left: 200, top: 18, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
-        pick a <span style={{ fontWeight: 500, color: C.heading }}>category</span>
+      <Pane classic={classic} onClassic={() => emit('ui.value', { id: wid(win, 'classic'), value: !classic })} fold={fold} onFold={(k) => emit('ui.value', { id: wid(win, 'fold:' + k), value: !fold[k] })} />
+      <div style={{ position: 'absolute', left: 200, top: 18, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'classic'), value: !classic })}>
+        {classic ? 'all' : 'pick a'} <span style={{ fontWeight: 500, color: C.heading }}>{classic ? 'applets' : 'category'}</span>
       </div>
       {APPLETS.map((a, i) => (
         <div
           key={a.key}
-          style={{ position: 'absolute', left: 196 + (i % 2) * 262, top: 50 + Math.floor(i / 2) * 66 }}
+          style={classic ? { position: 'absolute', left: 200 + (i % 6) * 86, top: 52 + Math.floor(i / 6) * 84, width: 80, height: 76 } : { position: 'absolute', left: 196 + (i % 2) * 262, top: 50 + Math.floor(i / 2) * 66 }}
           onPointerEnter={(e) => emit('hover', { id: id + ':h', key: a.key, on: true, ...pt(e) })}
           onPointerLeave={() => emit('hover', { id: id + ':h', key: a.key, on: false })}
           onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id + ':sel', value: { keys: [a.key], anchor: a.key } })}
           onClick={() => openApplet(a.key)}
         >
-          <Tile a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} />
+          {classic ? <Icon a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} /> : <Tile a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} />}
         </div>
       ))}
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - 20, height: 20, lineHeight: '20px', textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>{APPLETS.length} objects</div>
