@@ -4,9 +4,11 @@
 // Window-local px; EXPLORER_TOP is where the client area starts.
 //
 // App config (`explorer` in the app registry; every field optional, defaults = my Music):
-//   { crumbs: ['my Computer', 'my Pictures'], search: 'search my for...',
+//   { crumbs: ['my Computer', 'my Pictures'] | (win, t) => [...],
+//     search: 'search my for...' | (win, t) => string,
 //     commands: [{ id, label, icon: 'hide' | 'up' | 'folders' | 'find' | 'preview' | <component> }],
-//     pressed: (props) => command id shown pressed }
+//     pressed: 'preview' | (win, t) => command id shown pressed,
+//     menus: { File: items, Edit: items, View: items, Help: items } | (win, t) => {...}  (ui kit items) }
 // Clicks emit events the app or the shell handles:
 //   'explorer.command' { id: <window id>, command }   command row
 //   'explorer.menu'    { id, menu: 'File' | 'Edit' | 'View' | 'Help', x, y }
@@ -67,12 +69,14 @@ const CMD_ICONS = {
   preview: () => <I.PreviewIcon />,
 }
 
-export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
+const val = (v, win, t, def) => (v == null ? def : typeof v === 'function' ? v(win, t) : v)
+
+export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
   const id = win.id
   const cfg = typeof app.explorer === 'object' ? app.explorer : {}
-  const crumbs = cfg.crumbs || ['my Computer', 'my Pictures']
-  const commands = cfg.commands || DEFAULT_COMMANDS
-  const pressed = cfg.pressed ? cfg.pressed(win.props || {}) : 'preview'
+  const crumbs = val(cfg.crumbs, win, t, ['my Computer', 'my Pictures'])
+  const commands = val(cfg.commands, win, t, DEFAULT_COMMANDS)
+  const pressed = val(cfg.pressed, win, t, 'preview')
   const menu = (m, x) => (e) => emit('explorer.menu', { id, menu: m, x: win.rect ? x : x, y: 95 })
   const cmd = (c) => () => emit('explorer.command', { id, command: c })
   return (
@@ -142,7 +146,7 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w }) {
           boxShadow: '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
         })}
       />
-      <Crumbs id={id} crumbs={crumbs} search={cfg.search ?? 'search my for...'} />
+      <Crumbs id={id} crumbs={crumbs} search={val(cfg.search, win, t, 'search my for...')} />
 
       {/* command row */}
       {commands.slice(0, SLOTS.length).map((c, i) => {

@@ -146,7 +146,7 @@ const Title = memo(function Title({ w, title, TitleContent, active, props }) {
 // ---------------------------------------------------------------- one window rendering
 // the frame + app content at time t (copies pass a snapshot time)
 const WindowBody = memo(
-  function WindowBody({ win, app, t, w, h, active }) {
+  function WindowBody({ win, app, t, w, h, active, live }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
@@ -161,13 +161,13 @@ const WindowBody = memo(
       >
         {!bare && (explorer ? <ExplorerChrome win={win} app={app} w={w} t={t} /> : <PlainTitleBg w={w} />)}
         <div style={{ position: 'absolute', left: 0, top: topH, width: w, height: h - topH, overflow: bare ? 'visible' : 'hidden' }}>
-          <Content win={win} t={t} active={active} w={w} h={h - topH} />
+          <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
         </div>
         {!bare && <Title w={w} title={app.title ? app.title(win.props || {}) : app.id} TitleContent={app.TitleContent} active={active} props={win.props} />}
       </div>
     )
   },
-  (a, b) => a.t === b.t && a.w === b.w && a.h === b.h && a.active === b.active && a.app === b.app && winKey(a.win) === winKey(b.win),
+  (a, b) => a.t === b.t && a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && winKey(a.win) === winKey(b.win),
 )
 const winKey = (w) => `${w.id}|${w.state}|${w.maximized}|${JSON.stringify(w.props)}`
 
@@ -357,7 +357,7 @@ export function PlexWindow({ win, app, t, active }) {
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} />
+          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {m.light != null && m.light < 17 && <OpenLight rel={toRel(tt, win.openedAt + OPEN_DELAY / FPS)} w={rr.w} h={rr.h} topH={topH} />}
