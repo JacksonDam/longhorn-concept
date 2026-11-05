@@ -1,7 +1,7 @@
 // Desktop: wallpaper, the my Music window layer, sidebar, taskbar, my Music flyout.
 // `since` is the time of 'login.submit'; the desktop's entrance animates from it.
 import { memo } from 'react'
-import { MusicWindow } from '../music/MusicWindow.jsx'
+import { WindowLayer } from '../../os/WindowLayer.jsx'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { asset, preload } from '../../core/preload.js'
 import { IconDefs } from './icons.jsx'
@@ -76,7 +76,7 @@ export function DesktopScene({ since }) {
     >
       <IconDefs />
       <Wallpaper />
-      <MusicWindow />
+      <WindowLayer />
       <Sidebar opacity={op} haze={haze} onMedia={toggleFlyout} mediaHL={mediaHL} />
       <TaskbarLayer t={t} f={f} />
       <Flyout t={t} />

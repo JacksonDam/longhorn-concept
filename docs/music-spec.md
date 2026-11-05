@@ -116,3 +116,14 @@ fitted to the face colours), grid 43 -> 31 (cover colour fields).
 Real-time playback (`?demo`, headless Chrome on the M4): open and album flip run at 60 fps
 (p90 16.8 ms); minimise/restore p90 ~50 ms while the blur copies mount (copies are capped at
 7 in real time, all samples under `?capture`).
+
+## Real-time performance and open refit (follow-up)
+- `tools/perf.mjs` (1440x1080, ?demo): open t=23 s p95 89 / max 200 ms -> p95 ~18 / max 29-34 ms
+  (the remaining spike is the window mount at music.open, f694.5); t=24 p95 104 -> 18 ms;
+  minimise/restore t=45-47 p95 135-138 / max 365 ms -> p95 18 / max 19 ms.
+- Real-time-only path (copy layers kept mounted with memoised snapshots, one slab layer):
+  this predates the parity rule in docs/briefs/perf.md and is superseded by the OS work.
+- Open refit (f698-712, full frame, --blur 1): mean 23.6 -> 20.6; f701 38.1 -> 22.7,
+  f702 35.7 -> 25.7, f703 27.7 -> 19.8. Window poses at 700-701 refitted from the measured
+  edges; lighting = lit toolbar (additive) + right/downward shade over the body and its
+  content; device spin-in edge-on at 703.5 and re-positioned to the silhouettes.
