@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, TextField, textOf, setText, Button, DropMenu, dropBelow, C, FONT } from '../../ui/index.js'
+import { scoped, wid, valueOf, TextField, textOf, setText, Button, DropMenu, dropBelow, focusField, C, FONT } from '../../ui/index.js'
 import { closeWin } from '../lib/common.js'
 
 const FONTS = ['Arial', 'Georgia', 'Times New Roman', 'Verdana', 'Courier New', 'Tahoma']
@@ -32,7 +32,7 @@ function CharMap({ win, t, w, h }) {
   const rows = Math.ceil(CHARS.length / COLS)
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      <div style={{ position: 'absolute', left: 12, top: 12, fontFamily: FONT, fontSize: 11, color: C.text }}>Font:</div>
+      <div style={{ position: 'absolute', left: 12, top: 12, fontFamily: FONT, fontSize: 11, color: C.text }} onPointerDown={(e) => e.button === 0 && dropBelow(id('dd'), e.currentTarget, fontItems)}>Font:</div>
       <div
         style={{ position: 'absolute', left: 48, top: 9, width: 200, height: 20, borderRadius: 3, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, fontFamily: `'${font}'`, fontSize: 12, lineHeight: '20px', paddingLeft: 6, boxSizing: 'border-box' }}
         onPointerDown={(e) => e.button === 0 && dropBelow(id('dd'), e.currentTarget, fontItems)}
@@ -51,10 +51,9 @@ function CharMap({ win, t, w, h }) {
       >
         <Grid font={font} sel={sel} />
       </div>
-      <div style={{ position: 'absolute', right: 12, top: 40, width: 0 }} />
-      <div style={{ position: 'absolute', left: 13 + COLS * 19 + 8, top: 40, width: w - (13 + COLS * 19 + 8) - 12, height: 64, borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, textAlign: 'center', lineHeight: '64px', fontFamily: `'${font}'`, fontSize: 40, color: '#1d3557' }}>{String.fromCharCode(sel)}</div>
+      <div onPointerDown={(e) => e.button === 0 && add()} style={{ position: 'absolute', left: 13 + COLS * 19 + 8, top: 40, width: w - (13 + COLS * 19 + 8) - 12, height: 64, borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, textAlign: 'center', lineHeight: '64px', fontFamily: `'${font}'`, fontSize: 40, color: '#1d3557' }}>{String.fromCharCode(sel)}</div>
       <div style={{ position: 'absolute', left: 13 + COLS * 19 + 8, top: 110, fontFamily: FONT, fontSize: 10, color: '#8b91a6', whiteSpace: 'nowrap' }}>U+{sel.toString(16).toUpperCase().padStart(4, '0')}</div>
-      <div style={{ position: 'absolute', left: 12, top: h - 62, fontFamily: FONT, fontSize: 11, color: C.text }}>Characters to copy:</div>
+      <div style={{ position: 'absolute', left: 12, top: h - 62, fontFamily: FONT, fontSize: 11, color: C.text }} onPointerDown={(e) => e.button === 0 && focusField(id('copy'))}>Characters to copy:</div>
       <TextField id={id('copy')} x={120} y={h - 65} w={w - 290} h={20} />
       <Button id={id('select')} label="Select" x={w - 162} y={h - 66} w={72} h={23} onClick={add} />
       <Button id={id('copyb')} label="Copy" x={w - 84} y={h - 66} w={72} h={23} onClick={() => navigator.clipboard?.writeText(textOf(now(), id('copy'))).catch(() => {})} />
