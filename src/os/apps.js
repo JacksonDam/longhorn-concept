@@ -8,7 +8,8 @@
 //     icon: url,                         // taskbar / title icon
 //     size: { w, h }, position: { x, y },// default window rect (stage px)
 //     explorer: false | true | {...},    // draw os/ExplorerChrome above the content (see there)
-//     Content: ({ win, t, active }) =>   // the client area (below the title bar / explorer chrome)
+//     Content: ({ win, t, active, live, w, h }) =>  // the client area (below the title bar / explorer
+//                                        // chrome); live: true only on the window's live layer
 //     // optional:
 //     minSize: { w, h },                 // drag-resize limits (default 320 x 200)
 //     chrome: 'plex' | 'none',           // 'none': Content draws the whole window (my Music)

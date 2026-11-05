@@ -15,7 +15,8 @@ import { memo, useRef } from 'react'
 import { emit, getLog } from '../core/events.js'
 import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
-import { Txt, abs, HEAVY } from './text.jsx'
+import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
+import { focusedField } from '../ui/state.js'
 import { Beam } from './Beam.jsx'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
@@ -146,7 +147,7 @@ const Title = memo(function Title({ w, title, TitleContent, active, props }) {
 // ---------------------------------------------------------------- one window rendering
 // the frame + app content at time t (copies pass a snapshot time)
 const WindowBody = memo(
-  function WindowBody({ win, app, t, w, h, active }) {
+  function WindowBody({ win, app, t, w, h, active, live }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
@@ -161,13 +162,13 @@ const WindowBody = memo(
       >
         {!bare && (explorer ? <ExplorerChrome win={win} app={app} w={w} t={t} /> : <PlainTitleBg w={w} />)}
         <div style={{ position: 'absolute', left: 0, top: topH, width: w, height: h - topH, overflow: bare ? 'visible' : 'hidden' }}>
-          <Content win={win} t={t} active={active} w={w} h={h - topH} />
+          <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
         </div>
         {!bare && <Title w={w} title={app.title ? app.title(win.props || {}) : app.id} TitleContent={app.TitleContent} active={active} props={win.props} />}
       </div>
     )
   },
-  (a, b) => a.t === b.t && a.w === b.w && a.h === b.h && a.active === b.active && a.app === b.app && winKey(a.win) === winKey(b.win),
+  (a, b) => a.t === b.t && a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && winKey(a.win) === winKey(b.win),
 )
 const winKey = (w) => `${w.id}|${w.state}|${w.maximized}|${JSON.stringify(w.props)}`
 
@@ -280,26 +281,51 @@ function motion(win, app, t) {
   // open
   const rel = toRel(t, tOpen)
   const res = { ...base, light: rel, beam: { rel, haze: true, fanOp: 0.6, dx: dock.x - 440 } }
-  if (rel < 5) return { ...res, hidden: true }
+  if (rel < 5) return { ...res, hidden: true, warm: openPose(6) }
   if (openMoving(rel)) return { ...res, ...openBlur(rel), pose: (tt) => openPose(toRel(tt, tOpen)) }
   if (win.maximizedAt != null && toRel(t, win.maximizedAt) < MAX_FRAMES + 1) return { ...res, n: 6, shutter: 1 }
   return res
 }
 
 // ---------------------------------------------------------------- the window
+// the app's live overlay, memoised: blur copies pass their snapshot time, so their overlay
+// renders once per snapshot instead of every frame
+const OverlayLayer = memo(
+  function OverlayLayer({ Overlay, win, t, skip }) {
+    return <Overlay win={win} t={t} skip={skip} />
+  },
+  (a, b) => a.t === b.t && a.skip === b.skip && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
+)
 const STAGGER = 2 // frames between copy snapshot updates
+// the time of the latest event at or before t (binary search)
+function lastEventT(t) {
+  const log = getLog()
+  let lo = 0, hi = log.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (log[mid].t <= t) lo = mid + 1
+    else hi = mid
+  }
+  return lo > 0 ? log[lo - 1].t : -Infinity
+}
+const DEFAULT_SETTLE = 1.2 // s: how long content may animate after an event (hover fades, menus, tooltips)
+
+// The time the live layer's content renders at. Content is a function of (t, events), and between
+// events it only moves while its own animations run; outside them it renders at a time that stays
+// put until the next event, so an idle window costs no React work per frame. Apps with longer
+// time-driven visuals return t from app.liveTime(win, t, base) while those run.
+function liveContentT(win, app, t) {
+  if (focusedField(t)?.startsWith(win.id + '@' + win.openedAt + '/')) return t // a caret blinks
+  const le = Math.max(win.openedAt, lastEventT(t))
+  const settle = app.settle ?? DEFAULT_SETTLE
+  const base = t - le < settle ? t : le + settle
+  return app.liveTime ? app.liveTime(win, t, base) : base
+}
+
 // the content time a blur copy shows (app.snapshot overrides): the settled state after the
 // latest event at or before tk
 function defaultSnapshot(win, app, tk) {
-  const log = getLog()
-  let lastT = win.openedAt
-  for (let i = log.length - 1; i >= 0; i--) {
-    if (log[i].t <= tk) {
-      lastT = Math.max(lastT, log[i].t)
-      break
-    }
-  }
-  return lastT + (app.settle ?? 1)
+  return Math.max(win.openedAt, lastEventT(tk)) + (app.settle ?? DEFAULT_SETTLE)
 }
 
 export function PlexWindow({ win, app, t, active }) {
@@ -326,9 +352,13 @@ export function PlexWindow({ win, app, t, active }) {
     } else if (k === 0) {
       const p = m.pose ? m.pose(t) : null
       style = { ...(p ? poseCss(p) : null), opacity: m.hidden || (p && p.op <= 0) ? 0 : p ? p.op : 1 }
+    } else if (m.warm) {
+      // before the open is visible: copies are rasterised in their first visible pose, all but
+      // invisible, so the first blurred frame finds their rasters ready
+      style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = { opacity: 0 }
     const rr = blur && k < nEff ? m.rect(tt) : r
-    let ct = live
+    let ct = m.frozen != null ? live : liveContentT(win, app, t)
     if (k > 0 && m.frozen == null) {
       const tk = t - (k * STAGGER) / FPS
       ct = app.snapshot ? app.snapshot(win, tk) : defaultSnapshot(win, app, tk)
@@ -344,8 +374,10 @@ export function PlexWindow({ win, app, t, active }) {
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
-        <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} />
-        {Overlay && <Overlay win={win} t={live} skip={!visible} />}
+        <LiveLayers.Provider value={k === 0}>
+          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} />
+        </LiveLayers.Provider>
+        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {m.light != null && m.light < 17 && <OpenLight rel={toRel(tt, win.openedAt + OPEN_DELAY / FPS)} w={rr.w} h={rr.h} topH={topH} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={Math.min(72, topH || 72)} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} topH={topH} active={active} />}

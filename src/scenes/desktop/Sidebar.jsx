@@ -271,7 +271,7 @@ export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, li
           <MediaTitle title={media.title} scroll={media.scroll} />
           <PlayButton x={865} y={278} playing={media.playing} />
         </div>
-        {hits}
+        <div style={{ position: 'absolute', inset: 0, visibility: opacity.thumbs > 0 ? 'visible' : 'hidden' }}>{hits}</div>
       </div>
     </div>
   )

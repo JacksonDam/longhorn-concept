@@ -1,150 +1,229 @@
-// The Plex Start menu: rises out of the taskbar above the start button. User picture and
-// name on a blue glass header, programs on the left, places on a pale blue pane on the
-// right, Log Off / Shut Down on the blue footer (the my Music flyout's colours).
+// The Plex Start menu, after the user's mock-up (ref3/insp1.png, docs/briefs/start-menu-mockup.md):
+// a translucent blue glass panel rising out of the taskbar above the start button. Header:
+// user picture, big name, "switch user", round red "shut down" and amber "log off" buttons.
+// Left column: pinned programs with big icons (title + subtitle), a small-icon list and
+// "All Programs & Services". Right column (lighter glass): places, then Search, Control Panel,
+// Help & Support, Run..., Windows Tour, Top 10 Tasks. Hover = a thin red outline box, as in
+// the mock-up. Only entries that open something the OS has.
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
+import { CAPTURE } from '../../core/clock.js'
+import { hasApp } from '../../os/apps.js'
 import { Popup } from './Popup.jsx'
 import { closePopups, hover, hoverOn, hoverOff } from './shellState.js'
-import { launch } from './appInfo.jsx'
+import { launch, openApp } from './appInfo.jsx'
 import {
   IEIcon, OutlookIcon, WordIcon, WinampIcon, DocumentsIcon, PicturesIcon, MusicIcon, ComputerIcon,
-  ControlIcon, HelpIcon, SearchIcon, RunIcon, LogOffIcon, ShutDownIcon,
+  ControlIcon, HelpIcon, SearchIcon, RunIcon, DialogIcon,
 } from './appIcons.jsx'
 
-export const START = { x: 0, y: 369, w: 300, h: 330 }
-const HEAD = 50
-const FOOT = 36
-const SPLIT = 160
+export const START = { x: 0, y: 281, w: 300, h: 418 }
+const HEAD = 80
+const SPLIT = 152
 const font = "'Libre Franklin', Tahoma, sans-serif"
+const heavy = "'Franklin Gothic', 'Libre Franklin', sans-serif"
+const shadow = '0 1px 2px rgba(0,25,80,0.75)'
 
-const LEFT = [
-  { label: 'Internet', sub: 'Internet Explorer', Icon: IEIcon, go: () => launch.internet() },
-  { label: 'E-mail', sub: 'Microsoft Outlook', Icon: OutlookIcon, go: () => launch.email() },
-  { label: 'Word', sub: 'Microsoft Word', Icon: WordIcon, go: () => launch.word() },
-  { label: 'Winamp3', sub: 'Media player', Icon: WinampIcon, go: () => launch.winamp() },
+const tour = () => {
+  if (!CAPTURE) location.search = '?demo'
+}
+// optional small programs (shown when the app is registered)
+const OPTIONAL = [
+  { app: 'notepad', label: 'Notepad' },
+  { app: 'calculator', label: 'Calculator' },
+  { app: 'paint', label: 'Paint' },
+  { app: 'solitaire', label: 'Solitaire' },
 ]
-const RIGHT = [
-  { label: 'my Documents', Icon: DocumentsIcon, go: () => launch.documents() },
-  { label: 'my Pictures', Icon: PicturesIcon, go: () => launch.pictures() },
+
+const PINNED = [
+  { label: 'Outlook', sub: 'E-mail', Icon: OutlookIcon, go: () => launch.email() },
+  { label: 'Word', sub: 'Word Processor', Icon: WordIcon, go: () => launch.word() },
+  { label: 'Internet Explorer', sub: 'Web Browser', Icon: IEIcon, go: () => launch.internet() },
+]
+const listFor = () => [
+  { label: 'Winamp3', Icon: WinampIcon, go: () => launch.winamp() },
   { label: 'my Music', Icon: MusicIcon, go: () => launch.music() },
-  { label: 'my Computer', Icon: ComputerIcon, go: () => launch.computer() },
+  ...OPTIONAL.filter((o) => hasApp(o.app)).map((o) => ({ label: o.label, Icon: DialogIcon, go: () => openApp(o.app, o.app) })),
+].slice(0, 6)
+const RIGHT = [
+  { label: 'My Documents', Icon: DocumentsIcon, go: () => launch.documents() },
+  { label: 'My Pictures', Icon: PicturesIcon, go: () => launch.pictures(), bold: true },
+  { label: 'My Videos', Icon: DocumentsIcon, go: () => openApp('documents', 'documents', { go: ['my Computer', 'my Documents', 'my Videos'] }) },
+  { label: 'My Computer', Icon: ComputerIcon, go: () => launch.computer() },
+  { label: 'Shared Documents', Icon: DocumentsIcon, go: () => openApp('computer', 'computer', { go: ['my Computer', 'Shared Documents'] }) },
   { sep: true },
-  { label: 'Control Panel', Icon: ControlIcon, go: () => launch.control() },
-  { label: 'Help and Support', Icon: HelpIcon, go: () => launch.help() },
   { label: 'Search', Icon: SearchIcon, go: () => launch.search() },
+  { label: 'Control Panel', Icon: ControlIcon, go: () => launch.control() },
+  { label: 'Help & Support', Icon: HelpIcon, go: () => launch.help() },
   { label: 'Run...', Icon: RunIcon, go: () => launch.run() },
+  { label: 'Windows Tour', Icon: HelpIcon, go: tour },
+  { label: 'Top 10 Tasks', Icon: HelpIcon, go: () => launch.help({ page: 'tasks' }) },
 ]
-const FOOTER = [
-  { label: 'Log Off', Icon: LogOffIcon, go: () => emit('session.logoff'), x: 112, w: 78 },
-  { label: 'Shut Down', Icon: ShutDownIcon, go: () => emit('session.shutdown'), x: 196, w: 98 },
-]
-const LROW = 40
-const RROW = 25
-const SEP = 9
-const leftRows = LEFT.map((it, i) => ({ ...it, x: 0, y: HEAD + 8 + i * LROW, w: SPLIT, h: LROW, id: 'sm.l' + i }))
-const rightRows = (() => {
-  let y = HEAD + 8
-  return RIGHT.map((it, i) => {
-    const r = { ...it, x: SPLIT, y, w: START.w - SPLIT, h: it.sep ? SEP : RROW, id: 'sm.r' + i }
-    y += r.h
-    return r
-  })
-})()
-const footRows = FOOTER.map((it, i) => ({ ...it, y: START.h - FOOT + 5, h: FOOT - 10, id: 'sm.f' + i }))
-const ALL = [...leftRows, ...rightRows.filter((r) => !r.sep), ...footRows]
 
-const Panel = memo(function Panel({ user }) {
-  const X = START.x
-  const Y = START.y
+function buildRows() {
+  const out = []
+  PINNED.forEach((it, i) => out.push({ ...it, id: 'sm.p' + i, x: 4, y: HEAD + 6 + i * 44, w: SPLIT - 8, h: 40, big: true }))
+  listFor().forEach((it, i) => out.push({ ...it, id: 'sm.l' + i, x: 4, y: HEAD + 146 + i * 25, w: SPLIT - 8, h: 24 }))
+  out.push({ label: 'All Programs & Services', id: 'sm.all', x: 4, y: START.h - 30, w: SPLIT - 8, h: 24, all: true, go: () => openApp('programs', 'programs') })
+  let y = HEAD + 8
+  RIGHT.forEach((it, i) => {
+    if (it.sep) {
+      y += 10
+      return
+    }
+    out.push({ ...it, id: 'sm.r' + i, x: SPLIT + 2, y, w: START.w - SPLIT - 6, h: 25 })
+    y += 26
+  })
+  out.push({ label: 'switch user', id: 'sm.switch', x: 70, y: 40, w: 70, h: 16, go: () => emit('session.switch'), plain: true })
+  out.push({ label: 'shut down', id: 'sm.shut', x: 196, y: 14, w: 98, h: 24, go: () => emit('session.shutdown'), round: '#d63d2e' })
+  out.push({ label: 'log off', id: 'sm.logoff', x: 196, y: 44, w: 98, h: 24, go: () => emit('session.logoff'), round: '#e9a53a' })
+  return out
+}
+// the registry is complete once the app modules have loaded (eager glob in os/apps.js)
+let ROWS = null
+const rows = () => ROWS || (ROWS = buildRows())
+
+const Text = ({ x, y, size, bold, children, lh }) => (
+  <div style={{ position: 'absolute', left: x, top: y, fontFamily: bold ? heavy : font, fontWeight: bold ? 400 : 600, fontSize: size, lineHeight: (lh || size + 4) + 'px', color: '#fff', textShadow: shadow, whiteSpace: 'nowrap' }}>{children}</div>
+)
+
+function RoundButton({ x, y, color, label }) {
   return (
-    <div style={{ position: 'absolute', left: X, top: Y, width: START.w, height: START.h, borderRadius: '6px 6px 0 0', overflow: 'hidden', boxShadow: '3px 0 10px rgba(0,20,60,0.35)' }}>
+    <>
+      <svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute', left: x, top: y + 2 }}>
+        <defs>
+          <radialGradient id={'dk-rb' + color.slice(1)} cx="0.45" cy="0.35" r="0.7">
+            <stop offset="0" stopColor="#fff" stopOpacity="0.9" />
+            <stop offset="0.35" stopColor={color} />
+            <stop offset="1" stopColor={color} stopOpacity="0.85" />
+          </radialGradient>
+        </defs>
+        <circle cx="10" cy="10" r="9" fill={`url(#dk-rb${color.slice(1)})`} stroke="rgba(255,255,255,0.75)" strokeWidth="1.2" />
+        <path d="M7 6.8 A4.4 4.4 0 1 0 13 6.8 M10 4.6 V9.8" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+      <Text x={x + 26} y={y + 3} size={11}>
+        {label}
+      </Text>
+    </>
+  )
+}
+
+const Panel = memo(function Panel({ user, list }) {
+  return (
+    <div style={{ position: 'absolute', left: START.x, top: START.y, width: START.w, height: START.h }}>
+      {/* glass: a darker header, the left column, a lighter right column */}
+      <div style={{ position: 'absolute', inset: 0, borderRadius: '7px 7px 0 0', background: 'linear-gradient(to bottom, rgba(60,112,205,0.82), rgba(52,104,200,0.72) 30%, rgba(44,96,192,0.7))', boxShadow: 'inset 0 1px 0 rgba(200,225,255,0.7), inset 1px 0 0 rgba(170,205,255,0.4), 3px 0 10px rgba(0,20,60,0.35)' }} />
+      <div style={{ position: 'absolute', left: SPLIT, top: HEAD, width: START.w - SPLIT, height: START.h - HEAD, background: 'linear-gradient(to bottom, rgba(150,190,245,0.32), rgba(130,175,240,0.22))', boxShadow: 'inset 1px 0 0 rgba(190,220,255,0.45)' }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: START.w, height: HEAD, borderRadius: '7px 7px 0 0', background: 'linear-gradient(to bottom, rgba(130,175,240,0.45), rgba(70,120,210,0.1) 70%, rgba(40,80,170,0.25))' }} />
+      <div style={{ position: 'absolute', left: 6, top: HEAD - 1, width: START.w - 12, height: 1, background: 'rgba(200,225,255,0.55)' }} />
       {/* header */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: START.w, height: HEAD, background: 'linear-gradient(to bottom, rgb(118,160,232) 0px, rgb(92,148,229) 3px, rgb(78,136,226) 24px, rgb(66,122,218) 46px, rgb(100,160,246) 47px, rgb(76,125,208) 49px, rgb(114,142,195) 50px)' }} />
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 140, height: HEAD - 4, background: 'radial-gradient(ellipse at 20% 40%, rgba(170,205,255,0.5), rgba(170,205,255,0) 70%)' }} />
       {user && (
-        <>
-          <img src={user.picture} alt="" draggable={false} style={{ position: 'absolute', left: 8, top: 7, width: 34, height: 34, borderRadius: 3, boxShadow: '0 0 0 2px rgba(255,255,255,0.85), 1px 2px 4px rgba(0,20,60,0.5)', objectFit: 'cover' }} />
-          <div style={{ position: 'absolute', left: 52, top: 14, fontFamily: font, fontWeight: 700, fontSize: 15, lineHeight: '20px', color: '#fff', textShadow: '0 1px 2px rgba(0,30,90,0.6)' }}>{user.name}</div>
-        </>
+        <img src={user.picture} alt="" draggable={false} style={{ position: 'absolute', left: 8, top: 12, width: 56, height: 52, objectFit: 'cover', borderRadius: 2, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.8), 2px 3px 6px rgba(0,20,60,0.5)' }} />
       )}
-      {/* body */}
-      <div style={{ position: 'absolute', left: 0, top: HEAD, width: SPLIT, height: START.h - HEAD - FOOT, background: 'linear-gradient(to bottom, rgb(250,253,255), rgb(238,246,255) 70%, rgb(224,236,250))' }} />
-      <div style={{ position: 'absolute', left: SPLIT, top: HEAD, width: START.w - SPLIT, height: START.h - HEAD - FOOT, background: 'linear-gradient(to bottom, rgb(222,234,252), rgb(203,221,248))', boxShadow: 'inset 1px 0 0 rgba(120,160,220,0.6)' }} />
-      {leftRows.map((r) => (
-        <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y - Y + Y, width: r.w, height: r.h }}>
-          <r.Icon x={10} y={8} size={24} />
-          <div style={{ position: 'absolute', left: 42, top: 6, fontFamily: font, fontWeight: 700, fontSize: 10.6, lineHeight: '14px', color: 'rgb(48,58,92)', whiteSpace: 'nowrap' }}>{r.label}</div>
-          <div style={{ position: 'absolute', left: 42, top: 20, fontFamily: font, fontWeight: 500, fontSize: 9, lineHeight: '12px', color: 'rgb(120,128,150)', whiteSpace: 'nowrap' }}>{r.sub}</div>
-        </div>
-      ))}
-      {rightRows.map((r) =>
-        r.sep ? (
-          <div key={r.id} style={{ position: 'absolute', left: r.x + 10, top: r.y + 4, width: r.w - 20, height: 1, background: 'rgba(110,145,205,0.5)' }} />
-        ) : (
-          <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
-            <r.Icon x={9} y={4.5} />
-            <div style={{ position: 'absolute', left: 32, top: 0, fontFamily: font, fontWeight: 600, fontSize: 10, lineHeight: r.h + 'px', color: 'rgb(30,52,110)', whiteSpace: 'nowrap' }}>{r.label}</div>
-          </div>
-        ),
-      )}
-      {/* footer */}
-      <div style={{ position: 'absolute', left: 0, top: START.h - FOOT, width: START.w, height: FOOT, background: 'linear-gradient(to bottom, rgb(114,142,195) 0px, rgb(78,128,220) 1px, rgb(61,112,203) 2px, rgb(52,119,222) 4px, rgb(62,118,220) 20px, rgb(56,114,199) 30px, rgb(82,139,226) 31px, rgb(97,155,242) 33px, rgb(89,144,216) 36px)' }} />
-      {footRows.map((r) => (
-        <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
-          <r.Icon x={4} y={5} />
-          <div style={{ position: 'absolute', left: 25, top: 0, fontFamily: font, fontWeight: 600, fontSize: 10, lineHeight: r.h + 'px', color: '#fff', whiteSpace: 'nowrap' }}>{r.label}</div>
-        </div>
-      ))}
+      <Text x={72} y={12} size={21} bold lh={26}>
+        {user ? user.name : ''}
+      </Text>
+      <Text x={72} y={40} size={10.5}>
+        switch user
+      </Text>
+      <RoundButton x={198} y={14} color="#d63d2e" label="shut down" />
+      <RoundButton x={198} y={44} color="#e9a53a" label="log off" />
+      {/* columns */}
+      {rows()
+        .filter((r) => !r.round && !r.plain)
+        .map((r) =>
+          r.big ? (
+            <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
+              <r.Icon x={4} y={5} size={30} />
+              <Text x={42} y={4} size={11.5} bold>
+                {r.label}
+              </Text>
+              <Text x={42} y={21} size={9}>
+                {r.sub}
+              </Text>
+            </div>
+          ) : (
+            <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
+              {r.Icon && <r.Icon x={6} y={3} size={18} />}
+              <Text x={r.all ? 6 : 32} y={4} size={10.5} bold={r.bold}>
+                {r.label}
+              </Text>
+              {r.all && (
+                <svg width="10" height="12" viewBox="0 0 10 12" style={{ position: 'absolute', left: r.w - 14, top: 6 }}>
+                  <path d="M1.5 1 L8.5 6 L1.5 11 Z" fill="#7cc4ff" stroke="#fff" strokeWidth="0.6" />
+                </svg>
+              )}
+            </div>
+          ),
+        )}
+      {list.length === 0 ? null : null}
     </div>
   )
 })
 
 function Live({ t }) {
-  return ALL.map((r) => {
+  return rows().map((r) => {
     const lv = hover(t, r.id)
     if (lv <= 0) return null
-    const foot = r.id.startsWith('sm.f')
     return (
       <div
         key={r.id}
         style={{
           position: 'absolute',
-          left: START.x + r.x + 3,
-          top: START.y + r.y + 1,
-          width: r.w - 6,
-          height: r.h - 2,
+          left: START.x + r.x,
+          top: START.y + r.y,
+          width: r.w,
+          height: r.h,
           opacity: lv,
-          borderRadius: 3,
-          background: foot ? 'rgba(170,215,255,0.35)' : 'linear-gradient(to bottom, rgba(196,226,255,0.95), rgba(160,206,255,0.95))',
-          boxShadow: 'inset 0 0 0 1px rgba(90,150,230,0.5)',
-          mixBlendMode: foot ? 'screen' : 'multiply',
+          borderRadius: r.round ? 12 : 2,
+          background: 'rgba(170,210,255,0.2)',
+          boxShadow: r.round ? 'inset 0 0 0 1px rgba(255,255,255,0.7)' : 'inset 0 0 0 1px rgba(232,72,92,0.95)',
         }}
       />
     )
   })
 }
 
-const Hits = memo(function Hits() {
-  return ALL.map((r) => (
+const Hits = memo(function Hits({ items }) {
+  return items.map((r) => (
     <div
       key={r.id}
       style={{ position: 'absolute', left: START.x + r.x, top: START.y + r.y, width: r.w, height: r.h, pointerEvents: 'auto' }}
       onPointerEnter={hoverOn(r.id)}
       onPointerLeave={hoverOff(r.id)}
       onPointerDown={(e) => {
+        if (e.button !== 0) return
         e.stopPropagation()
+        emit('hover', { id: r.id, on: false })
         closePopups()
         r.go()
       }}
     />
   ))
 })
-const HITS = <Hits />
+const eater = (
+  <div style={{ position: 'absolute', left: START.x, top: START.y, width: START.w, height: START.h, pointerEvents: 'auto' }} onPointerDown={(e) => e.stopPropagation()} />
+)
 
 export function StartMenu({ t, user }) {
+  const items = rows()
   return (
-    <Popup t={t} id="start" kind="rise" n={10} box={{ left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }} live={<Live t={t} />} hits={HITS}>
-      <Panel user={user} />
+    <Popup
+      t={t}
+      id="start"
+      kind="rise"
+      n={10}
+      box={{ left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }}
+      live={<Live t={t} />}
+      hits={
+        <>
+          {eater}
+          <Hits items={items} />
+        </>
+      }
+    >
+      <Panel user={user} list={EMPTY} />
     </Popup>
   )
 }
+const EMPTY = []
