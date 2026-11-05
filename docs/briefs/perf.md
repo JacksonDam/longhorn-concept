@@ -82,7 +82,16 @@ pays all of that under the black screen before the clock starts; keep it that wa
   (the installed Chrome's is never touched): a brand-new Chrome install, the worst case. Get the
   binary matching the installed version from
   storage.googleapis.com/chrome-for-testing-public/<version>/mac-arm64/chrome-mac-arm64.zip.
-- Results, Nov 2026 (M4): see the cold-start commit's report; the boot itself is ~2 s on a
-  browser's first visit (full rehearsal), ~1.2 s later, up to the 8 s deadline on a brand-new
-  machine. `__lh.bootStats` (also printed by coldstart.mjs) splits it into fonts, images and the
-  rehearsal's parts.
+- Results, 2026-11-05 (M4, full flow: login to my Music, then every app from the Start menu;
+  stall = display time lost to missed frames; before = main, after = the boot):
+  | variant | before: visible / stall / frames > 50 ms | after: boot / stall / frames > 50 ms |
+  |---|---|---|
+  | fresh profile, cold | 0.42 s / 163 ms / 0 (intro 46 ms) | 2.5 s / 21 ms / 0 |
+  | same profile, warm | 0.44 s / 208 ms / 0 | 1.3 s / 45 ms / 0 |
+  | brand-new Chrome (`--new-machine`), cold | 2.9 s (first 2.8 s of the intro lost) / 11.8 s / 35 | 7.9 s / 0.7 s / 1 |
+  | brand-new Chrome, warm | 1.1 s / 0.9 s / 0 | 1.4 s / 0.25 s / 0 |
+  | `--cpu 4`, cold | 1.1 s / 11.0 s / 13 (intro 198 ms) | 5.5 s / 7.2 s / 0 |
+  | `--net 20,40`, cold (login flow) | 0.6 s / 170 ms / 0 | 2.6 s / 158 ms / 0 |
+  At 4x CPU most of the stall is steady state (my Music and the app windows miss 144 Hz on
+  every motion), which the boot doesn't change. `__lh.bootStats` (printed by coldstart.mjs)
+  splits the boot into fonts, images and the rehearsal's parts.
