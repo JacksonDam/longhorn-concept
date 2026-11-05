@@ -45,3 +45,16 @@ tile's mean colours so the grid reads like the video at a glance. Files: `public
 Not substitutions: the toolbar, task pane and header icons are redrawn Microsoft UI art
 (SVG in `src/scenes/music/icons.jsx`); the Folders and Find icons use the XP folder and
 search icons from `assets-src/icons` (`public/img/music/folder.png`, `find.png`).
+
+## Apps (src/apps)
+| Where | In the second reference video / brief | Stand-in |
+|---|---|---|
+| my Pictures & Videos photos, thumbnails, detail view, 10-foot slide show, Create an Album, Edit Pictures | family photos, a baby, people on Hurricane Ridge, Pike Place, Hawaii | procedural landscape "photos" (sky, sun, ridges, sea, fields, boats, city lights; no people) generated as SVG in `src/apps/lib/pictures.jsx` and rasterised once at load; captions and keywords made neutral ("Harbor walk", "Spring garden", "Hurricane Ridge" kept as a place name) |
+| my Pictures & Videos header photo frame | a desert mesa photo in a 3D frame | one of the generated mountain scenes in a CSS 3D frame |
+| Edit Pictures, Identify person | a face box on a photo of a person | the same yellow box placed on a landscape wherever the user clicks; the video's Recent Contacts names are kept |
+| Solitaire cards | (Microsoft's own card art is not used) | original cards: drawn ranks and suit symbols, a Plex-blue patterned back |
+| App icons (toolbars, files, applets, program categories) | Windows XP / Office icons | original SVG glyphs in the Plex palette (`src/apps/lib/icons.jsx`) |
+
+Not substitutions: Internet Explorer shows IE6's own offline page text ("The page cannot be
+displayed") for every address; Microsoft product names (Outlook, Word, Internet Explorer, Windows)
+appear as the brief allows.
