@@ -27,8 +27,8 @@ try {
 export const slabMaterial = (id) => ({
   w: BASE,
   h: BASE,
-  d: 30,
-  radius: 13,
+  d: 24,
+  radius: 11,
   map: pic(id),
   edgeColor: [0.72, 0.84, 1.0],
   edgeMix: 0.35,
