@@ -64,6 +64,21 @@ export function openPose(rel) {
 }
 export const openMoving = (rel) => rel > 4.5 && rel < OPEN_END + 1
 
+// lighting while the window swings in: its left side is washed light and its right side
+// shaded (measured on the body/toolbar brightness, f702-712): [rel, light alpha, shade alpha]
+const OPEN_LIGHT = table([
+  [5, 0.55, 0.45],
+  [7, 0.55, 0.45],
+  [8, 0.49, 0.34],
+  [9, 0.45, 0.25],
+  [10, 0.35, 0.14],
+  [11, 0.25, 0.08],
+  [12, 0.17, 0.04],
+  [14, 0.06, 0.01],
+  [16, 0, 0],
+])
+export const openLight = (rel) => (rel >= 16 ? null : OPEN_LIGHT(rel))
+
 export function poseCss(p) {
   return {
     transform: `perspective(1600px) translate3d(${p.tx}px, ${p.ty}px, ${p.tz}px) rotateY(${p.ry}deg) rotateX(${p.rx}deg) rotateZ(${p.rz}deg) scale(${p.sx ?? 1}, ${p.sy ?? 1})`,
@@ -73,41 +88,39 @@ export function poseCss(p) {
 }
 
 // ---------------------------------------------------------------- minimise / restore
-// window-local pose keys [rel, ty, sx, sy, rz (deg), opacity]; transform origin: top centre.
-// rel counts from the music.minimize / music.restore event (reference: 1354.5 / 1403.5).
+// The window rect per frame, measured from the reference (ECC fits where sharp, smear extents
+// where blurred): [rel, tx, ty, sx, sy, opacity]; transform origin: top centre, so ty moves the
+// top edge and sy stretches or squashes the window below it. Minimise: it rises, then stretches
+// down into the taskbar and collapses towards the My Music button; restore is the reverse,
+// ending with an upward bounce that stretches down again.
 const MIN = table([
-  [0, 0, 1, 1, 0, 1],
-  [0.5, -9, 1, 1, 0, 1],
-  [1.5, -18.5, 1, 1, 0, 1],
-  [3.5, -18.5, 1.004, 1.005, 0, 1],
-  [4, -6, 1, 1, 0, 1],
-  [4.5, 32, 0.99, 0.97, 0, 1],
-  [5.5, 140, 0.95, 0.88, 0, 0.88],
-  [6.5, 300, 0.8, 0.68, 0, 0.7],
-  [7.5, 478, 0.58, 0.45, 0, 0.42],
-  [8.5, 625, 0.37, 0.3, 0, 0.12],
-  [9.5, 700, 0.25, 0.2, 0, 0],
+  [0, 0, 0, 1, 1, 1],
+  [0.5, 0, -9, 1, 1, 1],
+  [1.5, 0, -18.5, 1, 1, 1],
+  [2.5, 0, -18.5, 1, 1, 1],
+  [3.5, 0, -18.6, 1.004, 1.004, 1],
+  [4.5, 0, 2, 1, 1.12, 1],
+  [5.5, -0.5, 139, 0.95, 0.98, 1],
+  [6.5, 1.5, 293, 0.8, 0.74, 1],
+  [7.5, 3, 468, 0.583, 0.47, 0.95],
+  [8.5, 5, 618, 0.372, 0.24, 0.8],
+  [9.5, 6, 700, 0.2, 0.12, 0],
 ])
 export const MIN_END = 9.5
 const RESTORE = table([
-  [0, 700, 0.3, 0.25, 0, 0],
-  [0.5, 640, 0.42, 0.32, 0, 0.12],
-  [1.5, 330, 0.69, 0.6, 0, 0.55],
-  [2.5, 80, 0.94, 0.9, 0, 0.88],
-  [3, 25, 0.96, 0.95, 0, 1],
-  [3.5, 1, 0.97, 0.97, 0, 1],
-  [4.5, -32.6, 1.004, 1.004, 0, 1],
-  [5.5, -38, 1.005, 1.005, 0.2, 1],
-  [6.5, -35, 1.003, 1.003, -0.4, 1],
-  [7, -16, 1.001, 1.001, 0, 1],
-  [7.5, -1.7, 1, 1, 0, 1],
-  [8.5, 0, 1, 1, 0, 1],
+  [-0.5, 7, 700, 0.2, 0.12, 0],
+  [0.5, 8.5, 564, 0.376, 0.26, 0.85],
+  [1.5, -0.5, 303, 0.686, 0.66, 1],
+  [2.5, -0.5, 77, 0.893, 0.95, 1],
+  [3.5, 0.3, 1.4, 0.97, 0.972, 1],
+  [4.5, 0, -32.6, 1.004, 1.004, 1],
+  [5.5, 0, -42, 1.002, 1.12, 1],
+  [6.5, 0, -40, 1.001, 1.04, 1],
+  [7.5, 0, -1.7, 1, 1, 1],
+  [8.5, 0, 0, 1, 1, 1],
 ])
 export const RESTORE_END = 8.5
-const minPose = (row) => {
-  const [ty, sx, sy, rz, op] = row
-  return { tx: 0, ty, tz: 0, rx: 0, ry: 0, rz, sx, sy, op, origin: '50% 0%' }
-}
+const minPose = ([tx, ty, sx, sy, op]) => ({ tx, ty, tz: 0, rx: 0, ry: 0, rz: 0, sx, sy, op, origin: '50% 0%' })
 export const minimizePose = (rel) => minPose(MIN(rel))
 export const restorePose = (rel) => minPose(RESTORE(rel))
 
