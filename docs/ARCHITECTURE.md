@@ -111,7 +111,8 @@ boot fade uses) at opacity 0.999 while the OS:
    the scenes' `preload()` / `waitFor()` assets and the slab textures; the login screen is mounted
    and drawn meanwhile;
 2. rehearses (`core/rehearsal.js`): a scripted session (the video's input, the shell scenario,
-   every registered app from `os/apps.js` in batches, log off / shut down / boot) drawn state by
+   every registered app from `os/apps.js` in batches (`rehearseWindows`, the place for other
+   window warm-ups), log off / shut down / boot) drawn state by
    state, each state only once the GPU has caught up with the previous one (a 1 px WebGL
    readback). Every first-time cost lands here: GPU pipeline compiles (Graphite / Dawn / Metal on
    macOS: one per new kind of draw, blend or render-pass format; tens to hundreds of ms each on a
@@ -130,7 +131,8 @@ images in `public/img` and apps are picked up automatically; a new interaction o
 none of the scripts shows should get an event in `core/rehearsal.js`. The boot black must stay the
 session's own black element: a separate cover changed the layers enough that the GPU compiled new
 pipelines on the first frames of the fade-in. Nothing in the rehearsal may persist: it only
-emits into the event log, which the boot replaces.
+emits into the event log, which the boot replaces. The boot black is an overlay on top of the
+scenes, never an opacity group around them (see Glass).
 
 ## Performance (144 Hz)
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
