@@ -123,7 +123,7 @@ export function openBlur(rel) {
   return { n: 4, shutter: 0.5, phase: -0.5 }
 }
 export const minimizeBlur = (mrel) =>
-  mrel > 3.8 ? { n: 16, shutter: 1.32, phase: mrel > 5.8 ? 0 : -0.5 } : { n: 6, shutter: 1, phase: -0.5 }
+  mrel > 3.8 ? { n: 16, shutter: 1.32, phase: mrel > 5.8 ? 0 : -0.5 } : { n: 3, shutter: 1, phase: -0.5 }
 export const restoreBlur = (mrel) => ({ n: 16, shutter: mrel > 4.5 ? 1.36 : 1, phase: mrel < 2 ? -1 : -0.5 })
 
 // close: the open played backwards, 1.6x faster

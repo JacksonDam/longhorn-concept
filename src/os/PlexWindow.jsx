@@ -185,7 +185,9 @@ const propsKey = new WeakMap()
 const winKey = (w) => {
   let pk = propsKey.get(w.props)
   if (pk == null) propsKey.set(w.props, (pk = JSON.stringify(w.props)))
-  return `${w.id}|${w.state === 'closed' || w.lastAction === 'ghost' ? 'open' : w.state}|${w.maximized}|${w.w}|${w.h}|${pk}`
+  // the content's inputs from the window record (not its state: minimising or closing a window
+  // changes its layers' poses, never what it draws)
+  return `${w.id}|${w.w}|${w.h}|${pk}`
 }
 
 // title-bar controls and drag handle (live layer only)
