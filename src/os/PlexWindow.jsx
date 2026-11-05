@@ -460,7 +460,9 @@ function PlexWindowImpl({ win, app, t, active, z }) {
     const rr = blur && k < nEff ? m.rect(tt) : r
     let ct = m.frozen != null ? live : liveContentT(win, app, t)
     if (k > 0 && m.frozen == null) {
-      const tk = t - (k * STAGGER) / FPS
+      // a ghost's copies show what a window that has just opened shows, so the real window
+      // takes them over without re-rendering
+      const tk = ghost ? win.openedAt : t - (k * STAGGER) / FPS
       const ev = lastEventT(win, app, tk)
       const settle = app.settle ?? DEFAULT_SETTLE
       ct = app.snapshot ? app.snapshot(win, tk, ev, settle) : Math.max(win.openedAt, ev) + settle
