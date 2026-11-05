@@ -1,3 +1,48 @@
+/* Fonts
+   - 'Franklin Gothic': the heavy (Demi-style) cut supplied by the user (personal licence,
+     font.download). Use it for the bold Plex words (e.g. "music" in "enjoy music", "All").
+   - 'Libre Franklin': OFL Franklin Gothic revival (Google Fonts / fontsource, latin subset),
+     variable 100-900, for the Book/Medium weights the user's file doesn't have.
+   - 'Plex': convenience family: weights 100-550 map to Libre Franklin, 600-900 to the
+     user's Franklin Gothic. Tahoma (with Verdana fallback) is available for XP-style text. */
+@font-face {
+  font-family: 'Libre Franklin';
+  font-style: normal;
+  font-weight: 100 900;
+  src: url('./assets/fonts/LibreFranklin-latin-wght.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Libre Franklin';
+  font-style: italic;
+  font-weight: 100 900;
+  src: url('./assets/fonts/LibreFranklin-latin-wght-italic.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Franklin Gothic';
+  font-style: normal;
+  font-weight: 400 900;
+  src: url('./assets/fonts/FranklinGothic.woff') format('woff');
+}
+@font-face {
+  font-family: 'Franklin Gothic';
+  font-style: italic;
+  font-weight: 400 900;
+  src: url('./assets/fonts/FranklinGothicItalic.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style: normal;
+  font-weight: 100 550;
+  src: url('./assets/fonts/LibreFranklin-latin-wght.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Plex';
+  font-style: normal;
+  font-weight: 551 900;
+  src: url('./assets/fonts/FranklinGothic.woff') format('woff');
+}
+
 html,
 body,
 #root {
@@ -17,5 +62,5 @@ body,
 }
 
 #stage {
-  font-family: 'Franklin Gothic', 'Franklin Gothic Medium', 'Libre Franklin', Tahoma, sans-serif;
+  font-family: 'Plex', 'Libre Franklin', Tahoma, Verdana, sans-serif;
 }
