@@ -161,7 +161,7 @@ function tasksFor(win, path, node, selNode) {
   }
   const places = []
   if (k !== pathKey(MY_DOCS)) places.push(['my', 'Documents', 'folder', () => go(win, MY_DOCS)])
-  if (k !== pathKey(MY_PICS)) places.push(['my', 'Pictures', 'picture', () => go(win, MY_PICS)])
+  places.push(['my', 'Pictures', 'picture', () => openWin('pictures', 'pictures')])
   places.push(['my', 'Music', 'music', () => openMusic()])
   if (k !== 'my Computer') places.push(['my', 'Computer', 'computer', () => go(win, ['my Computer'])])
   places.push(['Control', 'Panel', 'programs', () => openWin('control', 'control')])
@@ -247,7 +247,7 @@ function FolderTree({ win, path, h, t }) {
 }
 
 export const iconOf = (n) =>
-  ({ computer: 'computer', drive: 'drive', cd: 'cd', floppy: 'floppy', shared: 'shared', doc: 'doc', text: 'text', picture: 'picture', music: 'music' })[n.kind] ||
+  ({ computer: 'computer', drive: 'drive', cd: 'cd', floppy: 'floppy', shared: 'shared', doc: 'doc', text: 'text', picture: 'picture', video: 'picture', music: 'music' })[n.kind] ||
   (n.special === 'pictures' ? 'picture' : n.special === 'music' ? 'music' : 'folder')
 
 // ---- item views -------------------------------------------------------------------------------
@@ -365,6 +365,7 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
   const open = (it) => {
     const n = it.node
     if (n.app === 'music') return openMusic()
+    if (n.app === 'pictures') return openWin('pictures', 'pictures')
     if (n.children && !n.removable) return go(win, follow(n, path))
     openFile(n, path)
   }

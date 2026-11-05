@@ -7,7 +7,7 @@ import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { getWindow } from '../../os/wm.js'
 import { openWin, messageBox } from './common.js'
-import { PICTURES } from './pictures.jsx'
+import { PHOTOS } from './pictures.jsx'
 
 const d = (s) => s // dates are display strings (m/d/yyyy h:mm AM/PM)
 
@@ -20,7 +20,7 @@ const docs = [
   { name: 'Weekend trip.doc', kind: 'doc', size: 22, modified: d('10/24/2003 9:12 AM') },
 ]
 
-const pictureFiles = PICTURES.map((p) => ({ name: p.name + '.jpg', kind: 'picture', size: p.size, modified: p.taken, pic: p.id }))
+const pictureFiles = PHOTOS.map((p) => ({ name: p.name + (p.kind === 'video' ? '.wmv' : '.jpg'), kind: p.kind === 'video' ? 'video' : 'picture', size: parseInt(p.size) * (p.size.endsWith('MB') ? 1024 : 1), modified: `${p.date.m}/${p.date.d}/${p.date.y}`, pic: p.id }))
 
 const music = [
   { name: 'Gomez - Bring it on.wma', kind: 'music', size: 4270, modified: d('6/9/2003 7:30 PM'), track: 0 },
@@ -42,7 +42,7 @@ export const ROOT = {
       special: 'documents',
       children: [
         { name: 'my Music', kind: 'folder', special: 'music', app: 'music', children: music },
-        { name: 'my Pictures', kind: 'folder', special: 'pictures', children: pictureFiles },
+        { name: 'my Pictures', kind: 'folder', special: 'pictures', app: 'pictures', children: pictureFiles },
         { name: 'my Videos', kind: 'folder', children: [] },
         ...docs,
       ],
@@ -99,6 +99,7 @@ export const pathKey = (p) => p.join('/')
 // open a file (folders are navigated by the explorer itself)
 export function openFile(node, path) {
   if (node.app === 'music') return openMusic()
+  if (node.app === 'pictures') return openWin('pictures', 'pictures')
   if (node.removable) {
     const drive = node.name.match(/\(([A-Z]):\)/)?.[1] || 'D'
     messageBox({
@@ -114,7 +115,8 @@ export function openFile(node, path) {
       openWin('word:' + node.name, 'word', { file: node.name })
       return
     case 'picture':
-      openWin('viewer', 'viewer', { pic: node.pic, folder: pathKey(path || MY_PICS) })
+    case 'video':
+      openWin('pictures', 'pictures', { photo: node.pic })
       return
     case 'music':
       emit('media.play', { track: node.track })
@@ -180,6 +182,7 @@ export const typeName = (n) =>
     doc: 'Microsoft Word Document',
     text: 'Text Document',
     picture: 'JPEG Image',
+    video: 'Windows Media Video',
     music: 'Windows Media Audio file',
     drive: 'Local Disk',
     cd: 'CD Drive',
