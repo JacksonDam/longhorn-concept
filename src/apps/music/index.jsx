@@ -8,12 +8,12 @@ import { Txt } from '../../os/text.jsx'
 import { EXPLORER_TOP } from '../../os/ExplorerChrome.jsx'
 import { OPEN_DELAY } from '../../os/windowAnim.js'
 import * as I from '../../os/icons.jsx'
-import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from '../../scenes/music/Body.jsx'
-import { AlbumGrid } from '../../scenes/music/Grid.jsx'
-import { Header } from '../../scenes/music/Header.jsx'
-import { HEADER, PAGE_DELAY, smoothRamp, toRel } from '../../scenes/music/timeline.js'
-import { ALBUMS, TWEET_COVER } from '../../scenes/music/albums.js'
-import { warmSlabs } from '../../scenes/music/SlabCanvas.jsx'
+import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from './Body.jsx'
+import { AlbumGrid } from './Grid.jsx'
+import { Header } from './Header.jsx'
+import { HEADER, PAGE_DELAY, smoothRamp, toRel } from './timeline.js'
+import { ALBUMS, TWEET_COVER } from './albums.js'
+import { warmSlabs } from './SlabCanvas.jsx'
 
 // compile the 3D slab shader at load (never on the frame a slab first appears)
 warmSlabs({ w: 4, h: 4, d: 2, map: TWEET_COVER })

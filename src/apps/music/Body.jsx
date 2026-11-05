@@ -1,8 +1,8 @@
 // Window body of my Music: background, task pane, grid toolbar, scrollbar and status bar.
 // Static (memoised); the album grid and the header are separate components.
 import { memo } from 'react'
-import { Txt, abs, useLayer } from './ui.jsx'
-import * as I from './icons.jsx'
+import { Txt, abs, useLayer } from '../../os/text.jsx'
+import * as I from '../../os/icons.jsx'
 
 const LIGHT = '#a9a9ab'
 const DARK = '#717174'

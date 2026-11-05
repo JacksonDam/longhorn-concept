@@ -3,8 +3,8 @@
 // and its track list. Everything is a pure function of (t, header state).
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
-import { Txt, abs, FONT, HEAVY, useLayer } from './ui.jsx'
-import * as I from './icons.jsx'
+import { Txt, abs, FONT, HEAVY, useLayer } from '../../os/text.jsx'
+import * as I from '../../os/icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
