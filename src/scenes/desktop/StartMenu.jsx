@@ -7,7 +7,6 @@
 // the mock-up. Only entries that open something the OS has.
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
-import { CAPTURE } from '../../core/clock.js'
 import { hasApp } from '../../os/apps.js'
 import { Popup } from './Popup.jsx'
 import { closePopups, hover, hoverOn, hoverOff } from './shellState.js'
@@ -24,9 +23,8 @@ const font = "'Libre Franklin', Tahoma, sans-serif"
 const heavy = "'Franklin Gothic', 'Libre Franklin', sans-serif"
 const shadow = '0 1px 2px rgba(0,25,80,0.75)'
 
-const tour = () => {
-  if (!CAPTURE) location.search = '?demo'
-}
+// Windows Tour: the Help and Support Center's tour page (reloading into ?demo would end the session)
+const tour = () => launch.help({ page: 'tour' })
 // optional small programs (shown when the app is registered)
 const OPTIONAL = [
   { app: 'notepad', label: 'Notepad' },
@@ -75,6 +73,7 @@ function buildRows() {
     y += 26
   })
   out.push({ label: 'switch user', id: 'sm.switch', x: 70, y: 40, w: 70, h: 16, go: () => emit('session.switch'), plain: true })
+  out.push({ label: 'user', id: 'sm.user', x: 6, y: 8, w: 132, h: 30, go: () => launch.control({ applet: 'users' }), plain: true })
   out.push({ label: 'shut down', id: 'sm.shut', x: 196, y: 14, w: 98, h: 24, go: () => emit('session.shutdown'), round: '#d63d2e' })
   out.push({ label: 'log off', id: 'sm.logoff', x: 196, y: 44, w: 98, h: 24, go: () => emit('session.logoff'), round: '#e9a53a' })
   return out
