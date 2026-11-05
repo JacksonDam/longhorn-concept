@@ -13,7 +13,7 @@ export const LOGO = {
 }
 
 // Bottom bar
-export const BAR = { top: 573.5 }
+export const BAR = { top: 572 }
 
 // User tiles
 export const TILE = { size: 55.2, top: 607.2, labelY: 679 }

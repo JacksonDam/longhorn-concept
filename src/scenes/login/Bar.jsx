@@ -1,32 +1,21 @@
 // Bottom bar: translucent band with a highlight line, Shut Down button, clock pill.
 import { memo } from 'react'
+import { asset, preload } from '../../core/preload.js'
 import { BAR, SHUTDOWN, CLOCK } from './layout.js'
+
+// The band is a translucent overlay fitted to the reference over the aurora (tools/login/fit_bar.py):
+// a soft colour/alpha field (4 px cells across, 1 px rows so the thin top and bottom lines stay sharp).
+const BAR_IMG = asset('img/login/bar.png')
+preload([BAR_IMG])
 
 export const BarBand = memo(function BarBand() {
   return (
-    <div style={{ position: 'absolute', left: 0, top: BAR.top, width: 960, height: 720 - BAR.top, pointerEvents: 'none' }}>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'linear-gradient(90deg, rgba(150,200,255,0) 0px, rgba(150,200,255,0.38) 140px, rgba(150,200,255,0.42) 600px, rgba(150,200,255,0.2) 960px)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: 960,
-          height: 2,
-          background:
-            'linear-gradient(90deg, rgba(220,235,255,0) 20px, rgba(220,235,255,0.6) 150px, rgba(220,235,255,0.6) 700px, rgba(220,235,255,0) 880px)',
-        }}
-      />
-      <div style={{ position: 'absolute', left: 0, top: 716 - BAR.top, width: 960, height: 1.5, background: 'rgba(200,225,255,0.25)' }} />
-      <div style={{ position: 'absolute', left: 0, top: 719 - BAR.top, width: 960, height: 1, background: 'rgba(0,20,90,0.35)' }} />
-    </div>
+    <img
+      src={BAR_IMG}
+      alt=""
+      draggable={false}
+      style={{ position: 'absolute', left: 0, top: BAR.top, width: 960, height: 720 - BAR.top, pointerEvents: 'none' }}
+    />
   )
 })
 
