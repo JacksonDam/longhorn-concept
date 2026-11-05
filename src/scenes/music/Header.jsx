@@ -3,7 +3,7 @@
 // and its track list. Everything is a pure function of (t, header state).
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
-import { Txt, abs, FONT, HEAVY, LAYER } from './ui.jsx'
+import { Txt, abs, FONT, HEAVY, useLayer } from './ui.jsx'
 import * as I from './icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
@@ -19,6 +19,7 @@ const DEV = { cx: 101, cy: 93, w: 136, h: 136, d: 26 }
 
 // sc: growth (the swoosh sweeps out from beside the device as it appears)
 export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
+  const LAYER = useLayer()
   // svg coords = window-local - (0, 123)
   return (
     <svg
@@ -77,6 +78,7 @@ export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
 // left to right, then the whole title drifts back into place.
 const TITLE = { x: 361, wy: 161, y: 189 }
 export function Title({ rel, op = 1 }) {
+  const LAYER = useLayer()
   const H = HEADER
   const wk = ramp(rel, H.windows[0], H.windows[1])
   const wOp = smoothRamp(rel, H.windows[0], H.windows[1] - 1)
@@ -145,6 +147,7 @@ const BTN = [
 
 // each button pops in: fades up while shrinking from a slightly larger size
 export function Buttons({ rel, op = 1 }) {
+  const LAYER = useLayer()
   return BTN.map((b, i) => {
     const s0 = HEADER.buttons[i]
     const k = ramp(rel, s0, s0 + HEADER.buttonDur)

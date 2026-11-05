@@ -1,7 +1,7 @@
 // Window body of my Music: background, task pane, grid toolbar, scrollbar and status bar.
 // Static (memoised); the album grid and the header are separate components.
 import { memo } from 'react'
-import { Txt, abs, LAYER } from './ui.jsx'
+import { Txt, abs, useLayer } from './ui.jsx'
 import * as I from './icons.jsx'
 
 const LIGHT = '#a9a9ab'
@@ -27,6 +27,7 @@ export const BodyBg = memo(function BodyBg() {
 
 // "enjoy music" fades in a little after the rest of the window (op)
 export const EnjoyGroup = memo(function EnjoyGroup({ op = 1 }) {
+  const LAYER = useLayer()
   if (op <= 0) return null
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, opacity: op, willChange: LAYER }}>

@@ -12,7 +12,11 @@ import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from '../
 import { AlbumGrid } from '../../scenes/music/Grid.jsx'
 import { Header } from '../../scenes/music/Header.jsx'
 import { HEADER, PAGE_DELAY, smoothRamp, toRel } from '../../scenes/music/timeline.js'
-import { ALBUMS } from '../../scenes/music/albums.js'
+import { ALBUMS, TWEET_COVER } from '../../scenes/music/albums.js'
+import { warmSlabs } from '../../scenes/music/SlabCanvas.jsx'
+
+// compile the 3D slab shader at load (never on the frame a slab first appears)
+warmSlabs({ w: 4, h: 4, d: 2, map: TWEET_COVER })
 
 // the window's reference time: rel 0 = music.open + OPEN_DELAY (video frame 694)
 const openT = (win) => win.openedAt + OPEN_DELAY / FPS
@@ -102,6 +106,6 @@ export default {
   Content: MusicContent,
   Overlay: MusicOverlay,
   snapshot,
-  copies: 16,
+  copies: 10,
   settle: 2.5,
 }

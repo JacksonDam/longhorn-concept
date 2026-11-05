@@ -2,12 +2,27 @@
 // window can render its own sub-frame pose) and without reading the clock itself.
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useStageScale } from '../../core/Stage.jsx'
-import { renderSlabs, SlabScene } from '../../gl/slab.js'
+import { renderSlabs, SlabScene, texturesReady } from '../../gl/slab.js'
 
 // cacheKey: canvases rendering the same image in one frame (e.g. the blur copies of the window in
 // real-time playback, which all show the slab at the frame time) share one GL render: the first
 // renders, the others copy its pixels (a cheap 2D copy instead of another GPU readback).
 const shared = new Map() // cacheKey -> { key, canvas }
+
+// Shader warm-up: compile the slab program at load and keep one material alive for the page's
+// lifetime, so slabs mounting later (the window open, the album page) never compile on their
+// first frame (a 25-300 ms stall otherwise: three.js frees a program with its last material).
+const warm = { scene: null }
+export function warmSlabs(slab) {
+  if (warm.scene || typeof document === 'undefined') return
+  warm.scene = new SlabScene()
+  const c = document.createElement('canvas')
+  const draw = () =>
+    renderSlabs(c.getContext('2d'), warm.scene, [{ slab: slab || { w: 4, h: 4, d: 2 }, pose: () => ({ x: 4, y: 4 }) }], [0], { cw: 8, ch: 8, scale: 1, P: 900 })
+  draw()
+  // and once more when the picture has loaded, so its texture (and mipmaps) are uploaded too
+  texturesReady().then(draw)
+}
 
 // skip: keep the last pixels (the canvas is on an invisible layer)
 export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, phase = -0.5, P = 1000, origin, style, cacheKey, skip }) {

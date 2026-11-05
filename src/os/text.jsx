@@ -34,8 +34,10 @@ export function Txt({ x, y, size = 12, w = 400, c = '#000', f = FONT, ls = 0, sx
   )
 }
 
-// elements that change every frame get their own compositor layer (one rendering path for
-// real time and capture: docs/briefs/perf.md)
-export const LAYER = 'transform, opacity'
+import { createContext, useContext } from 'react'
+// Elements that change every frame get their own compositor layer, but only in a window's live
+// copy: motion-blur copies show static snapshots, where extra layers would only cost memory.
+export const LiveLayers = createContext(true)
+export const useLayer = () => (useContext(LiveLayers) ? 'transform, opacity' : undefined)
 
 export const abs = (x, y, w, h, extra) => ({ position: 'absolute', left: x, top: y, width: w, height: h, ...extra })

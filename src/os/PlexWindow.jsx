@@ -15,7 +15,7 @@ import { memo, useRef } from 'react'
 import { emit, getLog } from '../core/events.js'
 import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
-import { Txt, abs, HEAVY } from './text.jsx'
+import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
 import { Beam } from './Beam.jsx'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
@@ -280,13 +280,21 @@ function motion(win, app, t) {
   // open
   const rel = toRel(t, tOpen)
   const res = { ...base, light: rel, beam: { rel, haze: true, fanOp: 0.6, dx: dock.x - 440 } }
-  if (rel < 5) return { ...res, hidden: true }
+  if (rel < 5) return { ...res, hidden: true, warm: openPose(6) }
   if (openMoving(rel)) return { ...res, ...openBlur(rel), pose: (tt) => openPose(toRel(tt, tOpen)) }
   if (win.maximizedAt != null && toRel(t, win.maximizedAt) < MAX_FRAMES + 1) return { ...res, n: 6, shutter: 1 }
   return res
 }
 
 // ---------------------------------------------------------------- the window
+// the app's live overlay, memoised: blur copies pass their snapshot time, so their overlay
+// renders once per snapshot instead of every frame
+const OverlayLayer = memo(
+  function OverlayLayer({ Overlay, win, t, skip }) {
+    return <Overlay win={win} t={t} skip={skip} />
+  },
+  (a, b) => a.t === b.t && a.skip === b.skip && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
+)
 const STAGGER = 2 // frames between copy snapshot updates
 // the content time a blur copy shows (app.snapshot overrides): the settled state after the
 // latest event at or before tk
@@ -326,6 +334,10 @@ export function PlexWindow({ win, app, t, active }) {
     } else if (k === 0) {
       const p = m.pose ? m.pose(t) : null
       style = { ...(p ? poseCss(p) : null), opacity: m.hidden || (p && p.op <= 0) ? 0 : p ? p.op : 1 }
+    } else if (m.warm) {
+      // before the open is visible: copies are rasterised in their first visible pose, all but
+      // invisible, so the first blurred frame finds their rasters ready
+      style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = { opacity: 0 }
     const rr = blur && k < nEff ? m.rect(tt) : r
     let ct = live
@@ -344,8 +356,10 @@ export function PlexWindow({ win, app, t, active }) {
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
-        <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} />
-        {Overlay && <Overlay win={win} t={live} skip={!visible} />}
+        <LiveLayers.Provider value={k === 0}>
+          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} />
+        </LiveLayers.Provider>
+        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {m.light != null && m.light < 17 && <OpenLight rel={toRel(tt, win.openedAt + OPEN_DELAY / FPS)} w={rr.w} h={rr.h} topH={topH} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={Math.min(72, topH || 72)} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} topH={topH} active={active} />}
