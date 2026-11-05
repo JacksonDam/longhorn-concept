@@ -64,7 +64,9 @@ export const ShutDown = memo(function ShutDown({ onClick }) {
         <ellipse cx="0" cy={-r * 0.42} rx={r * 0.78} ry={r * 0.5} fill="url(#sd-top)" />
         <line x1="0" y1="-4.5" x2="0" y2="4.5" stroke="#9cc6ff" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
-      <div style={{ ...labelStyle, left: cx - 40, width: 80, top: labelY - 7, fontSize: 12.5 }}>Shut Down</div>
+      <div onPointerDown={onClick} style={{ ...labelStyle, left: cx - 40, width: 80, top: labelY - 7, fontSize: 12.5, cursor: 'pointer' }}>
+        Shut Down
+      </div>
     </>
   )
 })

@@ -102,3 +102,35 @@ demo input: src/demo/login.js.
 - Local verification aids: ?capture&refbg (reference frame behind the UI), ?capture&nobar
   (aurora without the bar, for tools/login/fit_bar.py), ?mb={...} (blur overrides),
   ?slab={...} (slab material overrides).
+
+## Session flow (os/session.js, App.jsx, scenes/session/PowerScreens.jsx)
+- Screens from the event log: login -> desktop ('login.submit' { id }), desktop -> login
+  ('session.logoff', 'session.switch'), login|desktop -> shutdown ('session.shutdown') -> off
+  (timed) -> boot ('session.boot', the off screen's power button) -> login (timed).
+- After the second reference video (ref2 f02775-f02888): log off / switch user is a hard cut from
+  the desktop to the login screen (ref2 2798 -> 2799); shutting down shows the login screen (held
+  28 frames when coming from the desktop) and fades it linearly to black over 61 frames
+  (ref2 2827-2888). Booting fades the login screen in from black over 30 frames (not shown in
+  either video). The off screen is black with a glass power button (needed to switch back on).
+- Each login visit starts afresh (loginSince: selection, password, hovers and submit count from
+  the visit's start). The login scene stays mounted while hidden (aurora canvas paused), so a
+  visit starts without a new GL context or shader compile.
+- currentUser(t) = { id, name, email, picture, washed } on the desktop, else null.
+- Any user can log in with any password. Switch User currently behaves like Log Off (wm.js clears
+  the windows on every 'login.submit').
+- `?scenario=session` (with ?capture, ?bench or ?demo) replaces the video's input with the
+  scripted flows in demo/session.js (Tommy, log off, Kelly, switch user, shut down from the login,
+  boot, Angela, shut down from the desktop, boot); bench with
+  `node tools/bench.mjs 1-1000 --url http://localhost:5201/longhorn-concept/?scenario=session`.
+- Debug: `__lh.emit('session.logoff')` etc. drives the flow by hand.
+
+## Performance notes (docs/briefs/perf.md)
+- One rendering path: the slab canvas is cropped to the slabs (64 px steps so render targets are
+  reused), the shared slab GL canvas has no MSAA / preserved buffer, the aurora canvas is opaque
+  without a preserved buffer, blur copies get their own layers (`will-change`) while moving.
+- Layers that move while composited are laid out at fixed positions and moved by transforms only;
+  sliding tiles move in whole device pixels, so a composited copy looks the same whatever frame
+  it was first rasterised on (capture output does not depend on seek order).
+- The slab halo is a pre-rendered glow image (no per-frame box-shadow blur). The panel's 32 blur
+  copies mount 8 per frame ahead of the sweep (k 20.5-24.5); its soft shapes use gradients, not
+  SVG blur filters.

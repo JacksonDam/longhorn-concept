@@ -4,7 +4,8 @@ import { useTime } from '../../core/time.jsx'
 import { useStageScale } from '../../core/Stage.jsx'
 import { AuroraRenderer, keysReady } from './aurora.js'
 
-export function Aurora({ style }) {
+// paused: keep the canvas and its GL context (so coming back is instant) but draw nothing
+export function Aurora({ style, paused = false }) {
   const t = useTime()
   const ref = useRef(null)
   const r = useRef(null)
@@ -17,7 +18,7 @@ export function Aurora({ style }) {
   useLayoutEffect(() => {
     if (!ref.current) return
     if (!r.current) r.current = new AuroraRenderer(ref.current)
-    r.current.render(t, Math.round(960 * k), Math.round(720 * k))
+    if (!paused) r.current.render(t, Math.round(960 * k), Math.round(720 * k))
   })
   return <canvas ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, ...style }} />
 }
