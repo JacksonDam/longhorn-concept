@@ -106,6 +106,7 @@ async function rehearse(lvl, deadline) {
       if (part >= 0) bootStats[parts[part].name] = Math.round(performance.now() - t)
       part++
       t = performance.now()
+      // (the windows part: rehearsal.js rehearseWindows, where other window warm-ups join)
       if (parts[part].name === 'apps') await preloaded()
     }
     await nextFrame()

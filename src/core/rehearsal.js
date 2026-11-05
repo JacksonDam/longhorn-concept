@@ -57,6 +57,25 @@ const VIDEO_FRAMES = [1, 186, 194, 516, 523, 533, 545, 562, 580, 970, 978, 986, 
 
 const BATCH = 12 // apps shown together (each window keeps a few composited layers while it shows)
 
+// The window warm-up, kept apart so other window warm-ups (e.g. pre-building each app's
+// motion-blur copy trees) can join it: every registered app, a batch at a time, opened and drawn
+// settled (the open and close motions themselves are the shell part's window's), then closed.
+// That is the first run of each app's code and its first style, layout and raster (the windows
+// running since login are among them: Outlook, Word). Appends to the log `ev` and the frames to
+// draw from video frame `f` on; returns the first frame after it.
+export function rehearseWindows(f, ev, frames) {
+  const apps = listApps().filter((a) => a.id !== 'music')
+  for (let i = 0; i < apps.length; i += BATCH) {
+    const batch = apps.slice(i, i + BATCH)
+    for (const a of batch) ev.push({ type: 'win.open', id: ID[a.id] || 'warm.' + a.id, app: a.id, ...(PROPS[a.id] ? { props: PROPS[a.id] } : {}), t: frameTime(f) })
+    frames.add(f + 40).add(f + 41)
+    for (const a of batch) ev.push({ type: 'win.close', id: ID[a.id] || 'warm.' + a.id, t: frameTime(f + 42) })
+    f += 72
+  }
+  frames.add(f)
+  return f
+}
+
 export function rehearsal() {
   const ev = []
   const frames = new Set(VIDEO_FRAMES)
@@ -81,18 +100,8 @@ export function rehearsal() {
   for (const { frame, type, ...data } of shellScenario.filter((e) => e.frame >= 95 && e.frame < 400)) at(SHELL0 + frame - 95, type, data)
   let f = SHELL0 + 400 - 95
   parts.push({ name: 'apps', from: f })
-  // 3. every registered app, a batch at a time, settled (its window's open and close motions are
-  //    the shell's window's): the first run of its code, its first style, layout and raster
-  //    (the windows running since login are among them: Outlook, Word)
-  const apps = listApps().filter((a) => a.id !== 'music')
-  for (let i = 0; i < apps.length; i += BATCH) {
-    const batch = apps.slice(i, i + BATCH)
-    for (const a of batch) ev.push({ type: 'win.open', id: ID[a.id] || 'warm.' + a.id, app: a.id, ...(PROPS[a.id] ? { props: PROPS[a.id] } : {}), t: frameTime(f) })
-    frames.add(f + 40).add(f + 41)
-    for (const a of batch) ev.push({ type: 'win.close', id: ID[a.id] || 'warm.' + a.id, t: frameTime(f + 42) })
-    f += 72
-  }
-  frames.add(f)
+  // 3. every registered app's window (rehearseWindows)
+  f = rehearseWindows(f, ev, frames)
   // 4. the session screens: log off (back to the login screen), a second login, shut down from
   //    the desktop (the login screen fades to black), the off screen, boot (fading in)
   parts.push({ name: 'session', from: f })
