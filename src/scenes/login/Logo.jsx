@@ -15,10 +15,13 @@ preload([FLAG, WORDS, VAIO])
 const { x, y, w, h } = LOGO
 const FlagImg = memo(() => <img src={FLAG} alt="" draggable={false} style={{ display: 'block', width: w, height: h }} />)
 
-export function Logo({ t, submitT }) {
-  const k = submitT == null ? null : t - submitT
+export function Logo({ t, exitK }) {
+  const k = exitK(t)
   const words = k == null ? { opacity: 1 } : wordsExit(k)
-  const flagPose = (tt) => (submitT == null ? {} : flagExit(tt - submitT))
+  const flagPose = (tt) => {
+    const kk = exitK(tt)
+    return kk == null ? {} : flagExit(kk)
+  }
   const flagMoving = k != null && k > 0 && k < 0.6
   return (
     <>
