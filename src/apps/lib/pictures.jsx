@@ -47,7 +47,7 @@ const shift = (hex, k) => {
 function sceneSvg(scene, seed) {
   const p = SCENES[scene] || SCENES.meadow
   const r = rnd(seed + 11)
-  const k = (r() - 0.5) * 0.16
+  const k = (r() - 0.5) * 0.3
   const o = []
   o.push(`<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shift(p.sky[0], k)}"/><stop offset="1" stop-color="${p.sky[1]}"/></linearGradient><radialGradient id="g"><stop offset="0" stop-color="#fff" stop-opacity="0.7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>`)
   o.push('<rect width="160" height="120" fill="url(#s)"/>')
@@ -56,6 +56,16 @@ function sceneSvg(scene, seed) {
     const sy = p.sun[1] + (r() - 0.5) * 10
     o.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${p.sun[2] * 3}" fill="url(#g)" opacity="0.6"/><circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="${p.sun[2]}" fill="${p.sun[3]}"/>`)
   }
+  // a few clouds
+  const nc = Math.floor(r() * 4)
+  for (let i = 0; i < nc; i++) {
+    const cx = r() * 160
+    const cy = 10 + r() * 35
+    const cw = 14 + r() * 26
+    o.push(`<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${cw.toFixed(1)}" ry="${(cw * 0.28).toFixed(1)}" fill="#fff" opacity="${(0.35 + r() * 0.4).toFixed(2)}"/><ellipse cx="${(cx + cw * 0.4).toFixed(1)}" cy="${(cy - 3).toFixed(1)}" rx="${(cw * 0.5).toFixed(1)}" ry="${(cw * 0.25).toFixed(1)}" fill="#fff" opacity="0.5"/>`)
+  }
+  const hz = (r() - 0.5) * 18 // horizon shift
+  o.push(`<g transform="translate(0 ${hz.toFixed(1)})">`)
   ;(p.hills || []).forEach(([c, base, amp], i) => o.push(`<path d="${ridge(seed * 7 + i * 3 + 1, base + (r() - 0.5) * 8, amp * (0.8 + r() * 0.4))}" fill="${shift(c, k)}"/>`))
   if (p.snow) o.push(`<path d="${ridge(seed * 7 + 1, 64, 40).replace(/L160 120 Z$/, 'L160 70 L0 70 Z')}" fill="#fff" opacity="0.55"/>`)
   if (p.water) {
@@ -75,7 +85,14 @@ function sceneSvg(scene, seed) {
       o.push(`<rect x="${x}" y="${(120 - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="#141a3a"/>`)
       for (let j = 0; j < Math.floor(bh / 7); j++) if (r() > 0.4) o.push(`<rect x="${x + 2 + (j % 2) * 3}" y="${(124 - bh + j * 7).toFixed(1)}" width="2" height="2" fill="#ffd77a"/>`)
     }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 160 120" preserveAspectRatio="xMidYMid slice">${o.join('')}</svg>`
+  o.push(`<rect x="0" y="120" width="160" height="30" fill="${p.sand || p.water || (p.hills && p.hills[p.hills.length - 1][0]) || '#333'}"/></g>`)
+  // each photo frames the scene differently (zoom and pan)
+  const z = 1 + r() * 0.7
+  const vw = 160 / z
+  const vh = 120 / z
+  const vx = r() * (160 - vw)
+  const vy = (0.3 + r() * 0.7) * (120 - vh)
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="${vx.toFixed(1)} ${vy.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}" preserveAspectRatio="xMidYMid slice">${o.join('')}</svg>`
 }
 
 const urls = new Map()

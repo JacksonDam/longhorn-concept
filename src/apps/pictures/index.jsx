@@ -174,7 +174,7 @@ function TaskPane({ win, t, st }) {
   return (
     <>
       <Head a="enjoy" b="pictures" y={8} />
-      {L('show', 32, 'View Slide show', 'slideshow', () => slideshow(null, true))}
+      {L('show', 32, 'View Slide show', 'display', () => slideshow(null, true))}
       {L('album', 50, 'Create an Album', 'picture', () => openWin('album', 'album'))}
       {L('dvd', 68, 'Burn DVD', 'cd', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
       {L('share', 86, 'Share Pictures', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: 'my Pictures & Videos' }))}
@@ -189,7 +189,7 @@ function TaskPane({ win, t, st }) {
       <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} />
       <div style={{ ...small, left: PANE_X - 8, top: 450 }}>Of this file type:</div>
       {L('tpic', 466, 'Pictures', 'picture', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
-      <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'slideshow', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
+      <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'display', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
       {L('talb', 484, 'Albums', 'folder', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
     </>
   )
