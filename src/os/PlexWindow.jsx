@@ -148,7 +148,8 @@ const Title = memo(function Title({ w, title, TitleContent, active, props }) {
 // the frame + app content at time t (copies pass a snapshot time)
 const WindowBody = memo(
   // ck: optional content key (app.copyKey): copies with an unchanged key don't re-render
-  function WindowBody({ win, app, t, w, h, active, live, ck, proxy }) {
+  // defer: the content isn't mounted yet (an opening window mounts its frame first, see below)
+  function WindowBody({ win, app, t, w, h, active, live, ck, proxy, defer }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
@@ -161,11 +162,13 @@ const WindowBody = memo(
           background: bare ? undefined : app.background ?? '#fff',
         }}
       >
-        {!bare && (explorer ? <ExplorerChrome win={win} app={app} w={w} t={t} /> : <PlainTitleBg w={w} />)}
+        {!bare && (explorer ? <ExplorerChrome win={win} app={app} w={w} t={t} copy={!live} /> : <PlainTitleBg w={w} />)}
         <div style={{ position: 'absolute', left: 0, top: topH, width: w, height: h - topH, overflow: bare ? 'visible' : 'hidden' }}>
-          <ErrorBoundary name={app.title ? app.title(win.props || {}) : app.id}>
-            <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
-          </ErrorBoundary>
+          {!defer && (
+            <ErrorBoundary name={app.title ? app.title(win.props || {}) : app.id}>
+              <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
+            </ErrorBoundary>
+          )}
         </div>
         {!bare && <Title w={w} title={app.title ? app.title(win.props || {}) : app.id} TitleContent={app.TitleContent} active={active} props={win.props} />}
         {!bare && (
@@ -178,7 +181,7 @@ const WindowBody = memo(
   },
   (a, b) =>
     (a.ck != null && a.ck === b.ck ? true : sameRelT(a, b)) &&
-    a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && a.proxy === b.proxy && winKey(a.win) === winKey(b.win),
+    a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && a.proxy === b.proxy && a.defer === b.defer && winKey(a.win) === winKey(b.win),
 )
 // content time relative to the window's open: a prewarmed ghost and the window that takes over
 // its layers render identical content at the same relative time, so nothing re-renders
@@ -407,9 +410,10 @@ function mountedCopies(win, app, t, N) {
   // queued windows (ghosts, windows running at login) mount nothing until their turn
   let n = win.mountStart != null && (win.lastAction === 'ghost' || win.lastAction === 'initial') ? 0 : 1
   if (win.mountStart != null) n = Math.max(n, Math.ceil(toRel(t, win.mountStart) / MOUNT_EVERY))
-  // a window opened later mounts one copy per frame during the frames before it shows (the open
-  // is visible from rel 5, the beam plays meanwhile)
-  if (win.lastAction !== 'ghost' && win.lastAction !== 'initial') n = Math.max(n, 1 + Math.floor(Math.max(0, toRel(t, win.openedAt))))
+  // a window opened later mounts its live layer on the open's frame (frame and chrome first, its
+  // content on the next frame, see PlexWindowImpl), then one copy per frame from rel 2 while the
+  // beam plays (the open shows from rel 5; the sixth copy joins at rel 6)
+  if (win.lastAction !== 'ghost' && win.lastAction !== 'initial') n = Math.max(n, Math.floor(toRel(t, win.openedAt) + 1e-6))
   return Math.max(0, Math.min(N, n))
 }
 
@@ -458,6 +462,12 @@ function PlexWindowImpl({ win, app, t, active, z }) {
     (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'ghost' && (win.lastAction !== 'initial' || mounted >= N)
   const rest = shown ? REST : PARKED
   const keepLayers = ghost || win.state === 'closed' || win.lastAction === 'open'
+  // an opening window that has never mounted its content mounts its frame and chrome on the open
+  // event's frame and the content on the next (it shows from rel 5), so the two mounts don't
+  // share a frame; prewarmed and reopened windows have it mounted already
+  const contentMounted = useRef(false)
+  const deferContent = !contentMounted.current && !app.prewarm && win.lastAction === 'open' && toRel(t, win.openedAt) < 1 - 1e-6
+  if (!deferContent) contentMounted.current = true
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -508,7 +518,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody proxy={k > 0 ? app.Proxy : undefined} win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
+          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
