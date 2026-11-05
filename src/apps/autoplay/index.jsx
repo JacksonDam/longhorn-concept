@@ -36,8 +36,8 @@ function AutoPlay({ win, t, w, h }) {
   })
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      <div style={{ position: 'absolute', left: 12, top: 12, fontFamily: FONT, fontSize: 16, color: '#4a5068', whiteSpace: 'nowrap' }}>Transfer pictures and video to your computer</div>
-      <div style={{ position: 'absolute', left: 36, top: 36, fontFamily: HEAVY, fontSize: 11, color: '#2c6cc4' }}>Which provider do you want to use?</div>
+      <div onPointerDown={(e) => e.button === 0 && (closeWin(win.id), openWin('acquire', 'acquire'))} style={{ position: 'absolute', left: 12, top: 12, fontFamily: FONT, fontSize: 16, color: '#4a5068', whiteSpace: 'nowrap' }}>Transfer pictures and video to your computer</div>
+      <div onPointerDown={(e) => e.button === 0 && (closeWin(win.id), openWin('acquire', 'acquire'))} style={{ position: 'absolute', left: 36, top: 36, fontFamily: HEAVY, fontSize: 11, color: '#2c6cc4' }}>Which provider do you want to use?</div>
       <div style={{ position: 'absolute', left: 12, top: 54, width: w - 24, height: 1, background: C.borderLight }} />
       <div style={{ position: 'absolute', left: 12, top: 60 }} {...hov('maker')} onPointerDown={(e) => e.button === 0 && messageBox({ title: 'Digital Camera', icon: 'info', text: "The camera maker's transfer program is not installed on this computer.\nUse Windows Picture and Video Acquisition instead." })}>
         <div style={{ position: 'absolute', left: 40, top: -2, fontFamily: HEAVY, fontSize: 9.5, color: '#2c6cc4' }}>New!</div>
