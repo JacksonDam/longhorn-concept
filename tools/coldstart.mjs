@@ -22,13 +22,16 @@
 //                other GPU work queues behind a backlog of WebGL frames: stalls that a real display
 //                never shows. --hz 60 --vsync: Chrome's own (headless, 60 Hz) vsync instead.
 // --trace:       record a CDP trace of the first run and attribute every frame over 25 ms
-//                (main-thread self time by event, JS by function from the CPU profiler samples,
-//                GPU / raster / compositor busy time); written to <out>/<run>-frames.txt
+//                (main-thread self time by event, JS by function from the CPU profiler samples
+//                and the bundle's source map if served, GPU pipelines compiled); written to
+//                <out>/<run>-frames.txt. TRACE_CATS=a,b,... replaces the categories.
 // Serve the build with tools/pages.mjs (HTTP/2, gzip and the live site's cache headers) for runs
 // that include the network; `vite preview` sends no-cache and no compression.
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, createWriteStream, createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
+import { get as httpsGet } from 'node:https'
+import { get as httpGet } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -387,12 +390,20 @@ var smc = null // source map consumer of the bundle (for --trace JS attribution)
 async function loadSourceMap(events) {
   const urls = new Set()
   for (const e of events) if (e.method === 'Network.responseReceived' && /\/assets\/index-[^/]+\.js$/.test(e.params.response.url)) urls.add(e.params.response.url)
+  // (node's fetch refuses tools/pages.mjs's self-signed certificate)
+  const get = (u) =>
+    new Promise((resolve, reject) =>
+      (u.startsWith('https:') ? httpsGet : httpGet)(u, { rejectUnauthorized: false }, (res) => {
+        if (res.statusCode !== 200) return reject(new Error(res.statusCode)), res.resume()
+        let d = ''
+        res.setEncoding('utf8').on('data', (c) => (d += c)).on('end', () => resolve(d))
+      }).on('error', reject),
+    )
   for (const u of urls) {
     try {
-      const r = await fetch(u + '.map')
-      if (!r.ok) continue
+      const map = JSON.parse(await get(u + '.map'))
       const { SourceMapConsumer } = await import('source-map-js')
-      smc = { url: u, c: new SourceMapConsumer(await r.json()) }
+      smc = { url: u, c: new SourceMapConsumer(map) }
     } catch { /* no map */ }
   }
 }
