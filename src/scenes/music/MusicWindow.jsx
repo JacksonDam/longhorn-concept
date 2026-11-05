@@ -254,7 +254,7 @@ function SlabLayer({ t, st, vs }) {
 
 // mount: how many layers to mount (the open mounts them one per ~half frame while it is still
 // hidden, so the first blurred frame finds them ready)
-function RealtimeWindow({ t, n = 1, shutter = 0, phase = -0.5, pose, st, vs, frozen, hidden = false, mount = MAX_COPIES }) {
+function RealtimeWindow({ t, n = 1, shutter = 0, phase = -0.5, pose, st, vs, frozen, hidden = false, mount = MAX_COPIES, slabs = true }) {
   const N = Math.max(1, Math.min(MAX_COPIES, mount))
   const blur = n > 1
   const nEff = Math.min(n, N)
@@ -293,7 +293,7 @@ function RealtimeWindow({ t, n = 1, shutter = 0, phase = -0.5, pose, st, vs, fro
     <>
       <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>{layers}</div>
       <div style={{ ...winBox, ...(sp ? poseCss(sp) : null), opacity: slabOp, pointerEvents: 'none', willChange: 'transform, opacity' }}>
-        <SlabLayer t={live} st={st} vs={vs} />
+        {slabs && <SlabLayer t={live} st={st} vs={vs} />}
       </div>
     </>
   )
@@ -375,7 +375,7 @@ function MusicWindowLayer({ t }) {
     beam = <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
   } else if (st.changedAt === st.openedAt) {
     beam = <Beam rel={rel} haze fanOp={0.6} />
-    if (rel < 5) blur = { n: 1, hidden: true, mount: 1 + Math.floor(Math.max(0, rel) / 0.6) }
+    if (rel < 5) blur = { n: 1, hidden: true, mount: 1 + Math.floor(Math.max(0, rel - 1) / 0.6), slabs: rel >= 0.7 }
     else if (openMoving(rel)) {
       const pose = (tt) => openPose(toRel(tt, st.openedAt))
       // real time: the settle after rel 9 moves only a few px per frame, so it plays unblurred
