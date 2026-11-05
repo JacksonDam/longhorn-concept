@@ -3,7 +3,6 @@
 // Entrance (frames 193-199): the panel sweeps in from behind the slab with a long horizontal
 // motion blur and a small overshoot; exit: fades.
 import { memo } from 'react'
-import { MotionBlur } from '../../core/MotionBlur.jsx'
 import { clamp } from '../../core/anim.js'
 import { FPS, CAPTURE } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
@@ -45,6 +44,7 @@ function sweep(k) {
   return 0
 }
 export const PANEL_IN = 24.8 // k when the panel starts to show
+const PREMOUNT = 20.5 // copies mount over k 20.5-24.5 (n/4 per frame)
 
 const text = { position: 'absolute', whiteSpace: 'nowrap', lineHeight: 1 }
 
@@ -68,13 +68,16 @@ const Field = memo(function Field() {
           <stop offset="0" stopColor="#d4f6ff" stopOpacity="0.95" />
           <stop offset="1" stopColor="#8fd0ff" stopOpacity="0" />
         </linearGradient>
-        <filter id="pw-soft" x="-20%" y="-50%" width="140%" height="200%">
-          <feGaussianBlur stdDeviation="1.6" />
-        </filter>
+        <linearGradient id="pw-glow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#a8c8ff" stopOpacity="0" />
+          <stop offset="0.5" stopColor="#a8c8ff" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#a8c8ff" stopOpacity="0" />
+        </linearGradient>
       </defs>
       {/* soft light under the field and the tail running into the orb */}
-      <rect x="8" y="17" width="150" height="7" rx="3.5" fill="#a8c8ff" opacity="0.55" filter="url(#pw-soft)" />
-      <path d="M150 22 C 162 24, 168 26, 178 25" stroke="#9fc4ff" strokeWidth="3" fill="none" opacity="0.6" filter="url(#pw-soft)" />
+      {/* (soft shapes drawn with gradients rather than SVG blur filters: cheap to rasterise) */}
+      <rect x="5" y="14.3" width="156" height="12.4" rx="6.2" fill="url(#pw-glow)" />
+      <path d="M150 22 C 162 24, 168 26, 178 25" stroke="#9fc4ff" strokeWidth="4.5" fill="none" opacity="0.35" strokeLinecap="round" />
       <rect x="6" y="6" width="150.5" height="14" rx="7" fill="url(#pw-field)" />
       {/* go button */}
       <g transform="translate(178.5 11)">
@@ -133,22 +136,19 @@ export function Panel({ t, row, submitT }) {
   const id = row.records.find((r) => r.back == null)?.id
   if (!id) return null
   const k = (t - change.t) * FPS
-  if (k < PANEL_IN) return null
+  // mounted (and its blur copies rasterised, all but invisible at the rest position) a few
+  // frames before it sweeps in, so the sweep's first frame is a composite, not 32 rasters
+  if (k < PREMOUNT) return null
   const len = passwordLength(t)
   const ex = submitT != null ? panelExit(t - submitT) : { opacity: 1 }
   const moving = k < 31
-  return (
-    <MotionBlur
-      t={t}
-      moving={moving}
-      {...blur('panel')}
-      layerStyle={moving ? layerHint : undefined}
-      style={{ left: P.left, top: P.top, width: P.width, height: P.height, opacity: ex.opacity }}
-      pose={(tt) => {
-        const kk = (tt - change.t) * FPS
-        return { transform: `translateX(${sweep(kk).toFixed(2)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
-      }}
-    >
+  const pose = (tt) => {
+    const kk = (tt - change.t) * FPS
+    if (kk < 25.3) return { transform: 'translateX(0px)', opacity: 0.004 }
+    return { transform: `translateX(${sweep(kk).toFixed(2)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
+  }
+  const body = (
+    <>
       <PanelBody id={id} len={len} />
       <div
         title="Go"
@@ -158,6 +158,23 @@ export function Panel({ t, row, submitT }) {
         }}
         style={{ position: 'absolute', left: 688.5 - P.left - 13, top: 371 - P.top - 13, width: 26, height: 26, borderRadius: 13, cursor: 'pointer' }}
       />
-    </MotionBlur>
+    </>
   )
+  const box = { position: 'absolute', left: P.left, top: P.top, width: P.width, height: P.height, opacity: ex.opacity }
+  const layer = { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }
+  if (!moving) return <div style={box}><div style={{ ...layer, ...pose(t) }}>{body}</div></div>
+  // the sweep's blur copies (like core/MotionBlur, each on its own layer), mounted a few per
+  // frame ahead of the sweep so no single frame rasterises all of them
+  const { samples: n, shutter, phase } = blur('panel')
+  const mounted = k >= 25.3 ? n : Math.min(n, Math.max(1, Math.ceil((k - PREMOUNT + 0.5) * (n / 4))))
+  const layers = []
+  for (let j = 0; j < mounted; j++) {
+    const p = pose(t + shutter * ((j + 0.5) / n + phase))
+    layers.push(
+      <div key={j} style={{ ...layer, ...layerHint, ...p, opacity: (p.opacity ?? 1) / n, mixBlendMode: 'plus-lighter' }}>
+        {body}
+      </div>,
+    )
+  }
+  return <div style={{ ...box, isolation: 'isolate' }}>{layers}</div>
 }
