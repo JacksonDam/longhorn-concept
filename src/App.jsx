@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Stage } from './core/Stage.jsx'
 import { TimeProvider, useTime, useEvents, lastRenderedTime } from './core/time.jsx'
 import { Cursor } from './core/Cursor.jsx'
-import { CAPTURE, now, seek } from './core/clock.js'
+import { CAPTURE, now, seek, runBench } from './core/clock.js'
 import { last, setLog, getLog } from './core/events.js'
 import { demoEvents, demoCursor } from './demo/index.js'
 import { preloaded } from './core/preload.js'
@@ -62,6 +62,7 @@ window.__lh = {
   seekFrame: (n) => seek(((n - 1) * 1001) / 30000),
   log: getLog,
   now,
+  bench: runBench,
   // resolves once React has committed the frame for the current clock time
   rendered: () =>
     new Promise((resolve) => {
