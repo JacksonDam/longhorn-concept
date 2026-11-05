@@ -40,6 +40,7 @@ export const slabMaterial = (id) => ({
   lift: [0.08, 0.05, 0.13],
   brightness: 0.95,
   vignette: 0.6,
+  seeThrough: true,
   vigColor: [0.14, 0.1, 0.2],
   ...OVERRIDE,
 })

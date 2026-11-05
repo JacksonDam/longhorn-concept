@@ -103,12 +103,13 @@ const frag = /* glsl */ `
   uniform vec3 uVigColor;
   uniform float uBandGain;   // extra brightness of the softbox band on the face only
   uniform vec3 uFaceBand;    // explicit light band on the face: u centre, width, intensity
+  uniform float uFlipBack;   // 1: the back face reads the picture the right way round; 0: see-through glass (mirrored)
   void main() {
     vec3 nL = normalize(vNormalL);
     float front = smoothstep(0.55, 0.95, nL.z);
     float back = smoothstep(0.55, 0.95, -nL.z);
     vec2 uv = vUv;
-    if (back > 0.5) uv.x = 1.0 - uv.x;
+    if (back > 0.5 && uFlipBack > 0.5) uv.x = 1.0 - uv.x;
     vec3 pic = uHasMap > 0.5 ? texture2D(uMap, clamp(uv, 0.002, 0.998)).rgb : uTint;
     float luma = dot(pic, vec3(0.299, 0.587, 0.114));
     pic = vec3(luma) + (pic - vec3(luma)) * uSat;
@@ -163,6 +164,7 @@ function makeMaterial() {
       uVigColor: { value: new THREE.Color(0.05, 0.06, 0.12) },
       uBandGain: { value: 0 },
       uFaceBand: { value: new THREE.Vector3(0.5, 0.2, 0) },
+      uFlipBack: { value: 1 },
     },
   })
 }
@@ -243,7 +245,8 @@ function setupCamera(cam, cw, ch, P, ox, oy) {
 }
 
 // slab: { w, h, d, radius, map (url), tint, edgeColor, edgeMix, spec, bandPos, bandWidth, rim, brightness,
-//         sat, contrast, lift: [r,g,b], vignette, vigColor: [r,g,b], bandGain }  (the last six optional)
+//         sat, contrast, lift: [r,g,b], vignette, vigColor: [r,g,b], bandGain, faceBand, seeThrough }
+//         (the last eight optional; seeThrough shows the picture mirrored on the back face, like glass)
 // pose: { x, y, z, rx, ry, rz, s, sx, sy, opacity, band, brightness, faceBand: {u, w, a} } (px / radians)
 function applySlab(obj, slab, pose) {
   const { mesh, material: m } = obj
@@ -270,6 +273,7 @@ function applySlab(obj, slab, pose) {
   u.uVignette.value = slab.vignette ?? 0
   if (slab.vigColor) u.uVigColor.value.setRGB(...slab.vigColor)
   u.uBandGain.value = slab.bandGain ?? 0
+  u.uFlipBack.value = slab.seeThrough ? 0 : 1
   const fb = pose.faceBand ?? slab.faceBand
   if (fb) u.uFaceBand.value.set(fb.u ?? 0.5, fb.w ?? 0.2, fb.a ?? 0)
   else u.uFaceBand.value.set(0.5, 0.2, 0)
