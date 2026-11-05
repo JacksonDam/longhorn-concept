@@ -4,10 +4,11 @@
 // Navigation is logged per window: 'ie.go' { id, url } (typed address, Home, Favorites, links),
 // 'ie.back' / 'ie.fwd' / 'ie.refresh' / 'ie.stop' { id }; 'win.open' with props.url (web links in
 // other windows) navigates too. A navigation shows ~0.8 s of "Finding site" before the page.
+import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo } from 'react'
 import { emit, getLog, getVersion } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, TextField, Button, ScrollView, ContextMenu, contextHandler, focusField } from '../../ui/index.js'
+import { scoped, wid, valueOf, TextField, Button, ScrollView, ContextMenu, contextHandler, focusField, DropMenu, dropBelow } from '../../ui/index.js'
 import { AppTop, appTopHeight, StatusBar, label } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { normUrl, openWin, closeWin, messageBox } from '../lib/common.js'
@@ -170,10 +171,10 @@ const OfflinePage = memo(function OfflinePage({ id, textSize }) {
 })
 
 // the spinning-free IE6 throbber: the logo in the toolbar's right corner, a glint while loading
-function Throbber({ x, loading, t }) {
+function Throbber({ x, loading, t, onClick }) {
   const k = loading ? 0.5 + 0.5 * Math.sin(t * 9) : 0
   return (
-    <div style={{ position: 'absolute', left: x, top: 3, width: 30, height: 28, borderRadius: 4, background: `rgba(255,255,255,${0.12 + 0.18 * k})`, boxShadow: 'inset 0 0 0 1px rgba(190,228,255,0.45)' }}>
+    <div onPointerDown={(e) => e.button === 0 && onClick()} style={{ position: 'absolute', left: x, top: 3, width: 30, height: 28, borderRadius: 4, background: `rgba(255,255,255,${0.12 + 0.18 * k})`, boxShadow: 'inset 0 0 0 1px rgba(190,228,255,0.45)' }}>
       <div style={{ position: 'absolute', left: 3, top: 2 }}>
         <Ico kind="ie" size={24} />
       </div>
@@ -202,7 +203,7 @@ function IE({ win, t, w, h }) {
     '|',
     { id: wid(win, 'search'), icon: 'search', label: 'Search', onClick: () => openWin('search', 'search') },
     { id: wid(win, 'favs'), icon: 'star', label: 'Favorites', onClick: () => navTo('www.msn.com') },
-    { id: wid(win, 'hist'), icon: 'history', onClick: () => canBack && emit('ie.back', { id }), tip: 'History' },
+    { id: wid(win, 'hist'), icon: 'history', onClick: (e) => dropBelow(wid(win, 'dd.hist'), e.currentTarget, historyItems), tip: 'History' },
     '|',
     { id: wid(win, 'mail'), icon: 'mail', onClick: () => openWin('inbox', 'outlook'), tip: 'Mail' },
     { id: wid(win, 'print'), icon: 'print', onClick: () => printBox(), tip: 'Print' },
@@ -266,6 +267,17 @@ function IE({ win, t, w, h }) {
       ],
     },
   ]
+  const linkItems = [
+    { label: 'Customize Links', onClick: () => navTo('www.msn.com/links') },
+    { label: 'Free Hotmail', onClick: () => navTo('www.hotmail.com') },
+    { label: 'Windows', onClick: () => navTo('www.microsoft.com/windows') },
+    { label: 'Windows Media', onClick: () => navTo('www.windowsmedia.com') },
+  ]
+  const historyItems = [
+    ...nav.list.map((u, i) => ({ label: hostOf(u), radio: i === nav.pos, onClick: () => (i === nav.pos ? emit('ie.refresh', { id }) : navTo(u)) })),
+    '-',
+    { label: 'Today', items: nav.list.map((u) => ({ label: hostOf(u), onClick: () => navTo(u) })) },
+  ]
   const ctxItems = [
     { label: 'Back', disabled: !canBack, onClick: () => emit('ie.back', { id }) },
     { label: 'Forward', disabled: !canFwd, onClick: () => emit('ie.fwd', { id }) },
@@ -280,7 +292,7 @@ function IE({ win, t, w, h }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
       <AppTop id={wid(win, 'm')} w={w} menus={menus} toolbar={toolbar} row2={24}>
-        <Throbber x={w - 38} loading={nav.loading} t={t} />
+        <Throbber x={w - 38} loading={nav.loading} t={t} onClick={() => navTo(HOME)} />
         <div style={{ position: 'absolute', left: 12, top: top - 25, ...label(10.5, '#cfe6ff', 600), lineHeight: '18px' }}>Address</div>
         <TextField
           id={addrId}
@@ -303,7 +315,11 @@ function IE({ win, t, w, h }) {
             Go
           </Button>
         </div>
-        <div style={{ position: 'absolute', left: w - 46, top: top - 25, ...label(10.5, '#cfe6ff', 600), lineHeight: '18px' }}>Links</div>
+        <div style={{ position: 'absolute', left: w - 46, top: top - 25, ...label(10.5, '#cfe6ff', 600), lineHeight: '18px' }} onPointerDown={(e) => e.button === 0 && dropBelow(wid(win, 'dd.links'), e.currentTarget, linkItems)}>
+          Links {'\u00bb'}
+        </div>
+        <DropMenu id={wid(win, 'dd.links')} items={linkItems} />
+        <DropMenu id={wid(win, 'dd.hist')} items={historyItems} />
       </AppTop>
       <div style={{ position: 'absolute', left: 0, top, width: w, height: bodyH }} onContextMenu={contextHandler(wid(win, 'ctx'), ctxItems)}>
         {nav.loading ? null : (
@@ -326,7 +342,7 @@ function IE({ win, t, w, h }) {
           right={
             <>
               <Ico kind="ie" size={14} />
-              <span>Internet</span>
+              <span onPointerDown={(e) => e.button === 0 && zoneBox()}>Internet</span>
             </>
           }
         />
@@ -349,6 +365,9 @@ function Progress({ k }) {
   )
 }
 
+function zoneBox() {
+  messageBox({ title: 'Internet Zone', icon: 'info', text: 'Internet zone\nSecurity level: Medium\n\nThis zone contains all Web sites you haven\u2019t placed in other zones.' })
+}
 function printBox() {
   messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 }
@@ -356,6 +375,21 @@ function offlineBox() {
   messageBox({ title: 'Work Offline', icon: 'info', text: 'You are working offline. Pages are not available until the network cable is connected.' })
 }
 
+// what the blur copies draw: the bars, the page's heading and its text as bars
+const AppProxy = memo(function AppProxy({ w, h }) {
+  const top = appTopHeight({ row2: 24 })
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
+      <TopProxy w={w} row2={24} labels="File  Edit  View  Favorites  Tools  Help" />
+      {box(60, top + 16, 32, 32, { borderRadius: 16, background: 'radial-gradient(circle at 35% 30%, #d8ecff, #3b78d8 60%, #123f9a)' })}
+      <Text x={104} y={top + 24} size={17} heavy color="#000">The page cannot be displayed</Text>
+      <Lines x={104} y={top + 52} w={400} n={3} gap={14} bar={6} color="rgba(0,0,0,0.3)" />
+      {box(104, top + 100, 430, 1, { background: '#c0c0c0' })}
+      <Lines x={122} y={top + 120} w={410} n={Math.max(0, Math.floor((h - top - 150) / 14))} gap={14} bar={6} color="rgba(0,0,0,0.28)" />
+      {box(0, h - 20, w, 20, { background: 'linear-gradient(180deg, #e3eaf6 0, #d3dfef 100%)' })}
+    </div>
+  )
+})
 export default {
   id: 'ie',
   title: () => 'The page cannot be displayed - Microsoft Internet Explorer',
@@ -367,4 +401,5 @@ export default {
   explorer: false,
   background: '#ffffff',
   Content: scoped(IE, {}),
+  Proxy: AppProxy,
 }

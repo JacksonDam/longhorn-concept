@@ -85,7 +85,7 @@ export function Calendar({ id, x, y, w = 132 }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', marginTop: 1 }}>
           {Array.from({ length: 42 }, (_, i) => {
             const d = i - first + 1
-            if (d < 1 || d > n) return <div key={i} style={{ width: cw, height: 14 }} />
+            if (d < 1 || d > n) return <div key={i} style={{ width: cw, height: 14 }} onPointerDown={(e) => e.button === 0 && set({ level: 'months' })} />
             const k = `${cal.y}-${cal.m}-${d}`
             const has = DAYS_WITH.has(k)
             const me = { y: cal.y, m: cal.m, d }

@@ -113,7 +113,7 @@ function Search({ win, t, w, h, active }) {
             emptyText="Search is complete. There are no results to display."
           />
         ) : (
-          <div style={{ position: 'absolute', left: 240, top: 30, right: 20, fontFamily: FONT, fontSize: 11.5, lineHeight: '17px', color: C.textDim }}>To start your search, follow the instructions in the left pane.</div>
+          <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('kind'), value: 'all' })} style={{ position: 'absolute', left: 240, top: 30, right: 20, fontFamily: FONT, fontSize: 11.5, lineHeight: '17px', color: C.textDim }}>To start your search, follow the instructions in the left pane.</div>
         )}
       </div>
     </div>

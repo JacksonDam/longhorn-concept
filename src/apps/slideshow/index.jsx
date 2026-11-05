@@ -258,5 +258,7 @@ export default {
   size: { w: 120, h: 40 },
   position: { x: -400, y: -200 },
   Content: scoped(Slideshow, { watch: ['pics'], alive: () => true }),
+  // the view lives in the overlay of the live layer: copies draw nothing
+  Proxy: () => null,
   liveTime: (win, t, base) => (win.state === 'open' ? t : base),
 }

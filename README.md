@@ -3,7 +3,11 @@
 An interactive rebuild of the 2003 Windows "Longhorn" Plex demo video
 (`lh_plex_demo\media\EFFECTS.WMV`): the animated sign-in screen, the glass user tile, the
 Stonehenge desktop with its sidebar, the my Music flyout and the my Music window, including the
-video's multi-sample motion blur.
+video's multi-sample motion blur. Beyond the video it works as a small Plex-style OS: log in as
+any user, Start menu, taskbar and sidebar that all work, windows that drag, resize, minimise
+and restore, and apps (my Music, my Pictures & Videos, Outlook, Internet Explorer, Word, Winamp,
+Messenger, Explorer windows, Control Panel, my Programs & Services and accessories), all silent
+and offline, with log off and shut down.
 
 Try it out:
 [deployed on GitHub Pages](https://jacksondam.com/longhorn-concept/)

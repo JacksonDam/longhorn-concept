@@ -5,7 +5,7 @@
 //   'pics.edit'  { photo, rot, adjust } edits saved from Edit Pictures
 import { getLog, getVersion } from '../../core/events.js'
 import { valueOf, wid } from '../../ui/index.js'
-import { GROUPS, PHOTOS } from '../lib/pictures.jsx'
+import { GROUPS, PHOTOS, importedGroup } from '../lib/pictures.jsx'
 
 export const CAL0 = { level: 'days', y: 2002, m: 4, sel: null }
 
@@ -22,22 +22,26 @@ export function picState(t, win) {
     range: v('range', 'time'),
     viewby: v('viewby', 'thumbnail'),
     moreTags: v('moretags', false),
+    imports: library(t).imports,
   }
 }
 
 // albums and edits from every window (they are files)
-let cache = { v: -1, t: -1, albums: [], edits: new Map() }
+let cache = { v: -1, t: -1, albums: [], edits: new Map(), imports: [] }
 export function library(t) {
   const ver = getVersion()
   if (cache.v === ver && cache.t === t) return cache
   const albums = []
   const edits = new Map()
+  const imports = new Map()
   for (const e of getLog()) {
     if (e.t > t) break
     if (e.type === 'pics.album') albums.push({ id: 'album-' + albums.length, name: e.name, photos: e.photos, at: e.t })
     else if (e.type === 'pics.edit') edits.set(e.photo, { rot: e.rot || 0, adjust: !!e.adjust })
+    else if (e.type === 'pics.import') for (const ev of e.events || []) imports.set(ev.id, importedGroup(ev))
+    else if (e.type === 'login.submit') imports.clear()
   }
-  cache = { v: ver, t, albums, edits }
+  cache = { v: ver, t, albums, edits, imports: [...imports.values()].filter(Boolean) }
   return cache
 }
 export const editStyle = (ed) =>
@@ -59,18 +63,18 @@ export function visibleGroups(st) {
     dateMatch(p, st.cal.sel) &&
     (!st.words || p.name.toLowerCase().includes(st.words) || p.keywords.some((k) => k.toLowerCase().includes(st.words)) || p.location.toLowerCase().includes(st.words) || p.comment.toLowerCase().includes(st.words))
   if (st.range === 'name') {
-    const photos = PHOTOS.filter(ok).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    const photos = [...PHOTOS, ...(st.imports || []).flatMap((g) => g.photos)].filter(ok).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     return photos.length ? [{ id: 'byname', title: 'All pictures and videos', caption: 'by name', photos }] : []
   }
   if (st.range === 'type') {
     const out = []
     for (const [k, title] of [['picture', 'Pictures'], ['video', 'Videos']]) {
-      const photos = PHOTOS.filter((p) => p.kind === k && ok(p))
+      const photos = [...PHOTOS, ...(st.imports || []).flatMap((g) => g.photos)].filter((p) => p.kind === k && ok(p))
       if (photos.length) out.push({ id: k, title, caption: `${photos.length} items`, photos })
     }
     return out
   }
-  const sorted = [...GROUPS].sort((a, b) => b.y - a.y || b.m - a.m || b.d - a.d)
+  const sorted = [...GROUPS, ...(st.imports || [])].sort((a, b) => b.y - a.y || b.m - a.m || b.d - a.d)
   return sorted.map((g) => ({ id: g.id, title: g.title, caption: g.caption, photos: g.photos.filter(ok) })).filter((g) => g.photos.length)
 }
 

@@ -1,7 +1,7 @@
 // Run...: type a program, folder, document or Internet address and Windows opens it.
 import { memo } from 'react'
 import { now } from '../../core/clock.js'
-import { scoped, Button, TextField, wid, valueOf, C, FONT } from '../../ui/index.js'
+import { scoped, Button, TextField, wid, valueOf, focusField, C, FONT } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl, closeWin, messageBox } from '../lib/common.js'
 import { lookupPath } from '../lib/fs.js'
@@ -68,7 +68,7 @@ const Intro = memo(function Intro() {
 function Run({ win, t }) {
   const field = wid(win, 'open')
   const submit = () => {
-    const v = valueOf(now(), field, null)?.text ?? ''
+    const v = valueOf(now(), field, null)?.text ?? 'notepad'
     if (!v.trim()) return
     if (runCommand(v)) closeWin(win.id)
     else
@@ -78,11 +78,13 @@ function Run({ win, t }) {
         text: `Windows cannot find '${v.trim()}'. Make sure you typed the name correctly, and then try again. To search for a file, click the Start button, and then click Search.`,
       })
   }
-  const empty = !(valueOf(t, field, null)?.text ?? '').trim()
+  const empty = !(valueOf(t, field, null)?.text ?? 'notepad').trim()
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
       <Intro />
-      <TextField id={field} x={64} y={76} w={312} h={20} onEnter={submit} />
+      <TextField id={field} def="notepad" x={64} y={76} w={312} h={20} onEnter={submit} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 62, height: 110 }} onPointerDown={(e) => e.button === 0 && focusField(field)} />
+      <div style={{ position: 'absolute', left: 64, top: 12, right: 0, height: 50 }} onPointerDown={(e) => e.button === 0 && focusField(field)} />
       <Button id={wid(win, 'ok')} label="OK" isDefault x={136} y={116} w={76} h={23} disabled={empty} onClick={submit} />
       <Button id={wid(win, 'cancel')} label="Cancel" x={218} y={116} w={76} h={23} onClick={() => closeWin(win.id)} />
       <Button id={wid(win, 'browse')} label="Browse..." x={300} y={116} w={76} h={23} onClick={() => openWin('computer', 'computer')} />

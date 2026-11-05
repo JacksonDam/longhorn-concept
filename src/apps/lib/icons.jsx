@@ -472,6 +472,16 @@ const big = {
       <path d="M19 19 L27 27" stroke="#3d6fb5" strokeWidth="4" strokeLinecap="round" />
     </>
   ),
+  camera: (
+    <>
+      <rect x="3" y="9" width="26" height="17" rx="3" fill="url(#ig-greyl)" stroke="#5f6d86" strokeWidth="0.8" />
+      <path d="M10 9 L12 5.5 H20 L22 9 Z" fill="#c9d3e2" stroke="#5f6d86" strokeWidth="0.7" />
+      <circle cx="16" cy="17.5" r="6" fill="#2b3b58" stroke="#dfe6f1" strokeWidth="1.5" />
+      <circle cx="16" cy="17.5" r="3.4" fill="url(#ig-blue)" />
+      <circle cx="14.6" cy="16" r="1" fill="#fff" opacity="0.8" />
+      <rect x="23" y="11" width="4" height="2.5" rx="0.8" fill="#f5c542" />
+    </>
+  ),
   calc: (
     <>
       <rect x="6" y="3" width="20" height="26" rx="3" fill="url(#ig-greyl)" stroke="#6f7f99" strokeWidth="0.8" />
