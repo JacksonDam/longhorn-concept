@@ -1,7 +1,7 @@
 // Small (16 px) Plex-style app icons for the taskbar, Start menu and menus. Image files where the
-// video shows a real icon (IE, Word, my Music, Outlook, Winamp: XP/Office 2003 16 px designs,
-// public/img/desktop/icons), drawn SVG for the rest.
-import { preload } from '../../core/preload.js'
+// video shows a real icon (IE, Word, my Music, Outlook, Winamp; public/img/desktop/icons), drawn
+// SVG for the rest.
+import { asset, preload } from '../../core/preload.js'
 import { OutlookIcon, WinampIcon, iconUrl } from './icons.jsx'
 
 const S = ({ x, y, size = 16, children, vb = 16 }) => (
@@ -14,13 +14,27 @@ const Img = (f) =>
   function ImgIcon({ x, y, size = 16 }) {
     return <img data-ic={f} src={iconUrl(f)} alt="" draggable={false} style={{ position: 'absolute', left: x, top: y, width: size, height: size }} />
   }
-preload(['ic-ie', 'ic-word', 'ic-mymusic'].map(iconUrl))
+// the XP My Music folder is the real shell32 icon (group 237): its 16 px bitmap up to 20 px (the
+// taskbar, where the video has it 1 px higher) and its 48 px design above (the Start menu)
+const XP_MUSIC = { 16: asset('img/desktop/icons/ic-mymusic-xp16.png'), 48: asset('img/desktop/icons/ic-mymusic-xp48.png') }
+preload([...['ic-ie', 'ic-word'].map(iconUrl), XP_MUSIC[16], XP_MUSIC[48]])
 
-// Internet Explorer 6, the Office 2003 Word document and the XP My Music folder, each redrawn
-// from its 16 px design (the larger XP/Office versions are drawn differently)
+// Internet Explorer 6 and the Office 2003 Word document, each redrawn from its 16 px design (the
+// larger IE6/Office versions are drawn differently)
 export const IEIcon = Img('ic-ie')
 export const WordIcon = Img('ic-word')
-export const MusicIcon = Img('ic-mymusic')
+export function MusicIcon({ x, y, size = 16 }) {
+  const small = size <= 20
+  return (
+    <img
+      data-ic="ic-mymusic"
+      src={small ? XP_MUSIC[16] : XP_MUSIC[48]}
+      alt=""
+      draggable={false}
+      style={{ position: 'absolute', left: x, top: size === 16 ? y - 1 : y, width: size, height: size }}
+    />
+  )
+}
 export { OutlookIcon, WinampIcon }
 
 function folderBody(extra) {
