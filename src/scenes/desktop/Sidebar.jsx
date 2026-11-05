@@ -16,7 +16,7 @@ import {
   GoOnlineOrb,
   Thumb,
 } from './icons.jsx'
-import { GLASS_K } from './glassFit.js'
+import { GLASS_BLUR, GLASS_K } from './glassFit.js'
 
 export const PANEL = { x: 858, y: 0, w: 102, h: 700 }
 const L = PANEL.x // panel left, all coordinates below are absolute stage px
@@ -219,16 +219,15 @@ export const TILES = [
   ['thumbs', ThumbsTile],
 ]
 
-// The glass is live: it blurs whatever is behind it (backdrop-filter: the wallpaper choice,
-// windows dragged under the sidebar, the Refresh dim) and tints the blur:
+// The glass is live: it blurs whatever is behind it (backdrop-filter blur GLASS_BLUR = 2.4 px:
+// the wallpaper choice, windows dragged under the sidebar, the Refresh dim) and tints the blur:
 //   out(x, y) = k(x) * blur(backdrop) + tint(x, y)
-// k(x), the transmission, is a black layer with alpha 1 - k(x) on the blurring element (0.35
-// at the left edge to 0.75 at the right, 0.23 under the bright border line at x 859-860);
-// the tint (bluish, with per-row bands and separators) is added on top by a plus-lighter layer,
-// glass-tint.webp. Fitted by tools/desktop/fit_glass.py on the empty panel of video frames
-// 521-523 and the clock foot (rows 700-720) of the later frames, against Chrome's own blur of
-// the wallpaper. See docs/desktop-spec.md.
-export const GLASS_BLUR = 2.4
+// k(x), the transmission, is a black layer with alpha 1 - k(x) on the blurring element (0.32
+// at the left edge, 0.23 under the bright border line at x 859-861, then 0.34 rising to 0.75
+// at the right); the tint (bluish, with per-row bands and separators) is added on top by a
+// plus-lighter layer, glass-tint.webp. Fitted by tools/desktop/fit_glass.py on the empty panel
+// of video frames 521-523 and the clock foot (rows 700-720) of the later frames, against
+// Chrome's own blur of the wallpaper. See docs/desktop-spec.md.
 const BLUR = `blur(${GLASS_BLUR}px)`
 const TRANSMISSION =
   'linear-gradient(to right,' + GLASS_K.map(([c, k]) => `rgba(0,0,0,${(1 - k).toFixed(3)}) ${c + 0.5}px`).join(',') + ')'

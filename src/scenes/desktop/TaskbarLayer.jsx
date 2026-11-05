@@ -92,7 +92,7 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
   const newLabel = DEMO ? '11:31 am' : realTime(false)
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      <Fade o={bar}>{BAR}</Fade>
+      <Bar o={bar} />
       <Fade o={bar * (1 - built)}>{EARLY}</Fade>
       <TaskGroup t={t} f={f} />
       <StartGlow t={t} />
@@ -125,7 +125,6 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
 function Fade({ o, children }) {
   return <div style={{ position: 'absolute', inset: 0, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' }}>{children}</div>
 }
-const BAR = <Bar />
 const EARLY = <EarlyBarTint />
 const FLAG_PASTEL = <StartFlag pastel />
 const FLAG = <StartFlag />

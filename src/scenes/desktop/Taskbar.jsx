@@ -5,10 +5,11 @@ import { asset } from '../../core/preload.js'
 import { emit } from '../../core/events.js'
 import { pt } from '../../ui/index.js'
 import { Chevron } from './icons.jsx'
+import { GLASS_BLUR } from './glassFit.js'
 
 export const BAR_TOP = 699
 
-// Per-row colours of the bar (alpha 0.55 over the wallpaper), measured rows 699..719.
+// Per-row colours of the bar (alpha 0.55 over the blurred wallpaper), measured rows 699..719.
 const BAR_ROWS = [
   [48, 82, 96], [92, 137, 188], [110, 155, 206], [90, 144, 221], [81, 135, 212], [75, 133, 224],
   [74, 131, 223], [66, 131, 219], [65, 129, 218], [63, 128, 210], [62, 127, 209], [61, 123, 200],
@@ -100,11 +101,19 @@ export const GroupBg = memo(function GroupBg({ x0, x1 }) {
   )
 })
 
-export const Bar = memo(function Bar() {
+// The bar is the sidebar's glass material: the video's wallpaper texture under it is blurred as
+// much as under the sidebar (fitted blur ~2.5 px, and at that blur the texture comes through at
+// the bar's 0.45 transmission), so it blurs whatever is behind it with the glass's radius. o: the
+// entrance fade, on the elements themselves (an opacity group around them would become the
+// backdrop root and the blur would see nothing).
+const BLUR = `blur(${GLASS_BLUR}px)`
+const BAR_BG = rowsGradient(BAR_ROWS, 0.55)
+export const Bar = memo(function Bar({ o = 1 }) {
+  const vis = { opacity: o, visibility: o > 0 ? 'visible' : 'hidden' }
   return (
     <>
-      <div style={{ position: 'absolute', left: 0, top: BAR_TOP, width: 858, height: 21, background: rowsGradient(BAR_ROWS, 0.55) }} />
-      <div style={{ position: 'absolute', left: 0, top: 700, width: 60, height: 20, background: 'linear-gradient(to right, rgba(30,40,90,0.22), rgba(30,40,90,0.12) 30px, rgba(30,40,90,0) 60px)' }} />
+      <div style={{ position: 'absolute', left: 0, top: BAR_TOP, width: 858, height: 21, background: BAR_BG, backdropFilter: BLUR, WebkitBackdropFilter: BLUR, ...vis }} />
+      <div style={{ position: 'absolute', left: 0, top: 700, width: 60, height: 20, background: 'linear-gradient(to right, rgba(30,40,90,0.22), rgba(30,40,90,0.12) 30px, rgba(30,40,90,0) 60px)', ...vis }} />
     </>
   )
 })
