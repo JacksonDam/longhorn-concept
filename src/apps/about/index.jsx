@@ -73,5 +73,5 @@ export default {
   position: { x: 240, y: 170 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(About),
+  Content: scoped(About, {}),
 }

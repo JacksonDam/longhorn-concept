@@ -145,6 +145,11 @@ function Winamp({ win, t, w, h, active }) {
   )
 }
 
+function playing(t) {
+  const m = mediaState(t)
+  return m.playing || t - m.changedAt < 0.5
+}
+
 export default {
   id: 'winamp',
   title: () => 'Winamp3',
@@ -155,5 +160,7 @@ export default {
   minSize: { w: 340, h: 260 },
   explorer: false,
   background: '#3f78c4',
-  Content: scoped(Winamp),
+  // the time, title and visualiser move while the player plays (and the bars settle after a pause)
+  Content: scoped(Winamp, { watch: ['media'], alive: (win, t) => playing(t) }),
+  liveTime: (win, t, base) => (playing(t) ? t : base),
 }

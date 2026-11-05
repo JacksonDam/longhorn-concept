@@ -251,5 +251,5 @@ export default {
   minSize: { w: 600, h: 380 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Outlook),
+  Content: scoped(Outlook, { watch: ['mail'] }),
 }

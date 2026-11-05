@@ -9,7 +9,6 @@ import { now } from '../../core/clock.js'
 import {
   scoped, wid, valueOf, hoverKeys, pt, TextField, Slider, Scrollbar, DropMenu, dropBelow, ContextMenu, contextHandler, Button, C, FONT, HEAVY, find, focusField,
 } from '../../ui/index.js'
-import { Swoosh } from '../../scenes/music/Header.jsx'
 import { MessageIcon } from '../../ui/Dialog.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { ChromeMenu } from '../lib/Explorer.jsx'
@@ -25,6 +24,42 @@ const AREA_X = 190
 const set = (win, n, value) => emit('ui.value', { id: wid(win, n), value })
 
 // ---- header ------------------------------------------------------------------------------------
+// the my Music header's soft swoosh behind the title (own copy: window-local px, svg y = local - 123)
+const Swoosh = memo(function Swoosh() {
+  return (
+    <svg width="777" height="260" style={{ position: 'absolute', left: 0, top: 123, overflow: 'visible', pointerEvents: 'none' }}>
+      <defs>
+        <radialGradient id="pv-ring" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.52">
+          <stop offset="0.45" stopColor="#f2fdff" stopOpacity="0" />
+          <stop offset="0.66" stopColor="#d4f9ff" stopOpacity="0.75" />
+          <stop offset="0.8" stopColor="#a9eaff" stopOpacity="0.95" />
+          <stop offset="0.92" stopColor="#6ea8ef" stopOpacity="1" />
+          <stop offset="0.97" stopColor="#c4dbfa" stopOpacity="0.8" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="pv-ringmask-g" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0.54" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.7" stopColor="#fff" stopOpacity="1" />
+        </linearGradient>
+        <mask id="pv-ringmask" maskUnits="userSpaceOnUse" x="0" y="-50" width="777" height="360">
+          <rect x="0" y="-50" width="777" height="360" fill="url(#pv-ringmask-g)" />
+        </mask>
+        <filter id="pv-b5" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" />
+        </filter>
+        <filter id="pv-b12" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="12" />
+        </filter>
+      </defs>
+      <ellipse cx="430" cy="27" rx="95" ry="26" fill="#efe4ec" filter="url(#pv-b12)" />
+      <ellipse cx="485" cy="107" rx="115" ry="42" fill="#fde0e0" filter="url(#pv-b12)" />
+      <g mask="url(#pv-ringmask)">
+        <ellipse cx="541" cy="101" rx="136" ry="80" fill="url(#pv-ring)" transform="rotate(-8 541 101)" />
+      </g>
+      <ellipse cx="390" cy="105" rx="115" ry="9" fill="#f0a39a" filter="url(#pv-b5)" opacity="0.85" />
+    </svg>
+  )
+})
 const FRAME_PHOTO = photoUrl('mountain', 31)
 
 const Frame = memo(function Frame() {
@@ -567,6 +602,10 @@ function useFindFocus(t, win) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 }
+function videoPlaying(win, t) {
+  const [a, i] = find(t, 'pics.play', win.id)
+  return i >= 0 && a[i].t >= win.openedAt && a[i].on
+}
 function valueOfE(t, id) {
   const [a, i] = find(t, 'ui.value', id)
   return i >= 0 ? a[i] : null
@@ -604,6 +643,6 @@ export default {
     ],
     pressed: () => 'preview',
   },
-  settle: 1,
-  Content: scoped(Pictures),
+  Content: scoped(Pictures, { watch: ['pics'], alive: (win, t) => videoPlaying(win, t) }),
+  liveTime: (win, t, base) => (videoPlaying(win, t) ? t : base),
 }

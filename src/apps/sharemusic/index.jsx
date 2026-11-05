@@ -58,5 +58,5 @@ export default {
   position: { x: 280, y: 160 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Share),
+  Content: scoped(Share, { watch: ['share'] }),
 }

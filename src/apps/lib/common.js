@@ -3,6 +3,7 @@ import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { find } from '../../ui/state.js'
 import { getWindow } from '../../os/wm.js'
+import './benchScript.js'
 
 export const openWin = (id, app, props) => emit('win.open', props ? { id, app, props } : { id, app })
 export const closeWin = (id) => emit('win.close', { id })

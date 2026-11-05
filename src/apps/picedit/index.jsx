@@ -136,6 +136,10 @@ function PicEdit({ win, t, w, h }) {
     </div>
   )
 }
+function voicePlaying(win, t) {
+  const e = valueOf(t, wid(win, 'voice'), null)
+  return e != null && t - e < 63
+}
 // move the keyboard into the name field once it has mounted (input handling, not a visual)
 function setTimeoutFocus(fid) {
   requestAnimationFrame(() => requestAnimationFrame(() => focusField(fid)))
@@ -150,5 +154,6 @@ export default {
   position: { x: 70, y: 70 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(PicEdit),
+  Content: scoped(PicEdit, { watch: ['pics'], alive: (win, t) => voicePlaying(win, t) }),
+  liveTime: (win, t, base) => (voicePlaying(win, t) ? t : base),
 }

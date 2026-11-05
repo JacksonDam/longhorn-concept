@@ -113,5 +113,5 @@ export default {
   minSize: { w: 420, h: 300 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Compose),
+  Content: scoped(Compose, { watch: ['mail'] }),
 }

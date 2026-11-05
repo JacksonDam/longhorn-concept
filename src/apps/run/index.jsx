@@ -94,5 +94,5 @@ export default {
   position: { x: 12, y: 470 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Run),
+  Content: scoped(Run, {}),
 }

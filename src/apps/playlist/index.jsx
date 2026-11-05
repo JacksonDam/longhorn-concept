@@ -73,5 +73,5 @@ export default {
   position: { x: 270, y: 150 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Playlist),
+  Content: scoped(Playlist, { watch: ['media'] }),
 }

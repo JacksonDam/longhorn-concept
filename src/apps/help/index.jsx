@@ -141,5 +141,5 @@ export default {
   minSize: { w: 520, h: 360 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Help),
+  Content: scoped(Help, {}),
 }

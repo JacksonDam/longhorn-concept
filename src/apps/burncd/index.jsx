@@ -45,6 +45,11 @@ function BurnCD({ win, t, w, h }) {
   )
 }
 
+function checking(win, t) {
+  const e = lastOf(t, 'ui.value', wid(win, 'try'))
+  return !!e && t - e.t < CHECK + 0.1
+}
+
 function Spinner({ t }) {
   const a = (t * 360 * 1.5) % 360
   return (
@@ -64,5 +69,6 @@ export default {
   position: { x: 240, y: 230 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(BurnCD),
+  Content: scoped(BurnCD, { alive: (win, t) => checking(win, t) }),
+  liveTime: (win, t, base) => (checking(win, t) ? t : base),
 }

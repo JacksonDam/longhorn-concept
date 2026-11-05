@@ -17,26 +17,59 @@ import { FPS, now } from '../core/clock.js'
 import { clamp } from '../core/anim.js'
 import { toStage } from '../core/Stage.jsx'
 
-let built = { v: -1, len: 0, lastE: null, map: new Map() }
-function index() {
+let built = { v: -1, len: 0, lastE: null, map: new Map(), owners: new Map() }
+const push = (map, k, e) => {
+  let a = map.get(k)
+  if (!a) map.set(k, (a = []))
+  a.push(e)
+}
+// the window an event belongs to: ids made by wid() ('<win>@<openedAt>/...') and plain window ids;
+// events without an id are filed under their type's family ('media', 'mail', ...)
+const ownerOf = (e) => (e.id == null ? '#' + e.type.split('.')[0] : String(e.id).split('@')[0])
+function build() {
   const v = getVersion()
-  if (built.v === v) return built.map
+  if (built.v === v) return built
   const log = getLog()
-  let map = built.map
+  let { map, owners } = built
   let start = 0
   // fast path: the new events were appended after the ones already indexed
   if (built.len > 0 && log.length >= built.len && log[built.len - 1] === built.lastE) start = built.len
-  else map = new Map()
+  else {
+    map = new Map()
+    owners = new Map()
+  }
   for (let i = start; i < log.length; i++) {
     const e = log[i]
-    if (e.id == null) continue
-    const k = e.type + '|' + e.id
-    let a = map.get(k)
-    if (!a) map.set(k, (a = []))
-    a.push(e)
+    push(owners, ownerOf(e), e)
+    if (e.id != null) {
+      push(map, e.type + '|' + e.id, e)
+      // families of typed events with ids too (e.g. 'mail.read' { key } has none, 'im.send' has)
+      push(owners, '#' + e.type.split('.')[0], e)
+    }
   }
-  built = { v, len: log.length, lastE: log[log.length - 1], map }
-  return map
+  built = { v, len: log.length, lastE: log[log.length - 1], map, owners }
+  return built
+}
+const index = () => build().map
+const lastIn = (a, t) => {
+  if (!a) return -Infinity
+  let lo = 0,
+    hi = a.length
+  while (lo < hi) {
+    const m = (lo + hi) >> 1
+    if (a[m].t <= t) lo = m + 1
+    else hi = m
+  }
+  return lo > 0 ? a[lo - 1].t : -Infinity
+}
+// time of the latest event at or before t that concerns window `winId`: its own events (win.*,
+// explorer.*, ui.* and hovers of controls with wid() ids), keyboard focus changes, and the event
+// families in `watch` (e.g. ['media', 'mail'])
+export function lastRelevant(t, winId, watch = []) {
+  const { owners } = build()
+  let m = Math.max(lastIn(owners.get(winId), t), lastIn(owners.get('kbd'), t))
+  for (const w of watch) m = Math.max(m, lastIn(owners.get('#' + w), t))
+  return m
 }
 
 const NONE = []

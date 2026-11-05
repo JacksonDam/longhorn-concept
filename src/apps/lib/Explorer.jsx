@@ -492,8 +492,11 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
       pressed: () => null,
     },
   }
-  app.Content = scoped(function Explorer(props) {
-    return <ExplorerBody {...props} root={root} defView={view} app={getApp(id)} />
-  })
+  app.Content = scoped(
+    function Explorer(props) {
+      return <ExplorerBody {...props} root={root} defView={view} app={getApp(id)} />
+    },
+    { watch: ['fs'] },
+  )
   return app
 }

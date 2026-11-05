@@ -203,7 +203,6 @@ export function TextField({
         readOnly={readOnly}
         disabled={disabled}
         maxLength={maxLength}
-        defaultValue={st.text}
         style={{ ...textStyle, left: 0, top: 0, width: w, height: h }}
         onInput={(e) => sync(e.currentTarget)}
         onSelect={(e) => sync(e.currentTarget)}

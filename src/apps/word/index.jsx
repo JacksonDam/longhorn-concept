@@ -373,7 +373,6 @@ function Word({ win, t, w, h }) {
         <textarea
           ref={ta}
           className="lh-input"
-          defaultValue={doc.text}
           spellCheck={false}
           style={{ left: (w - PAGE_W) / 2 + MARGIN, top: pageTop + 14 + MARGIN, width: PAGE_W - 2 * MARGIN, height: 40, fontFamily: "'Times New Roman', serif", fontSize: 12 * PX, lineHeight: 1.25, whiteSpace: 'pre-wrap', pointerEvents: 'none', opacity: 0 }}
           onInput={(e) => onInput(e.currentTarget)}
@@ -461,5 +460,5 @@ export default {
   minSize: { w: 600, h: 360 },
   explorer: false,
   background: '#9fb1cc',
-  Content: scoped(Word),
+  Content: scoped(Word, {}),
 }

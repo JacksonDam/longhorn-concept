@@ -274,6 +274,8 @@ function Applet(props) {
   )
 }
 
+const ticking = (win) => (win.props?.applet || 'datetime') === 'datetime'
+
 export default {
   id: 'applet',
   title: (p) => TITLES[p.applet] || 'Control Panel',
@@ -283,5 +285,6 @@ export default {
   position: { x: 260, y: 150 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Applet),
+  Content: scoped(Applet, { watch: ['cpl'], alive: (win) => ticking(win) }),
+  liveTime: (win, t, base) => (ticking(win) ? t : base),
 }

@@ -257,5 +257,6 @@ export default {
   frameRim: false,
   size: { w: 120, h: 40 },
   position: { x: -400, y: -200 },
-  Content: scoped(Slideshow),
+  Content: scoped(Slideshow, { watch: ['pics'], alive: () => true }),
+  liveTime: (win, t) => t,
 }

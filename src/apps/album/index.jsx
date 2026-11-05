@@ -161,5 +161,5 @@ export default {
   position: { x: 95, y: 40 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(Album),
+  Content: scoped(Album, { watch: ['pics'] }),
 }

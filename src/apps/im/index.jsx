@@ -110,5 +110,5 @@ export default {
   minSize: { w: 320, h: 320 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(IM),
+  Content: scoped(IM, { watch: ['im'] }),
 }

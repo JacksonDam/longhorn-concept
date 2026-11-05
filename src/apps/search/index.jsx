@@ -130,5 +130,5 @@ export default {
   minSize: { w: 560, h: 320 },
   explorer: false,
   background: '#ffffff',
-  Content: scoped(Search),
+  Content: scoped(Search, { watch: ['fs'] }),
 }

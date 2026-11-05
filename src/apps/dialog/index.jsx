@@ -28,5 +28,5 @@ export default {
   position: { x: 230, y: 250 },
   explorer: false,
   background: '#f6f9fe',
-  Content: scoped(MessageBox),
+  Content: scoped(MessageBox, {}),
 }

@@ -366,5 +366,5 @@ export default {
   minSize: { w: 420, h: 260 },
   explorer: false,
   background: '#ffffff',
-  Content: scoped(IE),
+  Content: scoped(IE, {}),
 }

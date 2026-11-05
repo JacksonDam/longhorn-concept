@@ -128,5 +128,5 @@ export default {
   position: { x: 90, y: 70 },
   minSize: { w: 720, h: 420 },
   explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search my for...', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null },
-  Content: scoped(Control),
+  Content: scoped(Control, {}),
 }
