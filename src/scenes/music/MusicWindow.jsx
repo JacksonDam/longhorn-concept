@@ -212,7 +212,7 @@ function MusicWindowLayer({ t }) {
       )
     }
   }
-  const beam = <Beam rel={rel} />
+  const beam = <Beam rel={rel} haze fanOp={0.6} />
   if (rel < 5) return beam
   if (!openMoving(rel)) {
     return (

@@ -2,6 +2,7 @@
 // a fan of soft rays from a point on the taskbar and a small sparkle. Stage px.
 import { memo } from 'react'
 import { clamp } from '../../core/anim.js'
+import { table } from './timeline.js'
 
 const RAYS = [
   [-58, 560, 34, 0.5],
@@ -65,17 +66,47 @@ const Sparkle = memo(function Sparkle() {
   )
 })
 
+// the soft glow the window rises out of (open): [rel, x0, y0, x1, y1, alpha], stage px,
+// measured as the brightened area over the clean desktop in f698-700
+const HAZE = table([
+  [3.4, 380, 640, 560, 700, 0],
+  [4, 260, 480, 640, 700, 0.3],
+  [5, 160, 320, 560, 700, 0.32],
+  [6, 60, 190, 470, 660, 0.14],
+  [7, 40, 120, 420, 600, 0],
+])
+function Haze({ rel }) {
+  if (rel <= 3.4 || rel >= 7) return null
+  const [x0, y0, x1, y1, a] = HAZE(rel)
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x0,
+        top: y0,
+        width: x1 - x0,
+        height: y1 - y0 + 30,
+        borderRadius: 40,
+        background: 'linear-gradient(180deg, rgba(235,243,255,0.6), rgba(255,255,255,1))',
+        opacity: a,
+        filter: 'blur(18px)',
+      }}
+    />
+  )
+}
+
 // rel: frames since the trigger; fan: [start, peak, end]; spark: [start, peak, end]
 const env = (rel, [a, b, c]) => (rel <= a || rel >= c ? 0 : rel < b ? (rel - a) / (b - a) : 1 - (rel - b) / (c - b))
 
-export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true }) {
-  const f = clamp(env(rel, fan))
+export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true, haze = false, fanOp = 1 }) {
+  const f = clamp(env(rel, fan)) * fanOp
   const s = clamp(env(rel, spark))
-  if (f <= 0 && s <= 0) return null
+  if (f <= 0 && s <= 0 && !(haze && rel > 3.4 && rel < 7)) return null
   // the fan grows upwards while it brightens
   const grow = rise ? clamp((rel - fan[0]) / (fan[1] - fan[0] + 1.5), 0.35, 1) : 1
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, pointerEvents: 'none' }}>
+      {haze && <Haze rel={rel} />}
       {f > 0 && (
         <div style={{ position: 'absolute', inset: 0, opacity: f, transform: `scaleY(${grow})`, transformOrigin: '455px 704px' }}>
           <Fan />
