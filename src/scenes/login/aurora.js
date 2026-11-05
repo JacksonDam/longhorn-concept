@@ -129,6 +129,15 @@ for (let c = 0; c < RCOLS; c++) {
   colD.set([-((1 - f) ** 2) / 2 / BSX, (9 * f ** 2 - 12 * f) / 6 / BSX, (-9 * f ** 2 + 6 * f + 3) / 6 / BSX, f ** 2 / 2 / BSX], c * 4)
 }
 
+// screen tiles (30 px): bitmask of the ribbons that can reach each tile, so the shader only
+// evaluates those (RGBA32UI: 4 x 32 bits = MAXR ribbons)
+const TS = 30
+const TX = 32
+const TY = 24
+const tileMask = new Uint32Array(TX * TY * 4)
+const CUT = 14 // exp(-14): the shader ignores a ribbon beyond this
+const REACH = Math.sqrt(2 * CUT) // in sigmas
+
 let grid = null
 let grid2 = null
 let rib = null
@@ -171,6 +180,23 @@ function ribbonsAt(a, w, row) {
       ribTex[r1 + c * 4 + 2] = (w * ab) / 255
       ribTex[r1 + c * 4 + 3] = 0
     }
+    // mark the tiles this ribbon reaches
+    const word = row >> 5
+    const bit = (1 << (row & 31)) >>> 0
+    for (let tx = 0; tx < TX; tx++) {
+      const c0 = Math.max(0, Math.floor(((tx * TS) / 960) * (RCOLS - 1)) - 1)
+      const c1 = Math.min(RCOLS - 1, Math.ceil((((tx + 1) * TS) / 960) * (RCOLS - 1)) + 1)
+      let lo = Infinity, hi = -Infinity
+      for (let c = c0; c <= c1; c++) {
+        const y = ribTex[r0 + c * 4]
+        const ext = (REACH * sig) / ribTex[r0 + c * 4 + 1]
+        if (y - ext < lo) lo = y - ext
+        if (y + ext > hi) hi = y + ext
+      }
+      const ty0 = Math.max(0, Math.floor(lo / TS))
+      const ty1 = Math.min(TY - 1, Math.floor(hi / TS))
+      for (let ty = ty0; ty <= ty1; ty++) tileMask[(ty * TX + tx) * 4 + word] |= bit
+    }
     row++
   }
   return row
@@ -188,6 +214,7 @@ in vec2 vUv;
 out vec4 outColor;
 uniform sampler2D uGrid;   // NX x NY control points (RGB)
 uniform sampler2D uRib;    // RCOLS x (2 * count): (Y, 1/sqrt(1+Y'^2), 1/(2 s^2)), (Ar, Ag, Ab)
+uniform highp usampler2D uTiles; // per 30 px tile: bitmask of the ribbons that reach it
 uniform int uCount;
 uniform float uDim;
 
@@ -219,14 +246,20 @@ void main() {
   vec3 col = coarse(p);
   float h = float(2 * uCount);
   float u = (p.x / 960.0 * ${RCOLS - 1}.0 + 0.5) / ${RCOLS}.0;
-  for (int i = 0; i < ${MAXR}; i++) {
-    if (i >= uCount) break;
-    vec4 c = texture(uRib, vec2(u, (float(2 * i) + 0.5) / h));
-    float d = (p.y - c.x) * c.y;
-    float e = d * d * c.z;
-    if (e > 14.0) continue;
-    vec3 amp = texture(uRib, vec2(u, (float(2 * i) + 1.5) / h)).rgb;
-    col += amp * exp(-e);
+  uvec4 m = texelFetch(uTiles, ivec2(clamp(int(p.x / ${TS}.0), 0, ${TX - 1}), clamp(int(p.y / ${TS}.0), 0, ${TY - 1})), 0);
+  for (int w = 0; w < ${MAXR / 32}; w++) {
+    uint bits = m[w];
+    while (bits != 0u) {
+      uint low = bits & (~bits + 1u);   // lowest set bit (GLSL ES 3.00 has no findLSB)
+      int i = w * 32 + int(floor(log2(float(low)) + 0.5));
+      bits ^= low;
+      vec4 c = texture(uRib, vec2(u, (float(2 * i) + 0.5) / h));
+      float d = (p.y - c.x) * c.y;
+      float e = d * d * c.z;
+      if (e > ${CUT}.0) continue;
+      vec3 amp = texture(uRib, vec2(u, (float(2 * i) + 1.5) / h)).rgb;
+      col += amp * exp(-e);
+    }
   }
   outColor = vec4(col * uDim, 1.0);
 }`
@@ -270,8 +303,9 @@ export class AuroraRenderer {
     }
     this.tex = mk(gl.NEAREST)
     this.ribTex = mk(this.linear ? gl.LINEAR : gl.NEAREST)
+    this.tileTex = mk(gl.NEAREST)
     this.u = {}
-    for (const n of ['uGrid', 'uRib', 'uCount', 'uDim']) this.u[n] = gl.getUniformLocation(prog, n)
+    for (const n of ['uGrid', 'uRib', 'uTiles', 'uCount', 'uDim']) this.u[n] = gl.getUniformLocation(prog, n)
   }
 
   render(t, w, h) {
@@ -293,6 +327,7 @@ export class AuroraRenderer {
       interpKeys(coarseKeys, a - (LOOP_B - LOOP_A), grid2, COARSE_STEP)
       for (let q = 0; q < g.length; q++) g[q] += (grid2[q] - g[q]) * xs
     }
+    tileMask.fill(0)
     let n = ribbonsAt(a, 1 - xs, 0)
     n = ribbonsAt(a - (LOOP_B - LOOP_A), xs, n)
     gl.viewport(0, 0, w, h)
@@ -305,6 +340,10 @@ export class AuroraRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.ribTex)
     if (n) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, RCOLS, 2 * n, 0, gl.RGBA, gl.FLOAT, ribTex.subarray(0, RCOLS * 2 * n * 4))
     gl.uniform1i(this.u.uRib, 1)
+    gl.activeTexture(gl.TEXTURE2)
+    gl.bindTexture(gl.TEXTURE_2D, this.tileTex)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32UI, TX, TY, 0, gl.RGBA_INTEGER, gl.UNSIGNED_INT, tileMask)
+    gl.uniform1i(this.u.uTiles, 2)
     gl.uniform1i(this.u.uCount, n)
     gl.uniform1f(this.u.uDim, g ? 1 : 0)
     gl.bindVertexArray(this.vao)
