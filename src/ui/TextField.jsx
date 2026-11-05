@@ -3,7 +3,8 @@
 // sx, sy } } (text, selection, scroll) and the visible field, selection and blinking caret are
 // drawn from the log.
 //
-//   <TextField id x y w h placeholder multiline variant="light" | "chrome" | "bare" onEnter onChange />
+//   <TextField id x y w h placeholder def multiline variant="light" | "chrome" | "bare" onEnter onChange />
+//   (def: the text before anything is typed)
 //   textOf(t, id), setText(id, text), focusField(id)
 import { memo, useEffect, useLayoutEffect, useRef } from 'react'
 import { emit } from '../core/events.js'
@@ -14,7 +15,7 @@ import { C, FONT } from './theme.js'
 import './ui.css'
 
 const EMPTY = { text: '', a: 0, b: 0, sx: 0, sy: 0 }
-export const textOf = (t, id) => valueOf(t, id, EMPTY).text
+export const textOf = (t, id, def = '') => valueOf(t, id, null)?.text ?? def
 export const fieldState = (t, id) => valueOf(t, id, EMPTY)
 export function setText(id, text) {
   const n = text.length
@@ -105,12 +106,13 @@ export function TextField({
   fontFamily = FONT,
   fontWeight = 400,
   style,
+  def,
   t: tProp,
 }) {
   const t0 = useTime()
   const t = tProp ?? t0
   const live = useLive()
-  const st = valueOf(t, id, EMPTY)
+  const st = valueOf(t, id, def ? { text: def, a: def.length, b: def.length, sx: 0, sy: 0 } : EMPTY)
   const fe = focusAt(t)
   const focused = !!fe && fe.field === id
   // caret: on for 0.53 s after each edit / move / focus, then blinks
@@ -157,7 +159,7 @@ export function TextField({
 
   const sync = (el) => {
     const v = { text: el.value, a: el.selectionStart ?? 0, b: el.selectionEnd ?? 0, sx: Math.round(el.scrollLeft), sy: Math.round(el.scrollTop) }
-    const cur = valueOf(now(), id, EMPTY)
+    const cur = valueOf(now(), id, def ? { text: def, a: -1, b: -1, sx: 0, sy: 0 } : EMPTY)
     if (cur.text === v.text && cur.a === v.a && cur.b === v.b && cur.sx === v.sx && cur.sy === v.sy) return
     emit('ui.value', { id, value: v })
     if (cur.text !== v.text) onChange?.(v.text)
