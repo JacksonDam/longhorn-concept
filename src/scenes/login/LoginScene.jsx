@@ -1,7 +1,7 @@
 // Login screen (video frames 1-522): aurora background, Windows/VAIO logos, the bottom bar with
 // Shut Down, five user tiles and the clock; selecting a user flies their tile out as a glass slab
 // beside the password panel; submit plays the element-wise exit over the desktop.
-import { useEffect } from 'react'
+import { memo, useEffect } from 'react'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { emit } from '../../core/events.js'
 import { CAPTURE, now } from '../../core/clock.js'
@@ -59,13 +59,17 @@ export function LoginScene({ visible = true }) {
   const t = useTime()
   useEvents()
   useKeys(visible)
-  if (!visible) {
-    return (
-      <div style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none' }}>
-        <Aurora paused />
-      </div>
-    )
-  }
+  // While hidden, the content stays mounted but frozen as a fresh login screen (t = 0: no
+  // selection, nothing typed) on an invisible layer, so coming back (log off, boot) is a small
+  // update, not a mount; the aurora keeps its canvas and GL context, paused.
+  return (
+    <div style={{ position: 'absolute', inset: 0, visibility: visible ? 'visible' : 'hidden', pointerEvents: visible ? 'auto' : 'none' }}>
+      <LoginContent t={visible ? t : 0} visible={visible} />
+    </div>
+  )
+}
+
+const LoginContent = memo(function LoginContent({ t, visible }) {
   const submit = submitEvent(t)
   // exit clock: seconds into the exit after submit
   const exitK = (tt) => (submit ? tt - submit.t : null)
@@ -85,7 +89,7 @@ export function LoginScene({ visible = true }) {
       {REFBG ? (
         <img src={refFrame(t)} alt="" style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720 }} />
       ) : (
-        <Aurora />
+        <Aurora paused={!visible} />
       )}
       {!REFBG && !NOBAR && <BarBand />}
       <Logo t={t} exitK={exitK} />
@@ -100,4 +104,4 @@ export function LoginScene({ visible = true }) {
       <Selected t={t} records={row.records} submitT={submitT} />
     </div>
   )
-}
+})
