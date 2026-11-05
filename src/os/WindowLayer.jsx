@@ -1,24 +1,54 @@
 // All windows of the session (os/wm.js), back to front, each as a PlexWindow of its app.
 // DesktopScene renders this between the wallpaper and the sidebar.
 import { useTime, useEvents } from '../core/time.jsx'
-import { windows, focusedWindow } from './wm.js'
-import { getApp } from './apps.js'
-import { PlexWindow } from './PlexWindow.jsx'
+import { windows, focusedWindow, sessionStart } from './wm.js'
+import { getApp, listApps } from './apps.js'
+import { PlexWindow, MOUNT_EVERY } from './PlexWindow.jsx'
+import { FPS } from '../core/clock.js'
 import { emit } from '../core/events.js'
 
 // dev/test hook: scripted window input (tools, benches)
 if (typeof window !== 'undefined') window.__wm = { emit, windows, focusedWindow }
 
+// Apps with `prewarm: true` (my Music, which the video opens) get a hidden "ghost" window from
+// the session start: its layers mount and paint while nothing is happening, and the real window
+// takes them over when it opens (same React key, content memoised on time since its open).
+function withGhosts(list, S) {
+  if (S == null) return list
+  const out = [...list]
+  for (const app of listApps()) {
+    if (!app.prewarm || list.some((w) => w.id === app.id)) continue
+    out.unshift({
+      id: app.id, app: app.id, props: {}, x: null, y: null, z: 0, openedAt: S, state: 'closed', changedAt: S,
+      lastAction: 'ghost', maximized: false, maximizedAt: null, focusedAt: -Infinity, initial: false,
+    })
+  }
+  // one background mount queue: from 1 s after the session start (the desktop entrance is over),
+  // the ghosts first, then the windows running at login, one copy every MOUNT_EVERY frames
+  let at = S + 1
+  return out.map((w) => {
+    const app = getApp(w.app)
+    if (!(w.lastAction === 'ghost' || w.initial || app.prewarm)) return w
+    const r = { ...w, mountStart: at }
+    at += ((app.copies ?? 8) - 1) * (MOUNT_EVERY / FPS)
+    return r
+  })
+}
+
 export function WindowLayer() {
   const t = useTime()
   useEvents()
-  const list = windows(t)
+  const list = withGhosts(windows(t), sessionStart(t))
   const focus = focusedWindow(t)
+  // stable DOM order (by id) with the stacking order as z-index, so focusing a window never
+  // moves DOM (which would repaint its layers); the layer is one stacking context below the shell
+  const z = new Map(list.map((w, i) => [w.id, i + 1]))
+  const order = [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return (
-    <>
-      {list.map((w, i) => (
-        <PlexWindow key={w.id + ':' + w.openedAt} win={w} app={getApp(w.app)} t={t} active={focus?.id === w.id} />
+    <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>
+      {order.map((w) => (
+        <PlexWindow key={w.id} win={w} app={getApp(w.app)} t={t} active={focus?.id === w.id} z={z.get(w.id)} />
       ))}
-    </>
+    </div>
   )
 }

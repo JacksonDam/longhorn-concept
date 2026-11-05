@@ -84,8 +84,10 @@ function MusicOverlay({ win, t, skip }) {
   return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} />
 }
 
-// the content a motion-blur copy shows: the settled state after the latest change
-function snapshot(win, tk) {
+// the content a motion-blur copy shows: the settled state after the latest change (the intro
+// at rel 9 / 74 as the video's copies show it, the page and selection once settled, and any
+// other change of this window `settle` s after its event)
+function snapshot(win, tk, ev, settle) {
   const t0 = openT(win)
   const vk = viewState(tk, t0)
   const pts = [t0 + 9 / FPS, t0 + 74 / FPS]
@@ -93,8 +95,7 @@ function snapshot(win, tk) {
   if (vk.page) pts.push(vk.page.t + 21 / FPS)
   let best = pts[0]
   for (const p of pts) if (p <= tk && p > best) best = p
-  // any later ui change (settings, search, scroll) shows as of tk
-  return best
+  return Math.max(best, ev + settle)
 }
 
 // the live layer re-renders per frame only while time-driven visuals run (os/PlexWindow
@@ -224,6 +225,7 @@ const music = {
   liveTime,
   relevant: (e) => e.type.startsWith('media.') || e.type === 'explorer.nav',
   copies: 10,
+  prewarm: true,
 }
 export default music
 export { DEFAULTS }
