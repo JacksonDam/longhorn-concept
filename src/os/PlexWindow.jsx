@@ -302,7 +302,8 @@ function motion(win, app, t) {
     const crel = toRel(t, win.changedAt)
     if (crel >= CLOSE_END + 3) return { ...base, hidden: true, closedDone: true }
     return {
-      ...base, frozen: win.changedAt, n: 10, shutter: 0.8, hidden: crel >= CLOSE_END,
+      // (the content keeps its current state: closing changes no content, so nothing re-renders)
+      ...base, closing: true, n: 10, shutter: 0.8, hidden: crel >= CLOSE_END,
       pose: (tt) => closePose(toRel(tt, win.changedAt)),
       beam: { rel: OPEN_END - crel * 1.6, fan: [3.2, 6, 8.2], spark: [-1, -1, -1], dx: dock.x - 440 },
     }
@@ -456,6 +457,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
   const shown =
     (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'ghost' && (win.lastAction !== 'initial' || mounted >= N)
   const rest = shown ? REST : PARKED
+  const keepLayers = ghost || win.state === 'closed' || win.lastAction === 'open'
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -473,8 +475,10 @@ function PlexWindowImpl({ win, app, t, active, z }) {
       style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = rest
     const rr = blur && k < nEff ? m.rect(tt) : r
-    let ct = m.frozen != null ? live : liveContentT(win, app, t)
-    if (k > 0 && m.frozen == null) {
+    // a closed window's live layer turns into a just-opened window's (a reopen then re-renders
+    // little); while closing, the live content holds the time of the close
+    let ct = m.closedDone ? liveContentT(win, app, win.openedAt) : liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
+    if (k > 0) {
       // a ghost's copies show what a window that has just opened shows, so the real window
       // takes them over without re-rendering
       // (a closed window's copies turn into a fresh window's, one every STAGGER frames)
@@ -495,9 +499,10 @@ function PlexWindowImpl({ win, app, t, active, z }) {
         key={k}
         style={{
           position: 'absolute', left: rr.x, top: rr.y, width: rr.w, height: rr.h,
-          // parked layers (off-stage, hidden windows) are not composited: they cost no layer and
-          // no raster, Blink only keeps their paint
-          ...style, mixBlendMode: 'plus-lighter', willChange: style === PARKED ? undefined : 'transform, opacity',
+          // parked layers of windows that can't appear soon (running at login, still mounting)
+          // are not composited: no layer, no raster, Blink only keeps their paint; prewarmed and
+          // closed windows keep their layers (a reopen then only rasterises)
+          ...style, mixBlendMode: 'plus-lighter', willChange: style === PARKED && !keepLayers ? undefined : 'transform, opacity',
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
