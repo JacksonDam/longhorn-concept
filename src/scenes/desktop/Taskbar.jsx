@@ -3,6 +3,7 @@
 import { memo } from 'react'
 import { asset } from '../../core/preload.js'
 import { emit } from '../../core/events.js'
+import { pt } from '../../ui/index.js'
 import { Chevron } from './icons.jsx'
 
 export const BAR_TOP = 699
@@ -66,16 +67,18 @@ export const TaskButton = memo(function TaskButton({ b, label, Icon }) {
 })
 
 // The buttons' hit areas (one static layer at the final layout, outside the blur copies)
-export const TaskHits = memo(function TaskHits({ buttons, onClick }) {
+export const TaskHits = memo(function TaskHits({ buttons, onClick, onContext }) {
   return buttons.map((b) => (
     <div
       key={b.id}
       style={{ position: 'absolute', left: b.x, top: 699, width: b.w, height: 21, pointerEvents: 'auto' }}
       onPointerDown={(e) => {
+        if (e.button !== 0) return
         e.stopPropagation()
         onClick(b.id)
       }}
-      onPointerEnter={() => emit('hover', { id: 'tb.' + b.id, on: true })}
+      onContextMenu={(e) => onContext?.(b.id, e)}
+      onPointerEnter={(e) => emit('hover', { id: 'tb.' + b.id, on: true, ...pt(e) })}
       onPointerLeave={() => emit('hover', { id: 'tb.' + b.id, on: false })}
     />
   ))

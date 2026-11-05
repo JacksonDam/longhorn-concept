@@ -322,30 +322,41 @@ const TrackHits = memo(function TrackHits({ album }) {
   ))
 })
 
-// slides in from the right with a horizontal multi-sample blur
+// Slides in from the right with a horizontal multi-sample blur. The blur layers are mounted one
+// per frame from the click (parked off-stage, so they are painted before they're needed) and stay
+// mounted while the page shows; afterwards layer 0 is the list. `out` fades a list being replaced.
+const LIST_N = 5
+const PARK = { transform: 'translateX(-4000px)', opacity: 1e-4 }
 function TrackList({ album, hrel, sel, hover, playing, out = 1 }) {
-  if (!album || hrel < 13) return null
-  const [, op] = LIST_IN(hrel)
-  if (hrel >= 20) {
-    return (
-      <div style={{ position: 'absolute', left: 0, top: 0, opacity: out }}>
-        <TrackListBody album={album} sel={sel} hover={hover} playing={playing} />
-        {out === 1 && <TrackHits album={album} />}
-      </div>
-    )
-  }
-  const n = 10
+  if (!album) return null
+  const settled = hrel >= 20
+  const [, op] = LIST_IN(Math.min(hrel, 20))
+  const mounted = Math.min(LIST_N, Math.max(1, Math.floor(hrel + 23) + 1))
   const layers = []
-  for (let k = 0; k < n; k++) {
-    const h = hrel + (k + 0.5) / n - 0.5
-    const [dx, o] = LIST_IN(h)
+  for (let k = 0; k < mounted; k++) {
+    let style
+    if (settled) style = k === 0 ? { opacity: out } : PARK
+    else if (hrel < 13 || op <= 0) style = PARK
+    else {
+      const [dx, o] = LIST_IN(hrel + (k + 0.5) / LIST_N - 0.5)
+      style = { transform: `translateX(${dx}px)`, opacity: o / LIST_N }
+    }
     layers.push(
-      <div key={k} style={{ position: 'absolute', left: dx, top: 0, opacity: o / n, mixBlendMode: 'plus-lighter' }}>
-        <TrackListBody album={album} sel={sel} playing={playing} />
+      <div key={k} style={{ position: 'absolute', left: 0, top: 0, mixBlendMode: settled ? undefined : 'plus-lighter', willChange: 'transform, opacity', ...style }}>
+        {k === 0 && settled ? (
+          <TrackListBody album={album} sel={sel} hover={hover} playing={playing} />
+        ) : (
+          <TrackListBody album={album} sel={sel} playing={playing} />
+        )}
       </div>,
     )
   }
-  return <div style={{ position: 'absolute', left: 0, top: 0, isolation: 'isolate', opacity: op > 0 ? 1 : 0 }}>{layers}</div>
+  return (
+    <div style={{ position: 'absolute', left: 0, top: 0, isolation: 'isolate' }}>
+      {layers}
+      {settled && out === 1 && <TrackHits album={album} />}
+    </div>
+  )
 }
 
 const albumSlabs = new Map()
@@ -363,7 +374,7 @@ function albumSlabFor(album) {
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
 // window's overlay layer). track / trackHover / playing: the page's track list state.
-export function Header({ t, openT, page, copy = false, track = -1, trackHover = -1, playing = -1, slabT = t, slabs = 'all', cache = false, skip = false, actions }) {
+export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT = t, slabs = 'all', cache = false, skip = false, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
   const toDevice = page != null && page.album == null
@@ -411,8 +422,15 @@ export function Header({ t, openT, page, copy = false, track = -1, trackHover = 
       {slabEl}
       {headerOp > 0 && <Title rel={rel} op={headerOp} />}
       {headerOp > 0 && <Buttons rel={rel} op={headerOp} actions={actions} />}
-      {prevListOp > 0 && <TrackList album={page.prev} hrel={99} sel={-1} hover={-1} playing={-1} out={prevListOp} />}
-      {page && page.album && <TrackList album={page.album} hrel={hrel} sel={track} hover={copy ? -1 : trackHover} playing={playing} />}
+      {/* keyed by album: a list keeps its layers from being pre-mounted (clicked, page pending)
+          through showing to fading out as the previous page (no remounts) */}
+      {[
+        page && page.prev && prevListOp > 0 && <TrackList key={page.prev.key} album={page.prev} hrel={99} sel={-1} hover={-1} playing={-1} out={prevListOp} />,
+        page && page.album && <TrackList key={page.album.key} album={page.album} hrel={hrel} sel={track} hover={copy ? -1 : trackHover} playing={playing} />,
+        next && next.album && next.album !== page?.album && (
+          <TrackList key={next.album.key} album={next.album} hrel={toRel(t, next.t)} sel={-1} hover={-1} playing={-1} />
+        ),
+      ]}
       <Preview onClick={actions?.preview} />
     </>
   )

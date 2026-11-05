@@ -4,7 +4,8 @@
 import { memo } from 'react'
 import { CAPTURE } from '../../core/clock.js'
 import { Popup } from './Popup.jsx'
-import { hover, hoverOn, hoverOff, closePopups } from './shellState.js'
+import { hover, hoverOn, hoverOff, closePopups, popupState } from './shellState.js'
+import { setValue, lastOf } from '../../ui/index.js'
 import { launch } from './appInfo.jsx'
 
 const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
@@ -80,10 +81,10 @@ const WeatherPanel = memo(function WeatherPanel() {
 })
 const WEATHER_PANEL = <WeatherPanel />
 
-function FootHit({ id, x, y, w, go }) {
+function FootHit({ id, x, y, w, h = 22, go }) {
   return (
     <div
-      style={{ position: 'absolute', left: x, top: y, width: w, height: 22, pointerEvents: 'auto' }}
+      style={{ position: 'absolute', left: x, top: y, width: w, height: h, pointerEvents: 'auto' }}
       onPointerEnter={hoverOn(id)}
       onPointerLeave={hoverOff(id)}
       onPointerDown={(e) => {
@@ -105,6 +106,7 @@ function FootLive({ t, id, b }) {
 const WEATHER_HITS = (
   <>
     {panelEater(WEATHER)}
+    <FootHit id="wx.body" x={WEATHER.x} y={WEATHER.y + 35} w={WEATHER.w} h={WEATHER.h - 35 - 23} go={() => launch.internet('weather.msn.com')} />
     <FootHit id="wx.go" x={WEATHER.x} y={WEATHER.y + WEATHER.h - 23} w={WEATHER.w} go={() => launch.internet('weather.msn.com')} />
   </>
 )
@@ -134,13 +136,16 @@ export function clockText(d, upper) {
   return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${upper ? ap.toUpperCase() : ap}`
 }
 
-const CalendarPanel = memo(function CalendarPanel({ y, m, d, time, dow }) {
+const CELL = 26
+const GX = 12
+const GY = 80
+const dayCell = (first, i) => ({ x: GX + ((first + i) % 7) * CELL, y: GY + Math.floor((first + i) / 7) * 17 })
+const CalendarPanel = memo(function CalendarPanel({ y, m, d, time, dow, today, sel }) {
   const { x, y: top, w, h } = CAL
   const first = new Date(y, m, 1).getDay()
   const days = new Date(y, m + 1, 0).getDate()
-  const cell = 26
-  const gx = 12
-  const gy = 80
+  const cell = CELL
+  const gx = GX
   const head = (
     <>
       <div style={{ position: 'absolute', left: 10, top: 6, fontFamily: font, fontWeight: 600, fontSize: 15, lineHeight: '22px', color: '#fff', whiteSpace: 'nowrap' }}>{time}</div>
@@ -149,14 +154,13 @@ const CalendarPanel = memo(function CalendarPanel({ y, m, d, time, dow }) {
   const txt = (extra) => ({ position: 'absolute', fontFamily: font, fontWeight: 600, fontSize: 9.4, lineHeight: '16px', whiteSpace: 'nowrap', color: 'rgba(112,118,152,0.95)', textAlign: 'center', ...extra })
   const cells = []
   for (let i = 0; i < days; i++) {
-    const k = first + i
-    const cx = gx + (k % 7) * cell
-    const cy = gy + Math.floor(k / 7) * 17
-    const today = i + 1 === d
+    const { x: cx, y: cy } = dayCell(first, i)
+    const isToday = today && i + 1 === d
+    const isSel = sel === i + 1
     cells.push(
       <div key={i}>
-        {today && <div style={{ position: 'absolute', left: cx + 2, top: cy, width: cell - 4, height: 16, borderRadius: 3, background: 'linear-gradient(to bottom, rgb(206,230,255), rgb(176,215,255))', boxShadow: 'inset 0 0 0 1px rgba(120,170,235,0.9)' }} />}
-        <div style={txt({ left: cx, top: cy, width: cell, color: today ? 'rgb(36,71,127)' : txt().color })}>{i + 1}</div>
+        {(isToday || isSel) && <div style={{ position: 'absolute', left: cx + 2, top: cy, width: cell - 4, height: 16, borderRadius: 3, background: isToday ? 'linear-gradient(to bottom, rgb(206,230,255), rgb(176,215,255))' : 'rgba(214,234,255,0.8)', boxShadow: `inset 0 0 0 1px ${isToday ? 'rgba(120,170,235,0.9)' : 'rgba(150,190,240,0.8)'}` }} />}
+        <div style={txt({ left: cx, top: cy, width: cell, color: isToday ? 'rgb(36,71,127)' : txt().color })}>{i + 1}</div>
       </div>,
     )
   }
@@ -164,9 +168,14 @@ const CalendarPanel = memo(function CalendarPanel({ y, m, d, time, dow }) {
     <div style={{ position: 'absolute', left: x, top }}>
       <div style={{ position: 'absolute', left: 0, top: 0 }}>
         <Frame x={0} y={0} w={w} h={h} head={head} footLabel="Date and Time Properties" />
-        <div style={txt({ left: 10, top: 39, textAlign: 'left', fontSize: 10.2, color: 'rgb(60,90,150)' })}>
-          {DAYS[dow]}, {MONTHS[m]} {d}, {y}
+        <div style={txt({ left: 26, top: 39, width: w - 52, fontSize: 10.2, color: 'rgb(60,90,150)' })}>
+          {today ? `${DAYS[dow]}, ${MONTHS[m]} ${d}, ${y}` : `${MONTHS[m]} ${y}`}
         </div>
+        {[0, 1].map((k) => (
+          <svg key={k} width="8" height="10" viewBox="0 0 8 10" style={{ position: 'absolute', left: k ? w - 18 : 10, top: 42 }}>
+            <path d={k ? 'M1.5 1 L6.5 5 L1.5 9 Z' : 'M6.5 1 L1.5 5 L6.5 9 Z'} fill="rgb(59,124,198)" />
+          </svg>
+        ))}
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((s, i) => (
           <div key={i} style={txt({ left: gx + i * cell, top: 60, width: cell, color: 'rgb(59,124,198)' })}>
             {s}
@@ -179,18 +188,49 @@ const CalendarPanel = memo(function CalendarPanel({ y, m, d, time, dow }) {
   )
 })
 
-const CAL_HITS = (
-  <>
-    {panelEater(CAL)}
-    <FootHit id="cal.go" x={CAL.x} y={CAL.y + CAL.h - 23} w={CAL.w} go={() => launch.control({ applet: 'datetime' })} />
-  </>
-)
+// month arrows ('ui.value' cal.month: months from today's) and day selection (cal.sel)
+const CalHits = memo(function CalHits({ first, days, off }) {
+  const cell = (x, y, w, h, go, key) => (
+    <div key={key} style={{ position: 'absolute', left: CAL.x + x, top: CAL.y + y, width: w, height: h, pointerEvents: 'auto' }} onPointerDown={(e) => (e.stopPropagation(), go())} />
+  )
+  const cells = []
+  for (let i = 0; i < days; i++) {
+    const c = dayCell(first, i)
+    cells.push(cell(c.x, c.y, CELL, 17, () => setValue('cal.sel', { off, day: i + 1 }), 'd' + i))
+  }
+  return (
+    <>
+      {panelEater(CAL)}
+      {cell(4, 38, 20, 18, () => setValue('cal.month', off - 1), 'prev')}
+      {cell(CAL.w - 24, 38, 20, 18, () => setValue('cal.month', off + 1), 'next')}
+      {cells}
+      <FootHit id="cal.go" x={CAL.x} y={CAL.y + CAL.h - 23} w={CAL.w} go={() => launch.control({ applet: 'datetime' })} />
+    </>
+  )
+})
 
 export function CalendarFlyout({ t }) {
   const now = calendarDate()
+  const st = popupState(t, 'calendar')
+  // the shown month resets each time the calendar opens
+  const offE = lastOf(t, 'ui.value', 'cal.month')
+  const off = offE && offE.t >= st.at && st.open ? offE.value : 0
+  const selE = lastOf(t, 'ui.value', 'cal.sel')
+  const sel = selE && selE.t >= st.at && st.open && selE.value.off === off ? selE.value.day : 0
+  const shown = new Date(now.getFullYear(), now.getMonth() + off, 1)
+  const y = shown.getFullYear()
+  const m = shown.getMonth()
   return (
-    <Popup t={t} id="calendar" kind="rise" n={10} box={{ left: CAL.x - 6, top: CAL.y - 4, width: CAL.w + 12, height: CAL.h + 4 }} live={<FootLive t={t} id="cal.go" b={CAL} />} hits={CAL_HITS}>
-      <CalendarPanel y={now.getFullYear()} m={now.getMonth()} d={now.getDate()} dow={now.getDay()} time={clockText(now, false)} />
+    <Popup
+      t={t}
+      id="calendar"
+      kind="rise"
+      n={10}
+      box={{ left: CAL.x - 6, top: CAL.y - 4, width: CAL.w + 12, height: CAL.h + 4 }}
+      live={<FootLive t={t} id="cal.go" b={CAL} />}
+      hits={<CalHits first={new Date(y, m, 1).getDay()} days={new Date(y, m + 1, 0).getDate()} off={off} />}
+    >
+      <CalendarPanel y={y} m={m} d={now.getDate()} dow={now.getDay()} time={clockText(now, false)} today={off === 0} sel={sel} />
     </Popup>
   )
 }

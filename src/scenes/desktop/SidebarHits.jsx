@@ -8,7 +8,7 @@
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { openMenu, pt } from '../../ui/index.js'
+import { openMenu, pt, valueOf, lastOf } from '../../ui/index.js'
 import { mediaState } from '../../os/media.js'
 import { MAIL, MAIL_Y0, MAIL_DY, BUDDIES } from './Sidebar.jsx'
 import { hover, togglePopup, closePopups } from './shellState.js'
@@ -25,7 +25,7 @@ export const ROWS = [
   { id: 'sb.user', x: X, y: 0, w: W, h: 24, go: () => openMenu('sb.user', true, besideSidebar(USER_MENU, 2)), tile: true },
   { id: 'sb.weather', x: X, y: 25, w: W, h: 38, go: () => togglePopup('weather'), tile: true },
   { id: 'sb.mailhead', x: X, y: 66, w: W, h: 19, go: () => launch.email(), band: true },
-  ...MAIL.map((m, i) => ({ id: 'sb.mail.' + i, x: X, y: MAIL_Y0 + i * MAIL_DY - 14.4, w: W, h: MAIL_DY, go: () => launch.email(m.text), band: true })),
+  ...MAIL.map((m, i) => ({ id: 'sb.mail.' + i, x: X, y: MAIL_Y0 + i * MAIL_DY - 14.4, w: W, h: MAIL_DY, go: () => openMail(i, m.text), band: true })),
   { id: 'sb.budhead', x: X, y: 318, w: W, h: 19, go: () => openMenu('sb.status', true, besideSidebar(STATUS_MENU, 318)), band: true },
   ...BUDDIES.map((b, i) => ({ id: 'sb.buddy.' + i, x: X, y: b.y - 15, w: W, h: 18.75, go: () => launch.im(buddyName(b)), band: true })),
   { id: 'sb.photo', x: 862, y: 519, w: 96, h: 73, go: () => launch.pictures(), tile: true },
@@ -127,4 +127,24 @@ export function SidebarLive({ t }) {
     out.push(<div key={b.id} style={{ position: 'absolute', left: b.x - 2, top: b.y - 2, width: b.w + 4, height: b.h + 4, borderRadius: '50%', opacity: lv, background: 'radial-gradient(circle, rgba(220,240,255,0.65), rgba(160,210,255,0.25) 60%, rgba(160,210,255,0) 72%)' }} />)
   }
   return out
+}
+
+// a mail row: select it, mark it read, open it in Outlook
+function openMail(i, subject) {
+  const t = now()
+  const read = valueOf(t, 'sb.mailread', [])
+  emit('ui.value', { id: 'sb.mailsel', value: i })
+  if (!read.includes(i)) emit('ui.value', { id: 'sb.mailread', value: [...read, i] })
+  launch.email(subject)
+}
+let mailCache = { key: '', v: null }
+// the mail tile's state at t (one object per state, for the memoised tile)
+export function mailState(t, since) {
+  const s = lastOf(t, 'ui.value', 'sb.mailsel')
+  const r = lastOf(t, 'ui.value', 'sb.mailread')
+  const sel = s && s.t >= since ? s.value : 1
+  const read = r && r.t >= since ? r.value : []
+  const key = sel + '|' + read.join(',')
+  if (mailCache.key !== key) mailCache = { key, v: { sel, read } }
+  return mailCache.v
 }

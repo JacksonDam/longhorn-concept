@@ -109,3 +109,34 @@ Before = the scene's initial flat-orange placeholder.
 | 1402-1415 restore click, taskbar | - | 18.5 |
 Per tile at 590: mail 10.3, buddies 17.2, media 18.5, Go Online 18.0, header 22.7 (stand-in
 picture), Seattle 26.1 (drawn skyline), thumbs 23.6, clock 20.1, start 20.4, task group 21.5.
+
+## Shell (the usable OS on top of the video's desktop)
+Files (src/scenes/desktop unless noted):
+- `DesktopScene.jsx`: composition. Mounted once by App.jsx from the first frame (since =
+  Infinity between sessions renders a cached tree; shell state counts from the session start via
+  `shellState.setSessionFloor`), so a login never mounts it.
+- Taskbar: `taskbarModel.js` (order, layout, transitions from `os/wm.js` windows; registers the
+  button locator in `os/taskbar.js`), `TaskGroup.jsx` (per-button pre-mounted blur copies via
+  `Blur.jsx`, insertion with the video's curves scaled to the actual gap, 6-frame removal, birth
+  flare, click flash, hover), `Taskbar.jsx` (visuals), `TaskbarLayer.jsx` (entrance, Start
+  button, clock + date tooltip + calendar, chevron), `appInfo.jsx` (labels/icons: the video's
+  buttons keep their measured look, others come from `os/apps.js`; launchers; XP click rules).
+  New windows are inserted in the middle of the group, as My Music is in the video.
+- Popups: `shellState.js` ('shell.popup' { id, open }: one open at a time; 'shell.sidebar'),
+  `Popup.jsx` (rise / drop / left / fade, pre-mounted, motion-blurred), `StartMenu.jsx` (after
+  ref3/insp1.png), `Flyouts.jsx` (Seattle weather, calendar), `Flyout.jsx` (my Music flyout;
+  rows play their track). Menus use the UI kit: desktop context menu (`deskMenu.js`), sidebar
+  header menus (`sidebarMenus.js`), task button menu (`TaskGroup.jsx`).
+- Sidebar: `Sidebar.jsx` (visuals; the glass is split into the sliding panel and the static clock
+  foot), `SidebarHits.jsx` (every tile's action and hover).
+- `src/os/session.js` (shared with the session builder): currentUser / userInfo / wallpaper;
+  `src/os/media.js`: the silent player; `src/os/logIndex.js`: indexed event lookups.
+- `src/apps/display`: Display Properties (Stonehenge, the leaf stand-in, plain colours).
+- `src/demo/shell.js` + `?scenario=shell`: scripted shell input for bench/capture (frames 1-520).
+- Details: task buttons show their full label as a tooltip and have a Restore / Minimize /
+  Maximize / Close menu on right-click; the calendar pages through months and selects days;
+  a mail row moves the sidebar's selection, marks the mail read and opens it; Windows Tour and
+  Top 10 Tasks open Help on their pages; the Start header opens Control Panel > User Accounts.
+
+Bench (prod build, ?scenario=shell, 1-520): p50 0.6 ms, p95 3.5 ms, max 6.1 ms. The video
+replay's RMSE is unchanged by the shell (every segment within 0.01 of the pre-shell capture).

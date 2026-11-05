@@ -12,6 +12,7 @@ import { sessionFloor } from './shellState.js'
 const inSession = (e) => (e && e.t >= sessionFloor() ? e : null)
 import { now, FPS } from '../../core/clock.js'
 import { Blur } from './Blur.jsx'
+import { openMenu } from '../../ui/index.js'
 import { launch } from './appInfo.jsx'
 import { asset } from '../../core/preload.js'
 import { clamp, track } from '../../core/anim.js'
@@ -265,6 +266,14 @@ const HitAreas = memo(function HitAreas() {
         style={{ position: 'absolute', left: FLY.x, top: FLY.y, width: FLY.w, height: FLY.h, pointerEvents: 'auto' }}
         onPointerDown={(e) => e.stopPropagation()}
       />
+      {/* title bar: the note and "my Music" open the window, the arrow drops a menu, x closes */}
+      <FlyHit x={668} y={261} w={110} h={30} id="fly.title" go={() => goToMusic()} />
+      <FlyHit x={819} y={263} w={20} h={18} id="fly.drop" go={() => openMenu('fly.menu', true, { x: 742, y: 282 })} />
+      <FlyHit x={840} y={262} w={18} h={20} id="fly.x" go={() => closeFlyout()} />
+      {/* the scrollbar: the whole list is in view, so its arrows step through the tracks */}
+      <FlyHit x={845} y={296} w={12} h={10} id="fly.up" go={() => emit('media.prev')} />
+      <FlyHit x={845} y={307} w={12} h={150} id="fly.thumb" go={() => goToMusic()} />
+      <FlyHit x={845} y={459} w={12} h={12} id="fly.down" go={() => emit('media.next')} />
       {TRACKS.map((_, i) => (
         <div
           key={i}
@@ -291,6 +300,30 @@ const HitAreas = memo(function HitAreas() {
 })
 const HIT_AREAS = <HitAreas />
 
+function FlyHit({ x, y, w, h, id, go }) {
+  return (
+    <div
+      style={{ position: 'absolute', left: x, top: y, width: w, height: h, pointerEvents: 'auto' }}
+      onPointerEnter={() => emit('hover', { id, on: true })}
+      onPointerLeave={() => emit('hover', { id, on: false })}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        e.stopPropagation()
+        go()
+      }}
+    />
+  )
+}
+
+// the title bar's drop-down (UI kit), rendered by DesktopScene
+export const FLY_MENU = [
+  { label: 'Play All', onClick: () => emit('media.play', { track: 0 }) },
+  { label: 'Pause', onClick: () => emit('media.pause') },
+  '-',
+  { label: 'Go to my Music', onClick: () => goToMusic() },
+  { label: 'Close', onClick: () => closeFlyout() },
+]
+
 export function goToMusic() {
   emit('desk.flypress', { on: false })
   emit('desk.flyout', { open: false })
@@ -316,7 +349,7 @@ export function Flyout({ t }) {
   const moving = visible && (s.open ? df < OPEN_END + 0.5 : df < CLOSE_END + 0.5)
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, overflow: 'hidden', pointerEvents: 'none' }}>
-      <Blur t={df} box={BOX} n={24} shutter={1} phase={-0.5} pose={pose} moving={moving} hidden={!visible} live={<RowHighlightsLayer t={t} />} front={FRONT}>
+      <Blur t={df} box={BOX} n={12} shutter={1} phase={-0.5} pose={pose} moving={moving} hidden={!visible} live={<RowHighlightsLayer t={t} />} front={FRONT}>
         {BACK}
       </Blur>
       <div style={{ position: 'absolute', inset: 0, visibility: s.open && df >= OPEN_END ? 'visible' : 'hidden' }}>{HIT_AREAS}</div>
