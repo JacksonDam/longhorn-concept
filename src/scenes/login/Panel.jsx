@@ -15,7 +15,7 @@ const P = { left: 505, top: 290, width: 215, height: 105 } // panel box (stage p
 // panel x offset (px) vs frames since select (select = video frame 168)
 // measured from the streak ends: at 194 the field smears over x 0-520, at 195 over 450-750,
 // then it overshoots ~45 px and settles by 198
-const SWEEP = [
+let SWEEP = [
   [25.3, -1000],
   [26, -420],
   [26.5, -150],
@@ -27,6 +27,12 @@ const SWEEP = [
   [29.5, 4],
   [30, 0],
 ]
+try {
+  const o = new URLSearchParams(location.search).get('sweep') // local fitting aid
+  if (o) SWEEP = JSON.parse(o)
+} catch {
+  // keep the fitted keys
+}
 function sweep(k) {
   if (k <= SWEEP[0][0]) return SWEEP[0][1]
   for (let i = 1; i < SWEEP.length; i++) {
