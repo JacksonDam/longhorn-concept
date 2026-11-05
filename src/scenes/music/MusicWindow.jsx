@@ -130,11 +130,11 @@ const Frame = memo(function Frame() {
 // left and shaded on the right, the body shaded right and downwards. Real time uses fixed
 // gradients faded by opacity on their own layers, kept mounted (no repaint per frame).
 const TOP_H = 122
-const lightBg = (k) => `linear-gradient(90deg, rgb(${75 * k},${75 * k},${75 * k}) 0px, rgb(${75 * k},${75 * k},${75 * k}) 155px, rgb(0,0,0) 315px)`
-const topShadeBg = (a) => `linear-gradient(90deg, rgba(10,25,60,0) 355px, rgba(10,25,60,${a}) 455px, rgba(10,25,60,${a}) 777px)`
-const bodyShadeBg = (a) => `linear-gradient(90deg, rgba(60,90,140,0) 355px, rgba(60,90,140,${a}) 530px, rgba(60,90,140,${a}) 777px)`
+const lightBg = (k) => `linear-gradient(90deg, rgb(${75 * k},${75 * k},${75 * k}) 0px, rgb(${75 * k},${75 * k},${75 * k}) 200px, rgb(0,0,0) 400px)`
+const topShadeBg = (a) => `linear-gradient(90deg, rgba(10,25,60,0) 420px, rgba(10,25,60,${a}) 520px, rgba(10,25,60,${a}) 777px)`
+const bodyShadeBg = (a) => `linear-gradient(90deg, rgba(60,90,140,0) 385px, rgba(60,90,140,${a}) 560px, rgba(60,90,140,${a}) 777px)`
 // and downwards (the light comes from the top left): local y 400 -> 600, i.e. 278 -> 478 below TOP_H
-const bodyShadeYBg = (a) => `linear-gradient(180deg, rgba(60,90,140,0) 278px, rgba(60,90,140,${a}) 478px, rgba(60,90,140,${a}) 532px)`
+const bodyShadeYBg = (a) => `linear-gradient(180deg, rgba(60,90,140,0) 238px, rgba(60,90,140,${a}) 458px, rgba(60,90,140,${a}) 532px)`
 function OpenLight({ rel }) {
   const l = openLight(rel)
   const [k, ab, at] = l && rel >= 4 ? l : [0, 0, 0]
