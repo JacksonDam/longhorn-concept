@@ -6,7 +6,7 @@ import { MotionBlur } from '../../core/MotionBlur.jsx'
 import { ease, clamp, track } from '../../core/anim.js'
 import { musicWindowState } from '../music/MusicWindow.jsx'
 import { Bar, GroupBg, TaskButton, StartFlag, StartLabel, Clock, ShutDot, ClockChevron, EarlyBarTint, LAYOUT4, LAYOUT5 } from './Taskbar.jsx'
-import { ramp } from './timing.js'
+import { ramp, SUBMIT_FRAME } from './timing.js'
 
 const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
 
@@ -150,7 +150,7 @@ export function TaskbarLayer({ t, f }) {
   const start = ramp(f, 569.4, 574.8)
   const built = ramp(f, 568.5, 574)
   // task buttons rise into place within one frame (smeared vertically on video frame 523)
-  const rise = (ff) => 14 * (1 - ease.out(clamp((ff - (522.5 - 509)) / 1.05)))
+  const rise = (ff) => 14 * (1 - ease.out(clamp((ff - (522.5 - SUBMIT_FRAME)) / 1.05)))
   const groupOp = ramp(f, 521.6, 523)
   const ms = musicWindowState(t)
   const rel = ms.exists ? (t - ms.openedAt) * FPS - INSERT_DELAY : -Infinity

@@ -1,9 +1,6 @@
 // Demo input for the desktop scene: [{ frame, type, ...data }], frames are 1-based video frames.
 // Fractional frames are fine: they place an event between two video frames, as measured.
 export const desktopDemo = [
-  // TEMPORARY until the login builder's demo lands (de-duplicated at merge)
-  { frame: 509, type: 'login.submit' },
-
   // the cursor settles on the media strip's play button; the strip lights up, then a click
   // slides the my Music flyout out of the sidebar
   { frame: 596.3, type: 'hover', id: 'sb.media', on: true },
