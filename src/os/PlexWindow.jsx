@@ -298,7 +298,7 @@ function motion(win, app, t) {
   if (win.lastAction === 'ghost') return { ...base, hidden: true }
   if (win.state === 'closed') {
     const crel = toRel(t, win.changedAt)
-    if (crel >= CLOSE_END + 3) return { ...base, hidden: true, frozen: win.changedAt }
+    if (crel >= CLOSE_END + 3) return { ...base, hidden: true, closedDone: true }
     return {
       ...base, frozen: win.changedAt, n: 10, shutter: 0.8, hidden: crel >= CLOSE_END,
       pose: (tt) => closePose(toRel(tt, win.changedAt)),
@@ -469,7 +469,9 @@ function PlexWindowImpl({ win, app, t, active, z }) {
     if (k > 0 && m.frozen == null) {
       // a ghost's copies show what a window that has just opened shows, so the real window
       // takes them over without re-rendering
-      const tk = ghost ? win.openedAt : t - (k * STAGGER) / FPS
+      // (a closed window's copies turn into a fresh window's, one every STAGGER frames)
+      const fresh = ghost || (m.closedDone && toRel(t, win.changedAt) > CLOSE_END + 3 + k * STAGGER)
+      const tk = fresh ? win.openedAt : t - (k * STAGGER) / FPS
       const ev = lastEventT(win, app, tk)
       const settle = app.settle ?? DEFAULT_SETTLE
       ct = app.snapshot ? app.snapshot(win, tk, ev, settle) : Math.max(win.openedAt, ev) + settle
@@ -477,7 +479,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
     const visible = style !== PARKED && style.opacity > 1e-3
     // the open's lighting layers: on the live layer always, on copies until the open is over
     // (unmounted one copy per frame afterwards)
-    const light = k === 0 || ghost || (win.lastAction === 'open' && rel < 17 + k)
+    const light = k === 0 || ghost || m.closedDone || (win.lastAction === 'open' && rel < 17 + k)
     layers.push(
       <div
         key={k}
