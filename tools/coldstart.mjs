@@ -235,7 +235,8 @@ async function launch() {
     '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars',
     `--window-size=${W},${H}`, '--force-device-scale-factor=1', '--enable-gpu', '--ignore-gpu-blocklist',
     '--ignore-certificate-errors', '--no-first-run', '--no-default-browser-check', '--disable-component-update',
-    '--disable-background-networking', '--disable-sync',
+    '--disable-background-networking', '--disable-sync', '--disable-search-engine-choice-screen',
+    '--disable-features=SearchEngineChoiceTrigger',
     ...(vsync ? [] : ['--disable-gpu-vsync', '--disable-frame-rate-limit']), 'about:blank',
   ], { stdio: 'ignore' })
   let list
@@ -243,7 +244,10 @@ async function launch() {
     await sleep(100)
     try { list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json() } catch { /* not up */ }
   }
-  const ws = new WebSocket(list.find((t) => t.type === 'page').webSocketDebuggerUrl)
+  // (a relaunched Chrome for Testing can open a first-run settings page next to about:blank)
+  const target = list.find((t) => t.type === 'page' && t.url === 'about:blank') || list.find((t) => t.type === 'page')
+  for (const t of list) if (t.type === 'page' && t !== target) await fetch(`http://127.0.0.1:${port}/json/close/${t.id}`).catch(() => {})
+  const ws = new WebSocket(target.webSocketDebuggerUrl)
   let id = 0
   const pending = {}
   const events = []
@@ -332,6 +336,7 @@ async function play(cdp, runName) {
     if (await evaluate('!!(window.__cs && window.__cs.visibleAt != null)').catch(() => false)) break
     await sleep(50)
   }
+  if (!(await evaluate('!!(window.__cs && window.__cs.visibleAt != null)').catch(() => false))) throw new Error('the login screen never showed')
   rect = await evaluate(`(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.x, y: b.y, s: b.width / 960 } })()`)
   await sleep(3000) // the login screen as it first shows (phase 'intro')
   await shot('intro')

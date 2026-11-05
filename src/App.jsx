@@ -111,7 +111,8 @@ export default function App() {
     <TimeProvider>
       <Stage>
         <Scenes />
-        <Cursor path={demo ? (SCENARIO ? hiddenCursor : demoCursor) : null} />
+        {/* ?demo: no demo cursor while the boot rehearses (it would follow the rehearsal's times) */}
+        <Cursor path={demo ? (SCENARIO || !isBooted ? hiddenCursor : demoCursor) : null} />
       </Stage>
     </TimeProvider>
   )
