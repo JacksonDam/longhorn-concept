@@ -85,17 +85,24 @@ function build() {
 const IMG = build()
 if (IMG) preload(Object.values(IMG))
 
-const strip = (x, y, w, h, extra) => ({ position: 'absolute', left: x, top: y, width: w, height: h, pointerEvents: 'none', backgroundRepeat: 'no-repeat', ...extra })
-const row = (a, m, b) => ({
-  backgroundImage: `url(${a}), url(${m}), url(${b})`,
-  backgroundPosition: `0 0, ${KS}px 0, 100% 0`,
-  backgroundSize: `${KS}px 100%, calc(100% - ${2 * KS}px) 100%, ${KS}px 100%`,
-})
-const col = (a, m, b) => ({
-  backgroundImage: `url(${a}), url(${m}), url(${b})`,
-  backgroundPosition: `0 0, 0 ${KV}px, 0 100%`,
-  backgroundSize: `100% ${KV}px, 100% calc(100% - ${2 * KV}px), 100% ${KV}px`,
-})
+// The strips' images go into one stylesheet, parsed once: elements only carry a class (inline
+// data-URL backgrounds would be re-parsed for every mounted window layer)
+const CLS = { t: 'lh-shadow-t', b: 'lh-shadow-b', l: 'lh-shadow-l', r: 'lh-shadow-r' }
+if (IMG) {
+  const row = (a, m, b) =>
+    `background: url(${a}) 0 0 / ${KS}px 100% no-repeat, url(${m}) ${KS}px 0 / calc(100% - ${2 * KS}px) 100% no-repeat, url(${b}) 100% 0 / ${KS}px 100% no-repeat;`
+  const col = (a, m, b) =>
+    `background: url(${a}) 0 0 / 100% ${KV}px no-repeat, url(${m}) 0 ${KV}px / 100% calc(100% - ${2 * KV}px) no-repeat, url(${b}) 0 100% / 100% ${KV}px no-repeat;`
+  const css = document.createElement('style')
+  css.textContent = [
+    `.${CLS.t} { ${row(IMG.tl, IMG.tm, IMG.tr)} }`,
+    `.${CLS.b} { ${row(IMG.bl, IMG.bm, IMG.br)} }`,
+    `.${CLS.l} { ${col(IMG.lt, IMG.lm, IMG.lb)} }`,
+    `.${CLS.r} { ${col(IMG.rt, IMG.rm, IMG.rb)} }`,
+  ].join('\n')
+  document.head.appendChild(css)
+}
+const strip = (x, y, w, h, op) => ({ position: 'absolute', left: x, top: y, width: w, height: h, pointerEvents: 'none', opacity: op })
 
 // the shadow of a w x h window (window-local px), at opacity op (1 = the video's)
 export const WindowShadow = memo(function WindowShadow({ w, h, op = 1 }) {
@@ -103,10 +110,10 @@ export const WindowShadow = memo(function WindowShadow({ w, h, op = 1 }) {
   const o = op >= 1 ? undefined : op
   return (
     <>
-      <div style={strip(-OS, -OT, w + 2 * OS, KT, { ...row(IMG.tl, IMG.tm, IMG.tr), opacity: o })} />
-      <div style={strip(-OS, h - R, w + 2 * OS, KB, { ...row(IMG.bl, IMG.bm, IMG.br), opacity: o })} />
-      <div style={strip(-OS, R, OS, h - 2 * R, { ...col(IMG.lt, IMG.lm, IMG.lb), opacity: o })} />
-      <div style={strip(w, R, OS, h - 2 * R, { ...col(IMG.rt, IMG.rm, IMG.rb), opacity: o })} />
+      <div className={CLS.t} style={strip(-OS, -OT, w + 2 * OS, KT, o)} />
+      <div className={CLS.b} style={strip(-OS, h - R, w + 2 * OS, KB, o)} />
+      <div className={CLS.l} style={strip(-OS, R, OS, h - 2 * R, o)} />
+      <div className={CLS.r} style={strip(w, R, OS, h - 2 * R, o)} />
     </>
   )
 })
