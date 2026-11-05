@@ -7,8 +7,6 @@ import { now } from '../../core/clock.js'
 import { scoped, wid, hoverKeys, pt, find, selectionOf, C, FONT, HEAVY } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl } from '../lib/common.js'
-import { ChromeMenu } from '../lib/Explorer.jsx'
-import { getApp } from '../../os/apps.js'
 import { getWindow } from '../../os/wm.js'
 
 export const APPLETS = [
@@ -67,13 +65,6 @@ function Control({ win, t, h, live }) {
   const lit = hoverKeys(t, id + ':h')
   const sel = selectionOf(t, id)[0]
   useAppletProp(win, t, live)
-  const menus = {
-    File: [{ label: 'Open', disabled: !sel, onClick: () => sel && openApplet(sel) }, '-', { label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
-    Edit: [{ label: 'Select All', disabled: true }],
-    View: [{ label: 'Tiles', radio: true }],
-    Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help') }, '-', { label: 'About Windows', onClick: () => openWin('about', 'about') }],
-    Favorites: [{ label: 'MSN.com', onClick: () => openUrl('www.msn.com') }],
-  }
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
       <Pane />
@@ -93,9 +84,19 @@ function Control({ win, t, h, live }) {
         </div>
       ))}
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - 20, height: 20, lineHeight: '20px', textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>{APPLETS.length} objects</div>
-      <ChromeMenu win={win} t={t} menus={menus} app={getApp('control')} />
     </div>
   )
+}
+
+function controlMenus(win, t) {
+  const sel = selectionOf(t, wid(win, 'tiles'))[0]
+  return {
+    File: [{ label: 'Open', disabled: !sel, onClick: () => sel && openApplet(sel) }, '-', { label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
+    Edit: [{ label: 'Select All', disabled: true }],
+    View: [{ label: 'Tiles', radio: true }],
+    Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help') }, '-', { label: 'About Windows', onClick: () => openWin('about', 'about') }],
+    Favorites: [{ label: 'MSN.com', onClick: () => openUrl('www.msn.com') }],
+  }
 }
 
 // win.open { props: { applet } } (shell calendar, Run box): open that applet once
@@ -127,6 +128,6 @@ export default {
   size: { w: 730, h: 470 },
   position: { x: 90, y: 70 },
   minSize: { w: 720, h: 420 },
-  explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search my for...', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null },
+  explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search my for...', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null, menus: (win, t) => controlMenus(win, t) },
   Content: scoped(Control, {}),
 }

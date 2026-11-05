@@ -11,7 +11,6 @@ import {
 } from '../../ui/index.js'
 import { MessageIcon } from '../../ui/Dialog.jsx'
 import { Ico } from '../lib/icons.jsx'
-import { ChromeMenu } from '../lib/Explorer.jsx'
 import { getApp } from '../../os/apps.js'
 import { openWin, openUrl, messageBox } from '../lib/common.js'
 import { PHOTOS, photoById, TAGS, photoUrl } from '../lib/pictures.jsx'
@@ -527,7 +526,31 @@ function Pictures({ win, t, w, h, active }) {
   const statusH = 20
   const onOpen = (p) => openDetail(win, p)
   const selCount = st.photo ? 1 : 0
-  const menus = {
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body, overflow: 'hidden' }}>
+      {!detail && !hide && <Header win={win} />}
+      {!detail && hide && <Title />}
+      {detail && <Detail win={win} t={t} st={st} list={list.length ? list : PHOTOS} w={w} edits={edits} />}
+      {!hide && <TaskPane win={win} t={t} st={st} />}
+      <GridBar win={win} st={st} y={barY} w={w} />
+      {st.type === 'album' ? (
+        <Albums win={win} t={t} x={areaX} y={gridY} w={w - areaX - 10} h={h - gridY - statusH} />
+      ) : (
+        <Grid win={win} t={t} groups={detail ? groups.filter((g) => g.photos.some((p) => p.id === st.photo)) : groups} x={areaX} y={gridY} w={w - areaX - 8} h={h - gridY - statusH} tw={tw} th={th} active={active} st={st} onOpen={onOpen} edits={edits} />
+      )}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: h - statusH, height: statusH, lineHeight: `${statusH}px`, textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>
+        {selCount ? '1 object selected' : `${list.length} objects`}
+      </div>
+      <ContextMenu id={wid(win, 'ctx')} items={() => ctxItems(win, valueOf(now(), wid(win, 'photo'), null))} />
+    </div>
+  )
+}
+// the chrome's File / Edit / View / Help / Favorites (os/ExplorerChrome draws them)
+function pictureMenus(win, t) {
+  const st = viewOf(t, win, picState(t, win))
+  const list = st.type === 'album' ? [] : visibleGroups(st).flatMap((g) => g.photos)
+  const detail = st.view === 'detail'
+  return {
     File: [
       { label: 'Open', disabled: !st.photo, onClick: () => st.photo && openDetail(win, photoById(st.photo)) },
       { label: 'Edit', disabled: !st.photo, onClick: () => openWin('picedit', 'picedit', { photo: st.photo }) },
@@ -547,26 +570,8 @@ function Pictures({ win, t, w, h, active }) {
     Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help', { topic: 'pictures' }) }, '-', { label: 'About Windows', onClick: () => openWin('about', 'about') }],
     Favorites: [{ label: 'MSN Photos', onClick: () => openUrl('photos.msn.com') }, { label: 'ofoto.com', onClick: () => openUrl('www.ofoto.com') }],
   }
-  return (
-    <div style={{ position: 'absolute', inset: 0, background: C.body, overflow: 'hidden' }}>
-      {!detail && !hide && <Header win={win} />}
-      {!detail && hide && <Title />}
-      {detail && <Detail win={win} t={t} st={st} list={list.length ? list : PHOTOS} w={w} edits={edits} />}
-      {!hide && <TaskPane win={win} t={t} st={st} />}
-      <GridBar win={win} st={st} y={barY} w={w} />
-      {st.type === 'album' ? (
-        <Albums win={win} t={t} x={areaX} y={gridY} w={w - areaX - 10} h={h - gridY - statusH} />
-      ) : (
-        <Grid win={win} t={t} groups={detail ? groups.filter((g) => g.photos.some((p) => p.id === st.photo)) : groups} x={areaX} y={gridY} w={w - areaX - 8} h={h - gridY - statusH} tw={tw} th={th} active={active} st={st} onOpen={onOpen} edits={edits} />
-      )}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: h - statusH, height: statusH, lineHeight: `${statusH}px`, textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>
-        {selCount ? '1 object selected' : `${list.length} objects`}
-      </div>
-      <ContextMenu id={wid(win, 'ctx')} items={() => ctxItems(win, valueOf(now(), wid(win, 'photo'), null))} />
-      <ChromeMenu win={win} t={t} menus={menus} app={getApp('pictures')} />
-    </div>
-  )
 }
+
 // the view: the latest of the window's own view changes, a win.open on a photo (my Documents,
 // Search) and the chrome's Up a Folder (back to the overview) / Preview (detail of the selection)
 function viewOf(t, win, st0) {
@@ -641,7 +646,13 @@ export default {
       { id: 'find', label: 'Find', icon: 'find' },
       { id: 'preview', label: 'Preview', icon: 'preview' },
     ],
-    pressed: () => 'preview',
+    pressed: (win, t) => (viewOf(t, win, picState(t, win)).view === 'detail' ? 'preview' : null),
+    crumbs: (win, t) => {
+      const st = viewOf(t, win, picState(t, win))
+      const p = st.view === 'detail' && photoById(st.photo)
+      return p ? ['my Pictures & Videos', p.name] : ['my Stuff', 'my Pictures & Videos']
+    },
+    menus: (win, t) => pictureMenus(win, t),
   },
   Content: scoped(Pictures, { watch: ['pics'], alive: (win, t) => videoPlaying(win, t) }),
   liveTime: (win, t, base) => (win.state === 'open' && videoPlaying(win, t) ? t : base),

@@ -10,9 +10,8 @@
 import { memo, useEffect } from 'react'
 import { emit, getLog, getVersion } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, hoverKeys, pt, selectionOf, ListView, ContextMenu, contextHandler, MenuPopup, Overlay, menuState, C, FONT, HEAVY, useLive, find } from '../../ui/index.js'
+import { scoped, wid, valueOf, hoverKeys, pt, selectionOf, ListView, ContextMenu, contextHandler, C, FONT, HEAVY, find } from '../../ui/index.js'
 import { useUITime as useT } from '../../ui/scope.jsx'
-import { normalRect, WORK } from '../../os/PlexWindow.jsx'
 import { getApp } from '../../os/apps.js'
 import { Ico } from './icons.jsx'
 import { PictureArt } from './pictures.jsx'
@@ -55,7 +54,7 @@ function resolve(path) {
 const follow = (node, path) => (node.link ? node.link : [...path, node.name])
 
 // ---- navigation -------------------------------------------------------------------------------
-const NAV_TYPES = new Set(['xp.go', 'explorer.nav', 'explorer.crumb', 'explorer.command', 'win.open'])
+const NAV_TYPES = new Set(['xp.go', 'explorer.nav', 'explorer.command', 'win.open'])
 const navCache = new Map()
 export function navOf(t, win, root) {
   const v = getVersion()
@@ -80,10 +79,6 @@ export function navOf(t, win, root) {
     else if (e.type === 'explorer.nav') {
       if (e.dir === 'back' && pos > 0) pos--
       else if (e.dir === 'forward' && pos < list.length - 1) pos++
-    } else if (e.type === 'explorer.crumb') {
-      const p = list[pos]
-      if (e.index === 0) push(['my Computer'])
-      else if (e.index === 1 && p.length > 2) push(p.slice(0, 2))
     } else if (e.type === 'explorer.command') {
       if (e.command === 'up' && list[pos].length > 1) push(list[pos].slice(0, -1))
       else if (e.command === 'hide') hide = !hide
@@ -349,7 +344,7 @@ function Grid({ win, items, view, x, y, w, h, onOpen, active, t, ctx }) {
 }
 
 // ---- the explorer body -------------------------------------------------------------------------
-function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
+export function explorerModel(win, t, root, defView) {
   const nav = navOf(t, win, root)
   const path = nav.path
   const node = resolve(path)
@@ -359,9 +354,6 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
   const view = valueOf(t, viewId, node?.special === 'pictures' ? 'thumbs' : defView)
   const selKeys = selectionOf(t, wid(win, 'items'))
   const selNode = kids.find((n) => n.name === selKeys[selKeys.length - 1])
-  const showPane = !nav.hide
-  const left = showPane ? PANE_W : 0
-  const statusH = 20
   const open = (it) => {
     const n = it.node
     if (n.app === 'music') return openMusic()
@@ -407,6 +399,14 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
     Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help') }, '-', { label: 'About Windows', onClick: () => openWin('about', 'about') }],
     Favorites: [{ label: 'MSN.com', onClick: () => openUrl('www.msn.com') }, { label: 'Radio Station Guide', onClick: () => openUrl('windowsmedia.com/radio') }],
   }
+  return { nav, path, node, kids, items, viewId, view, selKeys, selNode, open, del, setView, viewItems, ctxBg, ctxItem, ctxId, ctx, menus }
+}
+
+function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
+  const { nav, path, node, kids, items, view, selKeys, selNode, open, ctxBg, ctxItem, ctxId, ctx } = explorerModel(win, t, root, defView)
+  const showPane = !nav.hide
+  const left = showPane ? PANE_W : 0
+  const statusH = 20
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
       {showPane && (nav.folders ? <FolderTree win={win} path={path} h={h - statusH} t={t} /> : <TaskPane win={win} path={path} node={node} selNode={selNode} preview={nav.preview} h={h - statusH} />)}
@@ -434,7 +434,6 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
         {selKeys.length ? `${selKeys.length} object${selKeys.length > 1 ? 's' : ''} selected` : `${kids.length} object${kids.length === 1 ? '' : 's'}`}
       </div>
       <ContextMenu id={ctxId} items={() => (selectionOf(now(), wid(win, 'items')).length ? ctxItem : ctxBg)} />
-      <ChromeMenu win={win} t={t} menus={menus} app={app} />
     </div>
   )
 }
@@ -448,22 +447,6 @@ function props(n) {
   })
 }
 
-// the explorer chrome's File / Edit / View / Help / Favorites: 'explorer.menu' opens one at the
-// clicked title (window-local x, y); it closes with 'ui.menu' { id: <win>.xmenu, open: null }
-export function ChromeMenu({ win, t, menus, app }) {
-  const live = useLive()
-  const em = lastWin(t, win, 'explorer.menu')
-  const closed = menuState(t, win.id + '.xmenu')
-  if (!live || !em || (closed && closed.t >= em.t)) return null
-  const items = menus[em.menu]
-  if (!items) return null
-  const r = win.maximized ? WORK : normalRect(win, app)
-  return (
-    <Overlay>
-      <MenuPopup id={win.id + '.xmenu.' + em.menu} items={items} x={Math.round(r.x + em.x)} y={Math.round(r.y + em.y + 1)} openT={em.t} onClose={() => emit('ui.menu', { id: win.id + '.xmenu', open: null })} />
-    </Overlay>
-  )
-}
 // run handlers for the chrome's command row (Up a Folder, Find, ...) once per click
 export function useChromeCommands(win, t, live, handlers) {
   const [a, i] = find(t, 'explorer.command', win.id)
@@ -486,7 +469,18 @@ function lastWin(t, win, type) {
 }
 
 // an explorer app: makeExplorer({ id, title, root, view, position, crumbs })
-export function makeExplorer({ id, title, taskbar, root, view = 'tiles', position, size = { w: 720, h: 540 }, crumbs, search }) {
+// breadcrumb: the parent folder and the current one; their drop-downs list the way up and the subfolders
+function crumbsOf(path) {
+  return path.length > 1 ? [path[path.length - 2], path[path.length - 1]] : [path[0]]
+}
+function crumbMenusOf(win, t, path) {
+  const up = path.slice(0, -1).map((name, i) => ({ label: name, onClick: () => go(win, path.slice(0, i + 1)) }))
+  const sub = (childrenAt(t, path) || []).filter((c) => c.children && !c.removable).map((c) => ({ label: c.name, onClick: () => (c.app === 'pictures' ? openWin('pictures', 'pictures') : c.app === 'music' ? openMusic() : go(win, follow(c, path))) }))
+  const here = { label: path[path.length - 1], bold: true, onClick: () => go(win, path) }
+  return path.length > 1 ? [up.length ? up : [here], sub.length ? sub : [here]] : [sub.length ? sub : [here], null]
+}
+
+export function makeExplorer({ id, title, taskbar, root, view = 'tiles', position, size = { w: 720, h: 540 }, search }) {
   const app = {
     id,
     title: () => title,
@@ -496,7 +490,9 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
     position,
     minSize: { w: 600, h: 380 },
     explorer: {
-      crumbs,
+      crumbs: (win, t) => crumbsOf(navOf(t, win, root).path),
+      crumbMenus: (win, t) => crumbMenusOf(win, t, navOf(t, win, root).path),
+      menus: (win, t) => explorerModel(win, t, root, view).menus,
       search: search ?? 'search my for...',
       commands: [
         { id: 'hide', label: 'Hide Tasks', icon: 'hide' },

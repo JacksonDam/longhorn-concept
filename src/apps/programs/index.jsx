@@ -7,8 +7,7 @@ import { scoped, wid, valueOf, hoverKeys, pt, DropMenu, dropBelow, ScrollView, C
 import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl, messageBox } from '../lib/common.js'
 import { openMusic } from '../lib/fs.js'
-import { ChromeMenu, useChromeCommands, chromeToggled } from '../lib/Explorer.jsx'
-import { getApp } from '../../os/apps.js'
+import { useChromeCommands, chromeToggled } from '../lib/Explorer.jsx'
 
 const P = (name, icon, go) => ({ name, icon, go })
 export const CATEGORIES = [
@@ -104,6 +103,26 @@ const sel2 = (a, b) => (
   </>
 )
 
+function programMenus(win, t) {
+  const group = valueOf(t, wid(win, 'group'), 'category')
+  const order = valueOf(t, wid(win, 'order'), 'alpha')
+  const groupItems = [
+    { label: 'By Category', radio: group === 'category', onClick: () => emit('ui.value', { id: wid(win, 'group'), value: 'category' }) },
+    { label: 'All Programs', radio: group === 'all', onClick: () => emit('ui.value', { id: wid(win, 'group'), value: 'all' }) },
+  ]
+  const orderItems = [
+    { label: 'Alphabetically', radio: order === 'alpha', onClick: () => emit('ui.value', { id: wid(win, 'order'), value: 'alpha' }) },
+    { label: 'Default Order', radio: order === 'default', onClick: () => emit('ui.value', { id: wid(win, 'order'), value: 'default' }) },
+  ]
+  return {
+    File: [{ label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
+    Edit: [{ label: 'Select All', disabled: true }],
+    View: [...groupItems, '-', ...orderItems],
+    Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help') }],
+    Favorites: [{ label: 'MSN.com', onClick: () => openUrl('www.msn.com') }],
+  }
+}
+
 function Programs({ win, t, w, h, live }) {
   useChromeCommands(win, t, live, {
     up: () => openWin('computer', 'computer'),
@@ -128,13 +147,6 @@ function Programs({ win, t, w, h, live }) {
     const items = sortIt(CATEGORIES.flatMap((c) => c.items).filter((it) => !seen.has(it.name) && seen.add(it.name)))
     cats = [{ key: 'all', label: 'All Programs', color: ['#eef3ff', '#7fb2ec', '#2f62ad'], glyph: 'programs', items }]
   } else cats = cats.map((c) => ({ ...c, items: sortIt(c.items) }))
-  const menus = {
-    File: [{ label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
-    Edit: [{ label: 'Select All', disabled: true }],
-    View: [...groupItems, '-', ...orderItems],
-    Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help') }],
-    Favorites: [{ label: 'MSN.com', onClick: () => openUrl('www.msn.com') }],
-  }
   let y = 0
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
@@ -163,7 +175,6 @@ function Programs({ win, t, w, h, live }) {
           })}
         </div>
       </ScrollView>
-      <ChromeMenu win={win} t={t} menus={menus} app={getApp('programs')} />
     </div>
   )
 }
@@ -186,6 +197,7 @@ export default {
       { id: 'find', label: 'Find', icon: 'find' },
     ],
     pressed: () => null,
+    menus: (win, t) => programMenus(win, t),
   },
   Content: scoped(Programs, {}),
 }
