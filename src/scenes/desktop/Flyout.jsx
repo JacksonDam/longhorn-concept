@@ -16,6 +16,7 @@ import { openMenu } from '../../ui/index.js'
 import { launch } from './appInfo.jsx'
 import { asset } from '../../core/preload.js'
 import { clamp, track } from '../../core/anim.js'
+import { FlyNote, FlyTitleButtons, FlyGoArrow } from './icons.jsx'
 
 export const FLY = { x: 665, y: 258, w: 193, h: 241 }
 
@@ -85,27 +86,6 @@ const rowText = {
   color: 'rgba(112,118,152,0.95)',
 }
 
-function NoteIcon() {
-  return (
-    <svg width="24" height="25" viewBox="0 0 24 25" style={{ position: 'absolute', left: 669, top: 263 }}>
-      <defs>
-        <radialGradient id="dk-note" cx="0.35" cy="0.35" r="0.8">
-          <stop offset="0" stopColor="#ffe8ff" />
-          <stop offset="0.35" stopColor="#d58cf2" />
-          <stop offset="1" stopColor="#6e3fb8" />
-        </radialGradient>
-        <linearGradient id="dk-stem" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f2c4ff" />
-          <stop offset="1" stopColor="#8b55cf" />
-        </linearGradient>
-      </defs>
-      <path d="M13.5 15.5 L15.5 2.5 C17.5 3.5 21.5 5.5 20.5 10 C19.5 7.8 18 7.2 16.6 7 L14.8 17 Z" fill="url(#dk-stem)" />
-      <ellipse cx="9" cy="17.5" rx="7" ry="5.6" transform="rotate(-18 9 17.5)" fill="url(#dk-note)" />
-      <ellipse cx="7" cy="15.6" rx="2.6" ry="1.5" transform="rotate(-18 7 15.6)" fill="#fff" opacity="0.7" />
-    </svg>
-  )
-}
-
 const FlyoutBack = memo(function FlyoutBack() {
   const x0 = FLY.x
   return (
@@ -160,7 +140,7 @@ const FlyoutFront = memo(function FlyoutFront() {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0 }}>
       {/* title */}
-      <NoteIcon />
+      <FlyNote />
       <div
         style={{
           position: 'absolute',
@@ -176,10 +156,7 @@ const FlyoutFront = memo(function FlyoutFront() {
       >
         <span style={{ color: 'rgba(205,225,255,0.85)', fontWeight: 500 }}>my</span> Music
       </div>
-      <svg width="40" height="20" viewBox="0 0 40 20" style={{ position: 'absolute', left: 820.5, top: 262.3 }}>
-        <path d="M4.5 7.5 L16.5 7.5 L10.5 12.5 Z" fill="#e4ecfb" opacity="0.8" />
-        <path d="M24 3.5 L33.5 13 M33.5 3.5 L24 13" stroke="#e4ecfb" strokeOpacity="0.62" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
+      <FlyTitleButtons />
       <img
         src={asset('img/desktop/album-standin.webp')}
         alt=""
@@ -192,9 +169,7 @@ const FlyoutFront = memo(function FlyoutFront() {
         </div>
       ))}
       {/* footer */}
-      <svg width="10" height="14" viewBox="0 0 10 14" style={{ position: 'absolute', left: 719, top: 479 }}>
-        <path d="M1.5 1.5 L8.5 7 L1.5 12.5 Z" fill="#cfe6ff" opacity="0.9" />
-      </svg>
+      <FlyGoArrow />
       <div
         style={{
           position: 'absolute',
