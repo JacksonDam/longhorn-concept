@@ -248,11 +248,19 @@ export class SlabScene {
     }
     this.objects.forEach((o, i) => (o.mesh.visible = i < n))
   }
-  // optional: free the materials when the owner unmounts (geometries and targets are shared)
-  dispose() {
-    for (const o of this.objects) o.material.dispose()
-    this.objects = []
-  }
+}
+
+// Scenes are pooled, never disposed: a slab canvas that mounts again (a window reopened, a seek
+// back) reuses a scene whose materials, programs and textures are already on the GPU.
+const scenePool = []
+export const acquireSlabScene = () => scenePool.pop() || new SlabScene()
+export const releaseSlabScene = (s) => scenePool.push(s)
+
+// upload every loaded slab texture now (call when idle, e.g. after load), so no slab uploads a
+// picture on the first frame it appears
+export function warmTextures() {
+  const r = getRenderer()
+  for (const tex of texCache.values()) if (tex.userData.ready) r.initTexture(tex)
 }
 
 // Camera for a canvas of css size (cw x ch) whose 1 world unit = 1 stage px at z = 0,

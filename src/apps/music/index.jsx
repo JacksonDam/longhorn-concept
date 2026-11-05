@@ -29,7 +29,7 @@ const searchText = (t, win) => textOf(t, wid(win, 'search'))
 // which track number is blue: the playing track of this page's album (the video: track 4)
 function playingIndex(t, page) {
   if (!page || !page.album) return -1
-  const m = mediaState ? mediaState(t) : null
+  const m = mediaState(t)
   const a = page.album
   if (m && m.playing && m.track && m.track.title.startsWith(a.artist + ' - ')) {
     const i = a.tracks.findIndex((tr) => m.track.title === `${a.artist} - ${tr.title}`)
@@ -95,6 +95,23 @@ function snapshot(win, tk) {
   for (const p of pts) if (p <= tk && p > best) best = p
   // any later ui change (settings, search, scroll) shows as of tk
   return best
+}
+
+// the live layer re-renders per frame only while time-driven visuals run (os/PlexWindow
+// liveContentT): the header intro, page transitions, and the playing track's number
+function liveTime(win, t, base) {
+  const t0 = openT(win)
+  if (toRel(t, t0) < 80) return t
+  let ct = Math.max(base, t0 + 80 / FPS)
+  const vs = viewState(t, t0)
+  if (vs.page) {
+    if (toRel(t, vs.page.t) < 23) return t
+    ct = Math.max(ct, vs.page.t + 23 / FPS)
+  }
+  if (vs.sel) ct = Math.max(ct, Math.min(t, vs.sel.t + 10 / FPS))
+  const m = mediaState(t)
+  if (m.playing) ct = Math.max(ct, t - m.position)
+  return Math.min(t, ct)
 }
 
 // title: the equaliser glyph and "my Music" (light "my", heavy "Music"), as measured
@@ -204,8 +221,8 @@ const music = {
   Content: scoped(MusicContent),
   Overlay: MusicOverlay,
   snapshot,
+  liveTime,
   copies: 10,
-  settle: 2.5,
 }
 export default music
 export { DEFAULTS }

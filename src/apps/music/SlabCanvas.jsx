@@ -2,7 +2,7 @@
 // window can render its own sub-frame pose) and without reading the clock itself.
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useStageScale } from '../../core/Stage.jsx'
-import { renderSlabs, SlabScene, texturesReady } from '../../gl/slab.js'
+import { renderSlabs, SlabScene, texturesReady, acquireSlabScene, releaseSlabScene, warmTextures } from '../../gl/slab.js'
 
 // cacheKey: canvases rendering the same image in one frame (e.g. the blur copies of the window in
 // real-time playback, which all show the slab at the frame time) share one GL render: the first
@@ -20,15 +20,18 @@ export function warmSlabs(slab) {
   const draw = () =>
     renderSlabs(c.getContext('2d'), warm.scene, [{ slab: slab || { w: 4, h: 4, d: 2 }, pose: () => ({ x: 4, y: 4 }) }], [0], { cw: 8, ch: 8, scale: 1, P: 900 })
   draw()
-  // and once more when the picture has loaded, so its texture (and mipmaps) are uploaded too
-  texturesReady().then(draw)
+  // and once more when the pictures have loaded, uploading every slab texture (album covers)
+  texturesReady().then(() => {
+    draw()
+    warmTextures()
+  })
 }
 
 // skip: keep the last pixels (the canvas is on an invisible layer)
 export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, phase = -0.5, P = 1000, origin, style, cacheKey, skip }) {
   const ref = useRef(null)
-  const scene = useMemo(() => new SlabScene(), [])
-  useEffect(() => () => scene.dispose(), [scene])
+  const scene = useMemo(() => acquireSlabScene(), [])
+  useEffect(() => () => releaseSlabScene(scene), [scene])
   const { s } = useStageScale()
   const scale = Math.min(3, s * (window.devicePixelRatio || 1))
   useLayoutEffect(() => {

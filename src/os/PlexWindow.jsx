@@ -16,6 +16,7 @@ import { emit, getLog } from '../core/events.js'
 import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
+import { focusedField } from '../ui/state.js'
 import { Beam } from './Beam.jsx'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
@@ -296,18 +297,35 @@ const OverlayLayer = memo(
   (a, b) => a.t === b.t && a.skip === b.skip && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
 )
 const STAGGER = 2 // frames between copy snapshot updates
+// the time of the latest event at or before t (binary search)
+function lastEventT(t) {
+  const log = getLog()
+  let lo = 0, hi = log.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (log[mid].t <= t) lo = mid + 1
+    else hi = mid
+  }
+  return lo > 0 ? log[lo - 1].t : -Infinity
+}
+const DEFAULT_SETTLE = 1.2 // s: how long content may animate after an event (hover fades, menus, tooltips)
+
+// The time the live layer's content renders at. Content is a function of (t, events), and between
+// events it only moves while its own animations run; outside them it renders at a time that stays
+// put until the next event, so an idle window costs no React work per frame. Apps with longer
+// time-driven visuals return t from app.liveTime(win, t, base) while those run.
+function liveContentT(win, app, t) {
+  if (focusedField(t)?.startsWith(win.id + '@' + win.openedAt + '/')) return t // a caret blinks
+  const le = Math.max(win.openedAt, lastEventT(t))
+  const settle = app.settle ?? DEFAULT_SETTLE
+  const base = t - le < settle ? t : le + settle
+  return app.liveTime ? app.liveTime(win, t, base) : base
+}
+
 // the content time a blur copy shows (app.snapshot overrides): the settled state after the
 // latest event at or before tk
 function defaultSnapshot(win, app, tk) {
-  const log = getLog()
-  let lastT = win.openedAt
-  for (let i = log.length - 1; i >= 0; i--) {
-    if (log[i].t <= tk) {
-      lastT = Math.max(lastT, log[i].t)
-      break
-    }
-  }
-  return lastT + (app.settle ?? 1)
+  return Math.max(win.openedAt, lastEventT(tk)) + (app.settle ?? DEFAULT_SETTLE)
 }
 
 export function PlexWindow({ win, app, t, active }) {
@@ -340,7 +358,7 @@ export function PlexWindow({ win, app, t, active }) {
       style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = { opacity: 0 }
     const rr = blur && k < nEff ? m.rect(tt) : r
-    let ct = live
+    let ct = m.frozen != null ? live : liveContentT(win, app, t)
     if (k > 0 && m.frozen == null) {
       const tk = t - (k * STAGGER) / FPS
       ct = app.snapshot ? app.snapshot(win, tk) : defaultSnapshot(win, app, tk)
