@@ -6,7 +6,7 @@
 import { Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
-import { now } from '../../core/clock.js'
+import { now, FPS } from '../../core/clock.js'
 import {
   scoped, wid, valueOf, hoverKeys, pt, TextField, Slider, Scrollbar, DropMenu, dropBelow, ContextMenu, contextHandler, Button, C, FONT, HEAVY, find, focusField,
 } from '../../ui/index.js'
@@ -201,7 +201,7 @@ const Head = memo(function Head({ a, b, y }) {
 })
 const small = { position: 'absolute', fontFamily: FONT, fontSize: 10.5, color: '#8b91a6', whiteSpace: 'nowrap' }
 
-function TaskPane({ win, t, st }) {
+function TaskPane({ win, t, st, calendar = true }) {
   const L = (n, y, label, icon, fn, on) => (
     <Link key={n} id={wid(win, 'tp.' + n)} x={PANE_X - 8} y={y} onClick={fn} on={on} t={t}>
       {icon !== undefined && <span style={{ width: 16, height: 16, display: 'inline-block' }}>{icon && <Ico kind={icon} size={16} />}</span>}
@@ -229,7 +229,7 @@ function TaskPane({ win, t, st }) {
       {tags.map((tg, i) => L('tag' + tg, 209 + i * 16, tg, undefined, () => set(win, 'tag', st.tag === tg ? null : tg), st.tag === tg))}
       {L('more', 257, st.moreTags ? 'Back...' : 'More...', undefined, () => set(win, 'moretags', !st.moreTags))}
       <div style={{ ...small, left: PANE_X - 8, top: 282 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
-      <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} />
+      {calendar ? <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} /> : <div style={{ position: 'absolute', left: PANE_X - 8, top: 297, width: 136, height: 150, borderRadius: 4, background: 'linear-gradient(180deg, #ffffff, #eef4fc)', boxShadow: `inset 0 0 0 1px ${C.borderLight}` }} />}
       <div style={{ ...small, left: PANE_X - 8, top: 450 }} onPointerDown={(e) => e.button === 0 && set(win, 'type', 'all')}>Of this file type:</div>
       {L('tpic', 466, 'Pictures', 'picture', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
       <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'display', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
@@ -338,45 +338,75 @@ const GroupHead = memo(function GroupHead({ title, caption, w }) {
   )
 })
 
-function Grid({ win, t, groups, x, y, w, h, tw, th, active, st, onOpen, edits }) {
+// One date group: its thumbnails are one element with a background layer per photo (cheap to
+// mount and paint), under plain hit cells that carry the frame shadow and the pointer handlers;
+// only the hovered, selected, video and edited thumbnails get their own element on top.
+const GroupBlock = memo(function GroupBlock({ win, g, width, cols, tw, th, gap, selId, litId, active, edits, onOpen }) {
+  const id = wid(win, 'grid')
+  const cell = (i) => ({ left: 4 + (i % cols) * (tw + gap), top: GROUP_HEAD + Math.floor(i / cols) * (th + gap) })
+  const rows = Math.ceil(g.photos.length / cols)
+  return (
+    <>
+      <div onPointerDown={(e) => e.button === 0 && g.photos[0] && openDetail(win, g.photos[0])}>
+        <GroupHead title={g.title} caption={g.caption} w={width} />
+      </div>
+      <ImageGrid x={4} y={GROUP_HEAD} w={width} h={rows * (th + gap)} urls={g.photos.map((p) => p.url)} tw={tw} th={th} gap={gap} cols={cols} />
+      {g.photos.map((p, i) => (
+        <div
+          key={p.id}
+          style={{ position: 'absolute', ...cell(i), width: tw, height: th, boxShadow: '1px 1px 0 rgba(244,243,252,0.95), 0 0 0 0.6px rgba(190,198,222,0.7), 0 3px 5px rgba(50,70,110,0.18)' }}
+          onPointerEnter={(e) => emit('hover', { id: id + ':h', key: p.id, on: true, ...pt(e) })}
+          onPointerLeave={() => emit('hover', { id: id + ':h', key: p.id, on: false })}
+          onPointerDown={(e) => (e.button === 0 || e.button === 2) && valueOf(now(), wid(win, 'photo'), null) !== p.id && set(win, 'photo', p.id)}
+          onDoubleClick={() => onOpen(p)}
+        />
+      ))}
+      {g.photos.map((p, i) => {
+        const sel = selId === p.id
+        const lit = litId === p.id
+        const ed = edits.get(p.id)
+        if (!sel && !lit && !ed && p.kind !== 'video') return null
+        return (
+          <div key={'o' + p.id} style={{ position: 'absolute', ...cell(i), pointerEvents: 'none' }}>
+            <Thumb p={p} tw={tw} th={th} sel={sel} lit={lit ? 1 : 0} active={active} ed={ed} />
+          </div>
+        )
+      })}
+    </>
+  )
+})
+
+function Grid({ win, t, groups, x, y, w, h, tw, th, active, st, onOpen, edits, stage }) {
   const id = wid(win, 'grid')
   const width = w - 22
   const { blocks, total, cols, gap } = layout(groups, tw, th, width)
   const max = Math.max(0, total - h)
   const pos = Math.min(max, Math.max(0, valueOf(t, id + ':scroll', 0)))
   const lit = hoverKeys(t, id + ':h')
+  let litId = null
+  for (const [k, v] of lit) if (v > 0.5) litId = k
   const selId = st.photo
   const setScroll = (v) => emit('ui.value', { id: id + ':scroll', value: Math.round(Math.min(max, Math.max(0, v))) })
   const ctx = contextHandler(wid(win, 'ctx'), () => ctxItems(win, valueOf(now(), wid(win, 'photo'), null)))
+  let shown = 0
   return (
     <div style={{ position: 'absolute', left: x, top: y, width: w, height: h }} onWheel={(e) => max > 0 && setScroll(pos + e.deltaY * 0.6)} onContextMenu={ctx}>
       <div style={{ position: 'absolute', left: 0, top: 0, width: width + 4, height: h, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', left: 0, top: 0, width: width, transform: pos ? `translateY(${-pos}px)` : undefined }}>
-          {blocks.map(({ g, y: gy, h: gh }) =>
-            gy + gh < pos - 40 || gy > pos + h + 40 ? null : (
+          {blocks.map(({ g, y: gy, h: gh }) => {
+            if (gy + gh < pos - 40 || gy > pos + h + 40) return null
+            // the first mount brings the groups in one per frame (the window is still hidden)
+            if (shown++ >= stage) return null
+            return (
               <div key={g.id} style={{ position: 'absolute', left: 0, top: gy, width }}>
-                <div onPointerDown={(e) => e.button === 0 && g.photos[0] && openDetail(win, g.photos[0])}>
-                  <GroupHead title={g.title} caption={g.caption} w={width} />
-                </div>
-                {g.photos.map((p, i) => (
-                  <div
-                    key={p.id}
-                    style={{ position: 'absolute', left: 4 + (i % cols) * (tw + gap), top: GROUP_HEAD + Math.floor(i / cols) * (th + gap) }}
-                    onPointerEnter={(e) => emit('hover', { id: id + ':h', key: p.id, on: true, ...pt(e) })}
-                    onPointerLeave={() => emit('hover', { id: id + ':h', key: p.id, on: false })}
-                    onPointerDown={(e) => (e.button === 0 || e.button === 2) && valueOf(now(), wid(win, 'photo'), null) !== p.id && set(win, 'photo', p.id)}
-                    onDoubleClick={() => onOpen(p)}
-                  >
-                    <Thumb p={p} tw={tw} th={th} sel={selId === p.id} lit={lit.get(p.id) || 0} active={active} ed={edits.get(p.id)} />
-                  </div>
-                ))}
+                <GroupBlock win={win} g={g} width={width} cols={cols} tw={tw} th={th} gap={gap} selId={g.photos.some((p) => p.id === selId) ? selId : null} litId={g.photos.some((p) => p.id === litId) ? litId : null} active={active} edits={edits} onOpen={onOpen} />
               </div>
-            ),
-          )}
+            )
+          })}
           {!blocks.length && <div style={{ position: 'absolute', left: 0, width, top: 30, textAlign: 'center', fontFamily: FONT, fontSize: 11, color: C.textDim }}>No pictures match. Clear the filters in the task pane to see everything.</div>}
         </div>
       </div>
-      {max > 0 && <Scrollbar id={id + ':bar'} x={w - 18} y={0} h={h} viewH={h} contentH={total} pos={pos} onScroll={setScroll} t={t} />}
+      {max > 0 && stage > 0 && <Scrollbar id={id + ':bar'} x={w - 18} y={0} h={h} viewH={h} contentH={total} pos={pos} onScroll={setScroll} t={t} />}
     </div>
   )
 }
@@ -523,6 +553,10 @@ function Pictures({ win, t, w, h, active }) {
   const st0 = picState(t, win)
   // opened on a photo from elsewhere (my Documents, Search): the latest win.open with props.photo
   const st = viewOf(t, win, st0)
+  // first mount in stages, while the open is still hidden behind the beam: header and pane,
+  // then a date group per frame, then the calendar
+  const age = (t - win.openedAt) * FPS
+  const stage = age < 1.5 ? 0 : Math.floor(age - 0.5)
   useFindFocus(t, win)
   const { edits } = library(t)
   const hide = taskHidden(t, win)
@@ -542,12 +576,12 @@ function Pictures({ win, t, w, h, active }) {
       {!detail && !hide && <Header win={win} />}
       {!detail && hide && <Title />}
       {detail && <Detail win={win} t={t} st={st} list={list.length ? list : PHOTOS} w={w} edits={edits} />}
-      {!hide && <TaskPane win={win} t={t} st={st} />}
+      {!hide && <TaskPane win={win} t={t} st={st} calendar={stage >= 3} />}
       <GridBar win={win} st={st} y={barY} w={w} />
       {st.type === 'album' ? (
         <Albums win={win} t={t} x={areaX} y={gridY} w={w - areaX - 10} h={h - gridY - statusH} />
       ) : (
-        <Grid win={win} t={t} groups={detail ? groups.filter((g) => g.photos.some((p) => p.id === st.photo)) : groups} x={areaX} y={gridY} w={w - areaX - 8} h={h - gridY - statusH} tw={tw} th={th} active={active} st={st} onOpen={onOpen} edits={edits} />
+        <Grid win={win} t={t} groups={detail ? groups.filter((g) => g.photos.some((p) => p.id === st.photo)) : groups} x={areaX} y={gridY} w={w - areaX - 8} h={h - gridY - statusH} tw={tw} th={th} active={active} st={st} onOpen={onOpen} edits={edits} stage={stage} />
       )}
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - statusH, height: statusH, lineHeight: `${statusH}px`, textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>
         <span onPointerDown={(e) => e.button === 0 && clearFilters(win)}>{selCount ? '1 object selected' : `${list.length} objects`}</span>
