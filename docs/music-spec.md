@@ -87,3 +87,32 @@ open backwards (1.6x). Reopening resets the selection and the page.
 - `tools/music/covers.py`: generates the stand-in covers.
 - `tools/music/keyref.py`, `segments.py`: key the orange placeholder, per-segment RMSE.
 - `?plate` (dev only): draws a clean desktop frame of the video behind the window for diffs.
+
+## Results (RMSE 0-255, `--blur 1`, crop 0,0,860,698, `?capture&plate`)
+Whole range 694-1529: first full pass 26.2, now 19.6 (836 frames). Floor with no window
+(hidden 1365-1402, other layers and cursor only): 8.8.
+
+| Segment | frames | mean | max |
+|---|---|---|---|
+| beam / glow | 694-699 | 10.0 | 14.4 |
+| open swing-in | 700-716 | 24.0 | 39.0 (701; 702 37.0, 703 27.9) |
+| header intro | 717-760 | 21.5 | 23.6 |
+| device idle | 761-944 | 20.8 | 21.5 |
+| tile select | 945-967 | 21.0 | 21.2 |
+| album flip + track list | 968-990 | 20.7 | 25.4 |
+| album idle | 991-1352 | 19.6 | 21.7 |
+| minimise | 1353-1364 | 19.4 | 26.5 |
+| restore + bounce | 1403-1413 | 20.3 | 26.5 |
+| album idle 2 | 1414-1529 | 19.6 | 22.1 |
+
+Per element on f800 / f1100: toolbar 13.8 / 14.0, menu+command rows 18.3 / 17.8, task pane
+8.1 / 8.7, header 24.7 / 18.6, grid bar 8.7 / 10.5, album grid 30.5 / 31.0 (stand-in covers),
+scrollbar 12.9, status bar 7.9. Element bounding boxes: 39 of 58 checked text/icon boxes
+within 1 px on every side (`tools/music/align.py 960`), the rest within 2-6 px.
+Before/after highlights: open f701 52 -> 39, f702 54 -> 37 (window lighting), restore f1409
+66 -> 18.5 (fitted bounce), minimise f1358 30 -> 22, album slab crop 46.5 -> 29 (stand-in
+fitted to the face colours), grid 43 -> 31 (cover colour fields).
+
+Real-time playback (`?demo`, headless Chrome on the M4): open and album flip run at 60 fps
+(p90 16.8 ms); minimise/restore p90 ~50 ms while the blur copies mount (copies are capped at
+7 in real time, all samples under `?capture`).
