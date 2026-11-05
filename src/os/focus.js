@@ -97,6 +97,8 @@ export function activeLevels(windowsAt, t) {
   }
   for (const w of list) {
     let k = Math.min(1, (acc.get(w.id) || 0) / span)
+    if (k > 1 - 1e-6) k = 1 // (floating-point sums of the pieces)
+    else if (k < 1e-6) k = 0
     // a window made active by its own open or restore starts active (it isn't visible before)
     if (now.has(w.id) && ((w.lastAction === 'open' && w.focusedAt === w.openedAt) || (w.lastAction === 'restore' && w.focusedAt === w.changedAt)) && t - w.changedAt < span + 1e-9) k = 1
     levels.set(w.id, k)
