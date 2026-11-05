@@ -1,7 +1,7 @@
 // Indexed event lookups for the shell (the core helpers scan the whole log, which grows with
 // every hover in a long interactive session). Events are grouped by type (and by type + id)
 // once per log version; lookups are binary searches by time.
-import { getLog, getVersion } from '../../core/events.js'
+import { getLog, getVersion } from '../core/events.js'
 
 let built = { v: -1, byType: new Map(), byTypeId: new Map() }
 function index() {
