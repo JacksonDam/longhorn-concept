@@ -93,3 +93,19 @@ Media strip click toggles the flyout; clicks elsewhere close it; flyout rows emi
 events; press/release on "Go to my Music" opens the window; the My Music task button
 minimises/restores. The clock shows the real time ("h:mm am", and "h:mm PM" during the
 entrance) outside ?demo / ?capture.
+
+## RMSE (0-255, both blurred 1 px; login placeholder hidden; music window not in this branch)
+Before = the scene's initial flat-orange placeholder.
+| frames / region | before | after |
+|---|---|---|
+| 590 wallpaper (0-850 x 0-690) | 82.6 | 4.5 |
+| 590 sidebar (858-960) | 92.5 | 28.1 (17.5 without the substituted photo tile) |
+| 590 taskbar (0-858 x 699-720) | 119.6 | 16.8 |
+| 640 flyout (665-858 x 258-499) | 139.5 | 12.5 |
+| 521-545 entrance, sidebar without photo / taskbar | - | 14.7 / 19.0 |
+| 597-605 flyout opening, flyout region 600-960 x 250-505 | - | 15.0 |
+| 693-697 flyout closing, same region | - | 14.9 |
+| 698-716 My Music insertion, taskbar | - | 20.0 |
+| 1402-1415 restore click, taskbar | - | 18.5 |
+Per tile at 590: mail 10.3, buddies 17.2, media 18.5, Go Online 18.0, header 22.7 (stand-in
+picture), Seattle 26.1 (drawn skyline), thumbs 23.6, clock 20.1, start 20.4, task group 21.5.
