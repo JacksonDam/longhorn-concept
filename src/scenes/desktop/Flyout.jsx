@@ -8,7 +8,8 @@
 import { memo } from 'react'
 import { emit, last } from '../../core/events.js'
 import { now, FPS } from '../../core/clock.js'
-import { MotionBlur } from '../../core/MotionBlur.jsx'
+import { Blur } from './Blur.jsx'
+import { launch } from './appInfo.jsx'
 import { asset } from '../../core/preload.js'
 import { clamp, track } from '../../core/anim.js'
 
@@ -38,7 +39,7 @@ export function toggleFlyout() {
   emit('desk.flyout', { open: !s.open })
 }
 export function closeFlyout() {
-  emit('desk.flyout', { open: false })
+  if (flyoutState(now()).open) emit('desk.flyout', { open: false })
 }
 
 // ---- timing (frames after the open / close event) -------------------------------------
@@ -253,8 +254,8 @@ function FooterHighlight({ t }) {
   )
 }
 
-// hit areas (interactive mode)
-function HitAreas() {
+// hit areas (interactive mode): rows play their track, "Go to my Music" opens the window
+const HitAreas = memo(function HitAreas() {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0 }}>
       <div
@@ -267,7 +268,10 @@ function HitAreas() {
           style={{ position: 'absolute', left: 668, top: ROW_Y0 + i * ROW_DY, width: 174, height: ROW_DY, pointerEvents: 'auto' }}
           onPointerEnter={() => emit('hover', { id: 'fly.row.' + i, on: true })}
           onPointerLeave={() => emit('hover', { id: 'fly.row.' + i, on: false })}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            emit('media.play', { track: i })
+          }}
         />
       ))}
       <div
@@ -281,34 +285,38 @@ function HitAreas() {
       />
     </div>
   )
-}
+})
+const HIT_AREAS = <HitAreas />
 
 export function goToMusic() {
   emit('desk.flypress', { on: false })
   emit('desk.flyout', { open: false })
-  emit('music.open')
+  launch.music()
 }
+
+// the panel's box; its pre-mounted blur copies are posed by the measured edge tracks
+const BOX = { left: FLY.x - 1, top: FLY.y, width: FLY.w + 1, height: FLY.h }
+const BACK = <FlyoutBack />
+const FRONT = <FlyoutFront />
 
 export function Flyout({ t }) {
   const s = flyoutState(t)
   const df = (t - s.at) * FPS
-  if (!s.open && (s.at === -Infinity || df > CLOSE_END)) return null
+  const visible = s.open || (s.at !== -Infinity && df <= CLOSE_END)
   const pose = (ff) => {
     const L = s.open ? OPEN_L(ff) : CLOSE_L(ff)
     const R = s.open ? OPEN_R(ff) : CLOSE_R(ff)
     const w = R - L
     if (w < 0.5) return { opacity: 0 }
-    return { transform: `translateX(${L - FLY.x}px) scaleX(${w / FLY.w})`, transformOrigin: `${FLY.x}px 0` }
+    return { transform: `translateX(${L - FLY.x}px) scaleX(${w / FLY.w})`, transformOrigin: `${FLY.x - BOX.left}px 0` }
   }
-  const moving = s.open ? df < OPEN_END + 0.5 : df < CLOSE_END + 0.5
+  const moving = visible && (s.open ? df < OPEN_END + 0.5 : df < CLOSE_END + 0.5)
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, overflow: 'hidden', pointerEvents: 'none' }}>
-      <MotionBlur t={df} pose={pose} moving={moving} samples={24} shutter={1} phase={-0.5} style={{ left: 0, top: 0, width: 960, height: 720 }}>
-        <FlyoutBack />
-        <RowHighlightsLayer t={t} />
-        <FlyoutFront />
-      </MotionBlur>
-      {s.open && df >= OPEN_END && <HitAreas />}
+      <Blur t={df} box={BOX} n={24} shutter={1} phase={-0.5} pose={pose} moving={moving} hidden={!visible} live={<RowHighlightsLayer t={t} />} front={FRONT}>
+        {BACK}
+      </Blur>
+      <div style={{ position: 'absolute', inset: 0, visibility: s.open && df >= OPEN_END ? 'visible' : 'hidden' }}>{HIT_AREAS}</div>
     </div>
   )
 }

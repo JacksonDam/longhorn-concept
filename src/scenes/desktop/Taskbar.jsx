@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { asset } from '../../core/preload.js'
 import { emit } from '../../core/events.js'
-import { Chevron, OutlookIcon, WinampIcon } from './icons.jsx'
+import { Chevron } from './icons.jsx'
 
 export const BAR_TOP = 699
 
@@ -19,38 +19,6 @@ const rowsGradient = (rows, a) =>
   rows.map(([r, g, b], i) => `rgba(${r},${g},${b},${a}) ${i}px, rgba(${r},${g},${b},${a}) ${i + 1}px`).join(',') +
   ')'
 
-// Task buttons. Two measured layouts: without and with the "My Music" button.
-// x: button left edge, w: width; icon/text offsets are from the left edge.
-export const TASKS = {
-  // tw: visible text width, the last ~12 px fade out (measured where the video's text fades)
-  inbox: { label: 'Inbox - Microsoft Outlook', Icon: OutlookIcon, tw: 99 },
-  yahoo: { label: 'Yahoo.com', icon: 'ic-ie.webp' },
-  music: { label: 'My Music', icon: 'ic-mymusic.webp' },
-  doc: { label: 'Document 12 - Microsoft Word', icon: 'ic-word.svg', tw: 66 },
-  winamp: { label: 'Winamp3', Icon: WinampIcon },
-}
-export const LAYOUT4 = {
-  x0: 248,
-  x1: 675.5,
-  buttons: [
-    { id: 'inbox', x: 248, w: 131.5, icon: 9, text: 29, sep: true },
-    { id: 'yahoo', x: 379.5, w: 102, icon: 8.5, text: 28.5, sep: true },
-    { id: 'doc', x: 481.5, w: 108, icon: 7.5, text: 29.5, sep: true },
-    { id: 'winamp', x: 589.5, w: 86, icon: 8.5, text: 27.5 },
-  ],
-}
-export const LAYOUT5 = {
-  x0: 185.5,
-  x1: 730.5,
-  buttons: [
-    { id: 'inbox', x: 185.5, w: 127, icon: 6.5, text: 25.5, sep: true },
-    { id: 'yahoo', x: 312.5, w: 100, icon: 9.5, text: 29.5, sep: true },
-    { id: 'music', x: 412.5, w: 118, icon: 17.5, text: 39.5 },
-    { id: 'doc', x: 530.5, w: 114, icon: 14.5, text: 35.5, sep: true },
-    { id: 'winamp', x: 644.5, w: 86, icon: 10.5, text: 27.5 },
-  ],
-}
-
 const btnText = {
   position: 'absolute',
   top: 700,
@@ -64,29 +32,22 @@ const btnText = {
   overflow: 'hidden',
 }
 
-export const TaskButton = memo(function TaskButton({ b, onClick }) {
-  const t = TASKS[b.id]
-  const textW = t.tw ?? b.w - b.text - 4
+// One task button's visuals (icon, label fading out at its visible width, separator).
+// b: { x, w, icon, text, tw?, sep } from taskbarModel; Icon: 16 px icon component.
+export const TaskButton = memo(function TaskButton({ b, label, Icon }) {
+  const textW = b.tw ?? b.w - b.text - 4
   return (
     <div style={{ position: 'absolute', left: 0, top: 0 }}>
-      {t.Icon ? (
-        <t.Icon x={b.x + b.icon} y={702} />
-      ) : (
-        <img
-          src={asset('img/desktop/' + t.icon)}
-          alt=""
-          style={{ position: 'absolute', left: b.x + b.icon, top: 702, width: 16, height: 16 }}
-        />
-      )}
+      <Icon x={b.x + b.icon} y={702} />
       <div
         style={{
           ...btnText,
           left: b.x + b.text,
-          width: textW,
+          width: Math.max(0, textW),
           maskImage: `linear-gradient(to right, #000 ${textW - 12}px, transparent ${textW}px)`,
         }}
       >
-        {t.label}
+        {label}
       </div>
       {b.sep && (
         <div
@@ -100,19 +61,24 @@ export const TaskButton = memo(function TaskButton({ b, onClick }) {
           }}
         />
       )}
-      {onClick && (
-        <div
-          style={{ position: 'absolute', left: b.x, top: 699, width: b.w, height: 21, pointerEvents: 'auto' }}
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            onClick(b.id)
-          }}
-          onPointerEnter={() => emit('hover', { id: 'tb.' + b.id, on: true })}
-          onPointerLeave={() => emit('hover', { id: 'tb.' + b.id, on: false })}
-        />
-      )}
     </div>
   )
+})
+
+// The buttons' hit areas (one static layer at the final layout, outside the blur copies)
+export const TaskHits = memo(function TaskHits({ buttons, onClick }) {
+  return buttons.map((b) => (
+    <div
+      key={b.id}
+      style={{ position: 'absolute', left: b.x, top: 699, width: b.w, height: 21, pointerEvents: 'auto' }}
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        onClick(b.id)
+      }}
+      onPointerEnter={() => emit('hover', { id: 'tb.' + b.id, on: true })}
+      onPointerLeave={() => emit('hover', { id: 'tb.' + b.id, on: false })}
+    />
+  ))
 })
 
 export const GroupBg = memo(function GroupBg({ x0, x1 }) {
