@@ -23,7 +23,7 @@ const flag = (name) => {
   return true
 }
 const workers = +opt('--workers', 10)
-const url = opt('--url', 'http://localhost:5199/longhorn-concept/?capture')
+const url = opt('--url', 'http://127.0.0.1:5299/longhorn-concept/?capture')
 const out = opt('--out', join(ROOT, 'out', 'full'))
 const noVideo = flag('--no-video')
 const [a, b] = (args[0] || '1-1529').split('-').map(Number)

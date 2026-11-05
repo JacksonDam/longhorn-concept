@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Stage } from './core/Stage.jsx'
-import { TimeProvider, useTime, useEvents } from './core/time.jsx'
+import { TimeProvider, useTime, useEvents, lastRenderedTime } from './core/time.jsx'
 import { Cursor } from './core/Cursor.jsx'
 import { CAPTURE, now, seek } from './core/clock.js'
 import { last, setLog, getLog } from './core/events.js'
@@ -62,6 +62,12 @@ window.__lh = {
   seekFrame: (n) => seek(((n - 1) * 1001) / 30000),
   log: getLog,
   now,
+  // resolves once React has committed the frame for the current clock time
+  rendered: () =>
+    new Promise((resolve) => {
+      const check = () => (lastRenderedTime() === now() ? resolve(true) : requestAnimationFrame(check))
+      check()
+    }),
   // resolves once fonts, <img> elements, preloaded images and slab textures are decoded
   ready: async () => {
     await document.fonts.ready

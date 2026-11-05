@@ -3,7 +3,7 @@
 // usage: node tools/capture.mjs <frames> [--out dir] [--url url] [--eval expr]
 //   frames: comma list of frame numbers or ranges with optional step, e.g. "1,180-200,700-760:4"
 //   --out:  output dir (default out/cap); files are fNNNNN.png (960x720)
-//   --url:  app URL (default http://localhost:5199/longhorn-concept/?capture)
+//   --url:  app URL (default http://127.0.0.1:5299/longhorn-concept/?capture)
 // The page runs in ?capture mode: the clock only moves when window.__lh.seekFrame(n) is called,
 // and the demo script supplies the input, so each capture is the app's frame n.
 import { spawn } from 'node:child_process'
@@ -20,7 +20,7 @@ const opt = (name, def) => {
   return v
 }
 const out = opt('--out', 'out/cap')
-const url = opt('--url', 'http://localhost:5199/longhorn-concept/?capture')
+const url = opt('--url', 'http://127.0.0.1:5299/longhorn-concept/?capture')
 const extraEval = opt('--eval', null)
 const spec = args[0]
 if (!spec) {
@@ -78,13 +78,16 @@ try {
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 960, height: 720, deviceScaleFactor: 1, mobile: false })
   await send('Page.navigate', { url })
-  for (let i = 0; i < 150 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
+  for (let i = 0; i < 600 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
+  // the app module may still be evaluating after load (cold dev server, many parallel workers)
+  for (let i = 0; i < 600 && !(await evaluate('!!(window.__lh && window.__lh.seekFrame)')); i++) await sleep(100)
   await evaluate('document.fonts.ready.then(() => true)')
   await evaluate('window.__lh && window.__lh.ready ? window.__lh.ready() : true')
   if (extraEval) console.log('eval:', JSON.stringify(await evaluate(extraEval)))
   const raf2 = 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))'
   for (const n of frames) {
     await evaluate(`window.__lh.seekFrame(${n})`)
+    await evaluate('window.__lh.rendered ? window.__lh.rendered() : true')
     await evaluate(raf2)
     await evaluate(`window.__lh && window.__lh.ready ? window.__lh.ready() : true`)
     await evaluate(raf2)

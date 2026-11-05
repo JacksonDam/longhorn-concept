@@ -40,7 +40,7 @@ semi-transparent copies. Reproduce it the same way:
   one shared three.js renderer, accumulated in half float, copied into a DOM canvas.
 
 ## Verifying against the video
-- Dev server: `npx vite --port <port> --strictPort` (main tree uses 5199).
+- Dev server: `npx vite --port <port> --strictPort` (main tree uses 5299 on 127.0.0.1; another project uses 5199).
 - `node tools/capture.mjs "180-200,300" --out out/cap --url http://localhost:<port>/longhorn-concept/?capture`
   writes the app's own frames at exact video times.
 - `python3 tools/rmse.py "180-200" --cap out/cap [--crop x,y,w,h] [--blur 1] [--sheet out/x.png] [--grid]`

@@ -1,9 +1,12 @@
 // React bindings for the clock and the event log.
 // <TimeProvider> re-renders only the components that read useTime()/useEvents();
 // its children element is created once by the parent, so static subtrees bail out.
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useState } from 'react'
 import { onFrame, now } from './clock.js'
 import { onEvents, getVersion } from './events.js'
+
+let renderedT = null
+export const lastRenderedTime = () => renderedT
 
 const TimeCtx = createContext(0)
 const EventsCtx = createContext(0)
@@ -13,6 +16,11 @@ export function TimeProvider({ children }) {
   const [v, setV] = useState(getVersion)
   useEffect(() => onFrame(setT), [])
   useEffect(() => onEvents(() => setV(getVersion())), [])
+  // children's layout effects (slab canvases) run before this one, so once it has run the
+  // whole tree shows time t: the capture tool waits for this before taking a screenshot
+  useLayoutEffect(() => {
+    renderedT = t
+  })
   return (
     <EventsCtx.Provider value={v}>
       <TimeCtx.Provider value={t}>{children}</TimeCtx.Provider>
