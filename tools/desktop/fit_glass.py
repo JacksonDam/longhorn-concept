@@ -26,7 +26,7 @@ then: python3 tools/desktop/fit_glass.py out/glassbg/f00522.png [--blur 2.4]
 The blur radius itself: python3 tools/desktop/fit_glass.py --sweep [sigmas...] fits the panel on a
 simulated backdrop (the wallpaper as the app places it, Gaussian-blurred with the edges mirrored at
 the panel's box, as Chrome's backdrop-filter does: within ~1 grey level of Chrome's own) and prints
-the RMSE per sigma. The minimum is broad, 2.2-2.6 (2.83), at 2.4; 0 (no blur) gives 3.48. That
+the RMSE per sigma. The minimum is broad, 2.2-2.6 (2.83), at 2.4; 0 (no blur) gives 3.47. That
 includes the video's own softness (~0.85 px on uncovered wallpaper), which the app does not add
 elsewhere, so 2.4 is what makes the glass match the video.
 """
