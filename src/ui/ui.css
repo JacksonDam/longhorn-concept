@@ -1,0 +1,30 @@
+/* UI kit: the real text inputs are invisible; the visible field, selection and caret are drawn
+   from the event log (src/ui/TextField.jsx), so the native ones must not show. */
+#stage .lh-input,
+#stage .lh-input:focus {
+  position: absolute;
+  margin: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  -webkit-text-fill-color: transparent;
+  resize: none;
+  overflow: hidden;
+  scrollbar-width: none;
+  -webkit-user-select: text;
+  user-select: text;
+  box-sizing: border-box;
+  appearance: none;
+}
+#stage .lh-input::selection {
+  background: transparent;
+  color: transparent;
+}
+#stage .lh-input::placeholder {
+  color: transparent;
+}
+#stage .lh-input::-webkit-scrollbar {
+  display: none;
+}

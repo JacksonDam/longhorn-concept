@@ -3,7 +3,7 @@
 // and its track list. Everything is a pure function of (t, header state).
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
-import { Txt, abs, FONT, HEAVY } from './ui.jsx'
+import { Txt, abs, FONT, HEAVY, LAYER } from './ui.jsx'
 import * as I from './icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
@@ -30,6 +30,7 @@ export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
         top: 123,
         overflow: 'visible',
         opacity: op,
+        willChange: LAYER,
         transform: sc !== 1 ? `scale(${sc})` : undefined,
         transformOrigin: '305px 104px',
       }}
@@ -95,6 +96,7 @@ export function Title({ rel, op = 1 }) {
         opacity: op,
         transform: `scale(${grow})`,
         transformOrigin: `0px ${TITLE.y}px`,
+        willChange: LAYER,
       }}
     >
       <Txt x={0} y={TITLE.wy} size={13} w={400} c="#4f86d6" op={wOp}>
@@ -158,6 +160,7 @@ export function Buttons({ rel, op = 1 }) {
           opacity: smoothRamp(rel, s0, s0 + HEADER.buttonDur - 0.5) * op,
           transform: `scale(${sc})`,
           transformOrigin: `${b.cx}px 262px`,
+          willChange: LAYER,
         }}
       >
         <div style={abs(...b.box)}>{b.icon}</div>
@@ -198,6 +201,7 @@ const deviceSlab = (canvas) => ({
   edgeMix: 0.35,
   spec: 0.35,
   rim: 0.6,
+  sat: 0.75,
   backFlip: false,
 })
 const albumSlab = {
@@ -214,7 +218,7 @@ const albumSlab = {
 }
 
 // The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache }) {
+function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip }) {
   return (
     <>
       {reflection && <SlabCanvas
@@ -227,8 +231,9 @@ function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache })
         P={900}
         style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask }}
         cacheKey={cache && 'refl'}
+        skip={skip}
       />}
-      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} cacheKey={cache && 'main'} />
+      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} cacheKey={cache && 'main'} skip={skip} />
     </>
   )
 }
@@ -306,7 +311,9 @@ function TrackList({ hrel, sel, hover }) {
 // t: this copy's time; openT: music.open; pageT: start of the album page transition (or null)
 // slabT: time for the slabs (real-time blur copies all pass the frame time, so the slab renders
 // once per frame and the copies share it)
-export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1, slabT = t }) {
+// slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs; real-time
+// playback draws them on their own layer above the window copies)
+export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1, slabT = t, slabs = 'all', cache = false, skip = false }) {
   const rel = toRel(t, openT)
   const hrel = pageT == null ? -1e9 : toRel(t, pageT)
   const fadeOut = 1 - smoothRamp(hrel, 1.5, 8.5)
@@ -325,6 +332,11 @@ export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = 
   if (rel > 5.5 && hrel < 5.2) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: devPose })
   if (hrel > 3.8) items.push({ slab: albumSlab, pose: albPose })
   const fast = rel < 24 || (hrel > 0 && hrel < 21)
+  const slabEl =
+    items.length > 0 && slabs !== 'none' ? (
+      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} />
+    ) : null
+  if (slabs === 'only') return slabEl
   return (
     <>
       {fadeOut > 0 && rel > HEADER.swoosh[0] && (
@@ -333,9 +345,7 @@ export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = 
           sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
         />
       )}
-      {items.length > 0 && (
-        <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection={CAPTURE || !copy} cache={copy && !CAPTURE} />
-      )}
+      {slabEl}
       {fadeOut > 0 && <Title rel={rel} op={fadeOut} />}
       {fadeOut > 0 && <Buttons rel={rel} op={fadeOut} />}
       <TrackList hrel={hrel} sel={track} hover={copy ? -1 : trackHover} />

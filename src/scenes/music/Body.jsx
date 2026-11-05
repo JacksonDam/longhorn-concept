@@ -1,7 +1,7 @@
 // Window body of my Music: background, task pane, grid toolbar, scrollbar and status bar.
 // Static (memoised); the album grid and the header are separate components.
 import { memo } from 'react'
-import { Txt, abs } from './ui.jsx'
+import { Txt, abs, LAYER } from './ui.jsx'
 import * as I from './icons.jsx'
 
 const LIGHT = '#a9a9ab'
@@ -29,7 +29,7 @@ export const BodyBg = memo(function BodyBg() {
 export const EnjoyGroup = memo(function EnjoyGroup({ op = 1 }) {
   if (op <= 0) return null
   return (
-    <div style={{ position: 'absolute', left: 0, top: 0, opacity: op }}>
+    <div style={{ position: 'absolute', left: 0, top: 0, opacity: op, willChange: LAYER }}>
       <Heading y={147.5} a="enjoy" b="music" />
       <div style={abs(11, 156, 18, 18)}>
         <I.PlayAllIcon />
