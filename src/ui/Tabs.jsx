@@ -4,7 +4,7 @@
 //   <TabPanel x y w h>...</TabPanel>   the white panel the strip sits on
 import { memo } from 'react'
 import { emit } from '../core/events.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime } from './scope.jsx'
 import { valueOf, hoverKeys, pt } from './state.js'
 import { C, FONT, HEAVY } from './theme.js'
 

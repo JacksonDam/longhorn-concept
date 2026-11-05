@@ -6,7 +6,7 @@
 import { memo, useRef } from 'react'
 import { emit } from '../core/events.js'
 import { now } from '../core/clock.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime } from './scope.jsx'
 import { clamp } from '../core/anim.js'
 import { valueOf, hoverLevel, isPressed, stageRect, pt } from './state.js'
 

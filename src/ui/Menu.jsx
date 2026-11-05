@@ -10,7 +10,7 @@
 import { memo, useEffect, useRef } from 'react'
 import { emit } from '../core/events.js'
 import { FPS } from '../core/clock.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime, useLive } from './scope.jsx'
 import { clamp, ease } from '../core/anim.js'
 import { lastOf, hoverKeys, menuState, openMenu, stageRect, pt } from './state.js'
 import { Overlay, Catcher } from './Overlay.jsx'
@@ -257,7 +257,8 @@ export function MenuBar({ id, menus, x, y, h = 17, variant = 'band', pad = 7, ga
     openMenu(id, key, { x: p.x, y: p.y, rects })
   }
   const close = () => closeAll(id)
-  const cur = open != null ? menus.find((m) => m.key === open) : null
+  const live = useLive()
+  const cur = open != null && live ? menus.find((m) => m.key === open) : null
   return (
     <>
       <div
@@ -328,8 +329,9 @@ export function contextHandler(id, items, before) {
 
 export function ContextMenu({ id, items }) {
   const t = useTime()
+  const live = useLive()
   const st = menuState(t, id)
-  if (!st || st.open == null) return null
+  if (!live || !st || st.open == null) return null
   const list = typeof items === 'function' ? items() : items
   return (
     <Overlay>
@@ -341,8 +343,9 @@ export function ContextMenu({ id, items }) {
 // A drop-down button's menu (e.g. "Group by date ▾"): open state under `id`.
 export function DropMenu({ id, items, minW }) {
   const t = useTime()
+  const live = useLive()
   const st = menuState(t, id)
-  if (!st || st.open == null) return null
+  if (!live || !st || st.open == null) return null
   return (
     <Overlay>
       <MenuPopup id={id} items={typeof items === 'function' ? items() : items} x={st.x} y={st.y} openT={st.t} minW={minW} onClose={() => closeAll(id)} />

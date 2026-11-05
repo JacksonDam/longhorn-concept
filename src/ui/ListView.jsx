@@ -9,7 +9,7 @@
 import { memo } from 'react'
 import { emit } from '../core/events.js'
 import { now } from '../core/clock.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime } from './scope.jsx'
 import { clamp } from '../core/anim.js'
 import { valueOf, hoverKeys, pt } from './state.js'
 import { Scrollbar, BAR_W, scrollOf, scrollTo, wheelPx } from './ScrollView.jsx'

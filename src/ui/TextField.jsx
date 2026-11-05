@@ -8,7 +8,7 @@
 import { memo, useEffect, useLayoutEffect, useRef } from 'react'
 import { emit } from '../core/events.js'
 import { now } from '../core/clock.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime, useLive } from './scope.jsx'
 import { valueOf, focusAt, setFocus, lastOf } from './state.js'
 import { C, FONT } from './theme.js'
 import './ui.css'
@@ -109,6 +109,7 @@ export function TextField({
 }) {
   const t0 = useTime()
   const t = tProp ?? t0
+  const live = useLive()
   const st = valueOf(t, id, EMPTY)
   const fe = focusAt(t)
   const focused = !!fe && fe.field === id
@@ -141,6 +142,7 @@ export function TextField({
   })
   useEffect(() => {
     const el = ref.current
+    if (!el) return
     fields.set(id, el)
     // selection moves inside the field (arrows, drag) arrive as selectionchange
     const onSel = () => {
@@ -151,7 +153,7 @@ export function TextField({
       document.removeEventListener('selectionchange', onSel)
       if (fields.get(id) === el) fields.delete(id)
     }
-  }, [id])
+  }, [id, live])
 
   const sync = (el) => {
     const v = { text: el.value, a: el.selectionStart ?? 0, b: el.selectionEnd ?? 0, sx: Math.round(el.scrollLeft), sy: Math.round(el.scrollTop) }
@@ -191,7 +193,7 @@ export function TextField({
           <Segs text={st.text} a={st.a} b={st.b} focused={focused} caret={caret} selColor={C.textSel} color={color} placeholder={placeholder} phColor={phColor} />
         </div>
       </div>
-      <Tag
+      {live && <Tag
         ref={ref}
         className="lh-input"
         spellCheck={false}
@@ -226,7 +228,7 @@ export function TextField({
           e.stopPropagation()
           sync(e.currentTarget)
         }}
-      />
+      />}
     </div>
   )
 }

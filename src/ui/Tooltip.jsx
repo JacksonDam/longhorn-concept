@@ -5,7 +5,7 @@
 //   <Tooltip forId="ie.back" text="Back" />
 import { memo } from 'react'
 import { FPS } from '../core/clock.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime, useLive } from './scope.jsx'
 import { clamp } from '../core/anim.js'
 import { lastOf } from './state.js'
 import { Overlay } from './Overlay.jsx'
@@ -39,8 +39,9 @@ const Tip = memo(function Tip({ text, x, y }) {
 export function Tooltip({ forId, text, delay = 0.6, hold = 5, t: tProp }) {
   const t0 = useTime()
   const t = tProp ?? t0
+  const live = useLive()
   const e = lastOf(t, 'hover', forId)
-  if (!e || !e.on || e.x == null) return null
+  if (!live || !e || !e.on || e.x == null) return null
   const p = lastOf(t, 'press', forId)
   if (p && p.t >= e.t) return null
   const dt = t - e.t

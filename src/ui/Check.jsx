@@ -5,7 +5,7 @@
 //   <Radio group option label x y def onChange value? />
 import { memo } from 'react'
 import { emit } from '../core/events.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime } from './scope.jsx'
 import { valueOf, hoverLevel, isPressed, isHover } from './state.js'
 import { pressHandlers } from './Button.jsx'
 import { C, FONT } from './theme.js'

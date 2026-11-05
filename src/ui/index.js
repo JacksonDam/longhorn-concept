@@ -12,3 +12,4 @@ export { ScrollView, Scrollbar, scrollOf, scrollTo, wheelPx, BAR_W } from './Scr
 export { ListView, selectionOf, select, sortOf } from './ListView.jsx'
 export { Tabs, TabPanel, tabOf, TAB_H } from './Tabs.jsx'
 export { Tooltip } from './Tooltip.jsx'
+export { UIScope, scoped, useUITime, useLive } from './scope.jsx'

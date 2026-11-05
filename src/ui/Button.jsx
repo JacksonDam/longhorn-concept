@@ -9,7 +9,7 @@
 import { memo } from 'react'
 import { emit } from '../core/events.js'
 import { now } from '../core/clock.js'
-import { useTime } from '../core/time.jsx'
+import { useUITime as useTime } from './scope.jsx'
 import { hoverLevel, isPressed, isHover, pt } from './state.js'
 import { C, FONT, HEAVY } from './theme.js'
 
