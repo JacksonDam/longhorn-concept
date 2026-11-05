@@ -3,7 +3,6 @@
 // desktop thumbnails. Static content is memoised; only tile opacities follow the clock.
 import { memo } from 'react'
 import { asset } from '../../core/preload.js'
-import { emit } from '../../core/events.js'
 import {
   EnvelopeClosed,
   EnvelopeOpen,
@@ -83,15 +82,17 @@ const clipRight = { width: 960 - 889, overflow: 'hidden', maskImage: 'linear-gra
 
 // The user picture first shows colour-washed (pale yellow, as on the login screen's
 // selected tile) and turns to full colour as the name fades in (frames 568.5-574).
+// The session's user (os/session.js); Sondra's picture is the desktop's own copy.
 const userPic = { position: 'absolute', left: 864, top: 4, width: 19, height: 18, objectFit: 'cover' }
-const HeaderPale = memo(function HeaderPale() {
-  return <img src={asset('img/desktop/user-sondra.webp')} alt="" style={{ ...userPic, filter: 'sepia(0.75) saturate(0.8) brightness(1.45) contrast(0.8)' }} />
+const picOf = (user) => (!user || user.id === 'sondra' ? asset('img/desktop/user-sondra.webp') : user.picture)
+const HeaderPale = memo(function HeaderPale({ user }) {
+  return <img src={picOf(user)} alt="" draggable={false} style={{ ...userPic, filter: 'sepia(0.75) saturate(0.8) brightness(1.45) contrast(0.8)' }} />
 })
-const HeaderColor = memo(function HeaderColor() {
-  return <img src={asset('img/desktop/user-sondra.webp')} alt="" style={userPic} />
+const HeaderColor = memo(function HeaderColor({ user }) {
+  return <img src={picOf(user)} alt="" draggable={false} style={userPic} />
 })
-const HeaderName = memo(function HeaderName() {
-  return <div style={text(887.5, 17, 11.2, { color: 'rgba(255,255,255,0.92)' })}>Sondra</div>
+const HeaderName = memo(function HeaderName({ user }) {
+  return <div style={text(887.5, 17, 11.2, { color: 'rgba(255,255,255,0.92)' })}>{user ? user.name : 'Sondra'}</div>
 })
 
 const SeattleTile = memo(function SeattleTile() {
@@ -132,14 +133,23 @@ const MailTile = memo(function MailTile() {
   )
 })
 
+// The strip's title: the current track of os/media.js, scrolling while it plays.
+export const MediaTitle = memo(function MediaTitle({ title, scroll }) {
+  const st = text(0, 8, 8, { color: 'rgba(235,240,255,0.8)', letterSpacing: '0.1px' })
+  return (
+    <div style={{ position: 'absolute', left: 867, top: 264, width: 90, height: 12, overflow: 'hidden' }}>
+      <div style={{ ...st, transform: scroll ? `translateX(${-scroll}px)` : undefined, willChange: 'transform' }}>
+        {title}
+        {scroll ? <span style={{ paddingLeft: 40 }}>{title}</span> : null}
+      </div>
+    </div>
+  )
+})
+
 const MediaTile = memo(function MediaTile() {
   return (
     <>
-      <div style={{ ...text(867, 272, 8, { color: 'rgba(235,240,255,0.8)', letterSpacing: '0.1px' }), width: 90, overflow: 'hidden' }}>
-        U2 - One more Voice With Love
-      </div>
       <MediaCapsule x={888} y={281} />
-      <PlayButton x={865} y={278} />
       <SmallButton x={894} y={284} kind="stop" />
       <SmallButton x={914} y={284} kind="prev" />
       <SmallButton x={932} y={284} kind="next" />
@@ -209,38 +219,37 @@ export const TILES = [
 // behind it): blur 2 px, then per column an alpha-like gain k(x) (0.33 at the left edge
 // to 0.72 at the right) plus per-column and per-row tints, fitted on the empty panel of
 // video frames 521-523 (and the clock foot under it, rows 700-720). See the spec.
+const glassBg = (top) => ({
+  position: 'absolute',
+  left: PANEL.x,
+  width: PANEL.w,
+  backgroundImage: `url(${asset('img/desktop/glass.webp')})`,
+  backgroundSize: `${PANEL.w}px 720px`,
+  backgroundPosition: `0 ${-top}px`,
+  top,
+})
+// the panel (moves when the chevron hides the sidebar) and the clock foot under it (stays)
 const Glass = memo(function Glass() {
-  return (
-    <img
-      src={asset('img/desktop/glass.webp')}
-      alt=""
-      style={{ position: 'absolute', left: PANEL.x, top: 0, width: PANEL.w, height: 720 }}
-    />
-  )
+  return <div style={{ ...glassBg(0), height: 700 }} />
+})
+const GlassFoot = memo(function GlassFoot() {
+  return <div style={{ ...glassBg(700), height: 20 }} />
 })
 
-// opacity: { panel, header, name, seattle, ... } in 0..1
-export function Sidebar({ opacity, haze = 0, onMedia, mediaHL }) {
+const show = (o) => ({ position: 'absolute', inset: 0, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' })
+
+// opacity: { panel, header, name, seattle, ... } in 0..1; media: { title, playing, scroll };
+// slide: px the panel is pushed right (chevron), 0..102
+export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, live, hits }) {
   const hl = mediaHL?.hover ?? 0
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: opacity.panel }}>
-        <Glass />
-        {haze > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              left: PANEL.x,
-              top: 0,
-              width: PANEL.w,
-              height: PANEL.h,
-              background: 'rgb(170,190,225)',
-              opacity: haze,
-            }}
-          />
-        )}
-      </div>
-      {hl > 0 && (
+      <div style={show(opacity.panel)}>{GLASS_FOOT}</div>
+      <div style={{ position: 'absolute', inset: 0, transform: slide ? `translateX(${slide}px)` : undefined, visibility: slide >= PANEL.w ? 'hidden' : 'visible' }}>
+        <div style={show(opacity.panel)}>
+          {GLASS}
+          <div style={{ position: 'absolute', left: PANEL.x, top: 0, width: PANEL.w, height: PANEL.h, background: 'rgb(170,190,225)', opacity: haze }} />
+        </div>
         <div
           style={{
             position: 'absolute',
@@ -248,28 +257,24 @@ export function Sidebar({ opacity, haze = 0, onMedia, mediaHL }) {
             top: 257,
             width: 101,
             height: 52,
-            opacity: opacity.media,
-            background: `rgba(95,172,250,${0.6 * Math.min(1, hl)})`,
+            opacity: opacity.media * Math.min(1, hl),
+            background: 'rgba(95,172,250,0.6)',
           }}
         />
-      )}
-      {TILES.map(([id, Comp]) =>
-        opacity[id] > 0 ? (
-          <div key={id} style={{ position: 'absolute', inset: 0, opacity: opacity[id] }}>
-            <Comp />
+        {live}
+        {TILES.map(([id, Comp]) => (
+          <div key={id} style={show(opacity[id])}>
+            <Comp user={user} />
           </div>
-        ) : null,
-      )}
-      {/* hit areas */}
-      <div
-        style={{ position: 'absolute', left: L, top: 258, width: PANEL.w, height: 50, pointerEvents: 'auto' }}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          onMedia?.()
-        }}
-        onPointerEnter={() => emit('hover', { id: 'sb.media', on: true })}
-        onPointerLeave={() => emit('hover', { id: 'sb.media', on: false })}
-      />
+        ))}
+        <div style={show(opacity.media)}>
+          <MediaTitle title={media.title} scroll={media.scroll} />
+          <PlayButton x={865} y={278} playing={media.playing} />
+        </div>
+        {hits}
+      </div>
     </div>
   )
 }
+const GLASS = <Glass />
+const GLASS_FOOT = <GlassFoot />
