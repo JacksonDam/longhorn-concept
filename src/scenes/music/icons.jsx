@@ -220,15 +220,16 @@ export const TitleEq = () =>
     </g>,
   )
 
+// minimise / maximise / close, measured from f800 (placed at window-local 723, 7)
 export const WinButtons = () =>
   svg(
-    36,
-    12,
-    <g stroke="#c9dcf7" strokeWidth="1.6" fill="none" opacity="0.9">
-      <path d="M1 9.5 H7" strokeWidth="2.2" />
-      <rect x="14" y="1.5" width="8.5" height="8" strokeWidth="1.3" />
-      <path d="M14 2.6 H22.5" strokeWidth="2.2" />
-      <path d="M27.5 1.5 L34.5 9.5 M34.5 1.5 L27.5 9.5" strokeWidth="1.8" />
+    43,
+    10,
+    <g fill="none" stroke="#b9d5ff" opacity="0.92">
+      <path d="M1.5 7.2 H7.5" strokeWidth="2.2" />
+      <rect x="17.6" y="1.4" width="8.3" height="6.6" strokeWidth="1.2" />
+      <path d="M17.6 2.1 H25.9" strokeWidth="2" />
+      <path d="M33.6 1 L40.6 8.6 M40.6 1 L33.6 8.6" strokeWidth="1.9" />
     </g>,
   )
 

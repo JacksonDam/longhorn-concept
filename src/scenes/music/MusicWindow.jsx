@@ -13,6 +13,8 @@
 //   'music.restore'   taskbar button while minimised
 //   'music.close'     title-bar close button
 //   'music.album' { id } album tile click (id = tile index 0..31, row-major)
+//   'music.track' { n }  track click on the album page (n = 0..9)
+//   'hover' { id: 'music.album.<i>' | 'music.track.<n>', on }
 import { last, all } from '../../core/events.js'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { FPS } from '../../core/clock.js'
@@ -22,14 +24,14 @@ import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from './B
 import { AlbumGrid } from './Grid.jsx'
 import { Header } from './Header.jsx'
 import { Beam } from './Beam.jsx'
-import { HEADER, PAGE_DELAY, openPose, openMoving, poseCss, smoothRamp, toRel, minimizePose, restorePose, MIN_END, RESTORE_END } from './timeline.js'
+import { HEADER, PAGE_DELAY, OPEN_END, openPose, openMoving, poseCss, smoothRamp, toRel, minimizePose, restorePose, MIN_END, RESTORE_END } from './timeline.js'
 import { ALBUMS } from './albums.js'
 
 export function musicWindowState(t) {
   const open = last(t, (e) => e.type === 'music.open')
   if (!open) return { exists: false, minimized: false }
   const close = last(t, (e) => e.type === 'music.close' && e.t >= open.t)
-  if (close) return { exists: false, minimized: false, closedAt: close.t }
+  if (close) return { exists: false, minimized: false, openedAt: open.t, closedAt: close.t }
   const mm = last(t, (e) => (e.type === 'music.minimize' || e.type === 'music.restore') && e.t >= open.t)
   return {
     exists: true,
@@ -53,15 +55,19 @@ function viewState(t, openT) {
     }
   }
   const h = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.album.'))
+  const th = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.track.'))
+  const tr = last(t, (e) => e.type === 'music.track' && after(e))
   return {
     sel: s ? { id: s.id, t: s.t } : null,
     hover: h && h.on ? +String(h.id).slice('music.album.'.length) : -1,
+    track: tr ? tr.n : 2,
+    trackHover: th && th.on ? +String(th.id).slice('music.track.'.length) : -1,
     pageT: first ? first.t + PAGE_DELAY / FPS : null,
   }
 }
 
 // One rendering of the whole window at time t (motion-blur copies each get their own t).
-function WindowContent({ t, st, vs }) {
+function WindowContent({ t, st, vs, copy = false }) {
   const rel = toRel(t, st.openedAt)
   const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
   return (
@@ -80,7 +86,7 @@ function WindowContent({ t, st, vs }) {
     >
       <Chrome />
       <BodyBg />
-      <Header t={t} openT={st.openedAt} pageT={pageT} />
+      <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} />
       <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
       <TaskPane />
       <GridBar />
@@ -101,7 +107,9 @@ function openBlur(rel) {
 }
 
 // the window drawn n times at sub-frame times, averaged (plus-lighter in an isolated group)
-function Blurred({ t, n, shutter, pose, st, vs }) {
+// frozen: render the content as at this time (e.g. while closing). Inside a copy the slabs
+// render one sample each: the copies already provide the temporal samples.
+function Blurred({ t, n, shutter, pose, st, vs, frozen }) {
   const layers = []
   for (let k = 0; k < n; k++) {
     const tt = t + shutter * ((k + 0.5) / n - 0.5)
@@ -109,7 +117,7 @@ function Blurred({ t, n, shutter, pose, st, vs }) {
     if (p.op <= 0) continue
     layers.push(
       <div key={k} style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter' }}>
-        <WindowContent t={tt} st={st} vs={vs} />
+        <WindowContent t={frozen ?? tt} st={st} vs={vs} copy />
       </div>,
     )
   }
@@ -136,8 +144,26 @@ export function MusicWindow() {
   )
 }
 
+// close: the open animation played backwards (faster), with the beam
+const CLOSE_SPEED = 1.6
+const CLOSE_END = (OPEN_END - 5) / CLOSE_SPEED
+
 function MusicWindowLayer({ t }) {
   const st = musicWindowState(t)
+  if (st.closedAt != null) {
+    const crel = toRel(t, st.closedAt)
+    if (crel >= CLOSE_END + 3) return null
+    const vs = viewState(st.closedAt, st.openedAt)
+    const back = (tt) => OPEN_END - toRel(tt, st.closedAt) * CLOSE_SPEED
+    return (
+      <>
+        {crel < CLOSE_END && (
+          <Blurred t={t} st={st} vs={vs} n={10} shutter={0.8 / FPS} pose={(tt) => openPose(back(tt))} frozen={st.closedAt} />
+        )}
+        <Beam rel={OPEN_END - crel * CLOSE_SPEED} fan={[3.2, 6, 8.2]} spark={[-1, -1, -1]} />
+      </>
+    )
+  }
   if (!st.exists) return null
   const rel = toRel(t, st.openedAt)
   const vs = viewState(t, st.openedAt)

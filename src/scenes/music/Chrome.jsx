@@ -40,15 +40,16 @@ export const Chrome = memo(function Chrome() {
         <I.TitleEq />
       </div>
       <Txt x={364} y={13.5} size={13.5} w={400} sx={0.95} c="#e3f3ff" parts={[['my ', { w: 300 }], ['Music', { w: 600 }]]} />
-      <div style={abs(741, 5, 36, 12)}>
+      <div style={abs(723, 7, 43, 10)}>
         <I.WinButtons />
       </div>
       <div
         data-hit="music.minimize"
-        style={abs(737, 1, 16, 18, { cursor: 'default' })}
+        style={abs(719, 2, 15, 18)}
         onClick={() => emit('music.minimize')}
       />
-      <div data-hit="music.close" style={abs(763, 1, 16, 18)} onClick={() => emit('music.close')} />
+      <div data-hit="music.maximize" style={abs(736, 2, 16, 18)} />
+      <div data-hit="music.close" style={abs(752, 2, 17, 18)} onClick={() => emit('music.close')} />
 
       <div style={abs(10, 19, 60, 40)}>
         <I.BackForward />

@@ -2,6 +2,7 @@
 // the Play Music / Burn CD / Share Music buttons; after an album is opened, the album slab
 // and its track list. Everything is a pure function of (t, header state).
 import { memo } from 'react'
+import { emit } from '../../core/events.js'
 import { Txt, abs, FONT, HEAVY } from './ui.jsx'
 import * as I from './icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
@@ -233,7 +234,8 @@ function Slabs({ t, items, samples = 1, shutter = 0 }) {
 
 // "Tweet  Southern Hummingbird" and the track list (track 3 highlighted, track 4's number blue)
 const LIST = { x: 429, sx: 496, y: 151.5, nx: 431, tx: 450, ty: 174.5, dy: 15 }
-const TrackListBody = memo(function TrackListBody() {
+// sel: highlighted track index (the video: 2 = "Smoking Cigarettes"); hover: hovered index or -1
+const TrackListBody = memo(function TrackListBody({ sel = 2, hover = -1 }) {
   return (
     <>
       <Txt x={LIST.x} y={LIST.y} size={20} f={HEAVY} sx={1} c="#d01a1c">
@@ -243,7 +245,7 @@ const TrackListBody = memo(function TrackListBody() {
         Southern Hummingbird
       </Txt>
       {TWEET.tracks.map((name, i) => {
-        const hi = i === 2
+        const hi = i === sel || i === hover
         const y = LIST.ty + i * LIST.dy
         return (
           <div key={i}>
@@ -260,11 +262,32 @@ const TrackListBody = memo(function TrackListBody() {
   )
 })
 
+// invisible hit rows for hover / click on the tracks
+const TrackHits = memo(function TrackHits() {
+  return TWEET.tracks.map((_, i) => (
+    <div
+      key={i}
+      data-track={i}
+      onPointerEnter={() => emit('hover', { id: 'music.track.' + i, on: true })}
+      onPointerLeave={() => emit('hover', { id: 'music.track.' + i, on: false })}
+      onClick={() => emit('music.track', { n: i })}
+      style={abs(LIST.nx - 4, LIST.ty - 11 + i * LIST.dy, 300, LIST.dy)}
+    />
+  ))
+})
+
 // slides in from the right with a horizontal multi-sample blur
-function TrackList({ hrel }) {
+function TrackList({ hrel, sel, hover }) {
   if (hrel < 13) return null
-  const [dx0, op] = LIST_IN(hrel)
-  if (hrel >= 20) return <TrackListBody />
+  const [, op] = LIST_IN(hrel)
+  if (hrel >= 20) {
+    return (
+      <>
+        <TrackListBody sel={sel} hover={hover} />
+        <TrackHits />
+      </>
+    )
+  }
   const n = 10
   const layers = []
   for (let k = 0; k < n; k++) {
@@ -272,7 +295,7 @@ function TrackList({ hrel }) {
     const [dx, o] = LIST_IN(h)
     layers.push(
       <div key={k} style={{ position: 'absolute', left: dx, top: 0, opacity: o / n, mixBlendMode: 'plus-lighter' }}>
-        <TrackListBody />
+        <TrackListBody sel={sel} />
       </div>,
     )
   }
@@ -280,7 +303,7 @@ function TrackList({ hrel }) {
 }
 
 // t: this copy's time; openT: music.open; pageT: start of the album page transition (or null)
-export function Header({ t, openT, pageT }) {
+export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1 }) {
   const rel = toRel(t, openT)
   const hrel = pageT == null ? -1e9 : toRel(t, pageT)
   const fadeOut = 1 - smoothRamp(hrel, 1.5, 8.5)
@@ -307,10 +330,10 @@ export function Header({ t, openT, pageT }) {
           sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
         />
       )}
-      {items.length > 0 && <Slabs t={t} items={items} samples={fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} />}
+      {items.length > 0 && <Slabs t={t} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} />}
       {fadeOut > 0 && <Title rel={rel} op={fadeOut} />}
       {fadeOut > 0 && <Buttons rel={rel} op={fadeOut} />}
-      <TrackList hrel={hrel} />
+      <TrackList hrel={hrel} sel={track} hover={copy ? -1 : trackHover} />
       <Preview />
     </>
   )
