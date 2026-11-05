@@ -410,6 +410,7 @@ function mountedCopies(win, app, t, N) {
 // a window layer that shows nothing: parked off-stage at a near-zero opacity, so Blink keeps it
 // painted (it skips opacity-0 subtrees) while the compositor draws nothing on screen
 const PARKED = { transform: 'translateX(-4000px)', opacity: 1e-4 }
+const REST = { opacity: 1e-4 }
 
 // A window that shows nothing and has nothing scheduled (minimised, closed, running at login,
 // prewarmed) renders the same every frame: this key changes only when its layers would change
@@ -441,6 +442,12 @@ function PlexWindowImpl({ win, app, t, active, z }) {
   const openRel = (tt) => toRel(tt, win.openedAt + OPEN_DELAY / FPS)
   const rel = openRel(t)
   const ghost = win.lastAction === 'ghost'
+  // where idle layers wait: a window that has been shown keeps them on its rect, all but
+  // invisible, so their tiles stay rasterised and the next minimise / restore / move only
+  // composites (rasterising ten window copies on the first frame of a restore costs 60 ms);
+  // never-shown and closed windows park them off-stage (painted, not rasterised)
+  const shown = (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'initial' && win.lastAction !== 'ghost'
+  const rest = shown ? REST : PARKED
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -451,12 +458,12 @@ function PlexWindowImpl({ win, app, t, active, z }) {
       style = { ...poseCss(p), opacity: Math.max(0, p.op) / nEff }
     } else if (k === 0 && !m.hidden) {
       const p = m.pose ? m.pose(t) : null
-      style = p && p.op <= 0 ? PARKED : { ...(p ? poseCss(p) : null), opacity: p ? p.op : 1 }
+      style = p && p.op <= 0 ? rest : { ...(p ? poseCss(p) : null), opacity: p ? p.op : 1 }
     } else if (m.warm && k <= Math.floor((rel + 1) * 2)) {
       // before the open is visible: copies are rasterised in their first visible pose, all but
       // invisible (two per frame), so the first blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
-    } else style = PARKED
+    } else style = rest
     const rr = blur && k < nEff ? m.rect(tt) : r
     let ct = m.frozen != null ? live : liveContentT(win, app, t)
     if (k > 0 && m.frozen == null) {
