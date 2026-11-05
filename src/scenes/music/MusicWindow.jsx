@@ -198,7 +198,7 @@ function MusicWindowLayer({ t }) {
       const fall = mrel > 3.8
       return (
         <>
-          <Blurred {...props} n={fall ? 16 : 6} shutter={1 / FPS} pose={(tt) => minimizePose(toRel(tt, st.changedAt))} />
+          <Blurred {...props} n={fall ? 16 : 6} shutter={(fall ? 1.32 : 1) / FPS} pose={(tt) => minimizePose(toRel(tt, st.changedAt))} />
           <Beam rel={mrel} fan={[5, 6.8, 8.6]} spark={[6, 7.5, 9.5]} rise={false} />
         </>
       )

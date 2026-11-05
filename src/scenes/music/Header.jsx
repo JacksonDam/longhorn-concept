@@ -64,7 +64,7 @@ export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
       <ellipse cx="485" cy="107" rx="115" ry="42" fill="#fde0e0" filter="url(#mw-b12)" />
       <ellipse cx="380" cy="205" rx="150" ry="14" fill="#dceaf8" filter="url(#mw-b5)" />
       <g mask="url(#mw-ringmask)">
-        <ellipse cx="535" cy="101" rx="136" ry="82" fill="url(#mw-ring)" filter="url(#mw-b1)" transform="rotate(-8 535 101)" />
+        <ellipse cx="541" cy="101" rx="136" ry="80" fill="url(#mw-ring)" filter="url(#mw-b1)" transform="rotate(-8 541 101)" />
       </g>
       <ellipse cx="390" cy="105" rx="115" ry="9" fill="#f0a39a" filter="url(#mw-b5)" opacity="0.85" />
       <ellipse cx="470" cy="96" rx="80" ry="6" fill="#f6c9c0" filter="url(#mw-b5)" opacity="0.6" />
