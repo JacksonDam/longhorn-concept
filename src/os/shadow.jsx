@@ -11,6 +11,7 @@
 // computed per frame.
 import { memo } from 'react'
 import { preload } from '../core/preload.js'
+import { RADIUS_TOP as RT, RADIUS_BOTTOM as RB } from './frame.js'
 
 // box-shadow terms (stage px): 0 DY BLUR SPREAD rgba(0,0,0,ALPHA), sigma = BLUR / 2; fitted by
 // capture + RMSE over the ring around the window (frames 800-1300: 8.89 -> 6.86)
@@ -18,28 +19,27 @@ const ALPHA = 0.33
 const SPREAD = -1
 const DY = 9
 const SIGMA = 8
-export const SHADOW_RADIUS = 8 // the window's corner radius (PlexWindow RIM_R)
+// (the shape: the window's outline, os/frame.js corner radii RT top, RB bottom)
 
 // How far the shadow reaches outside the window on each side (cut where its alpha falls under
 // 1/400: 2.5 sigma past the spread edge): sides, bottom (offset down by DY) and top (little or
-// nothing). The strips cover only that ring (and the corner radius R inside it, where the rounded
-// corners leave room), so the window layers grow as little as possible (every motion-blur copy
-// composites its whole layer) and re-rastering a strip never touches the window's content.
+// nothing). The strips cover only that ring (and the corner radii inside it, where the rounded
+// corners leave room), so the shadow layer composites as few pixels as possible.
 // C: the corner zone (past C from a corner the profile along an edge is uniform).
 const TAIL = 2.5 * SIGMA
 const OS = Math.ceil(SPREAD + TAIL)
 const OB = Math.ceil(SPREAD + DY + TAIL)
 const OT = Math.max(0, Math.ceil(SPREAD - DY + TAIL))
-const C = Math.ceil(SHADOW_RADIUS + SPREAD + DY + TAIL)
+const C = Math.ceil(Math.max(RT, RB) + SPREAD + DY + TAIL)
 const O = Math.max(OS, OB, OT) // the image's margin
 const S = 2 // image px per stage px
 const IW = 2 * C + 2 // the shape the image is drawn for (its middle 2 px are uniform)
 const TOT = IW + 2 * O
-const R = SHADOW_RADIUS
 const KS = OS + C // corner piece width (top and bottom strips)
-const KT = OT + R // top strip height
-const KB = OB + R // bottom strip height
-const KV = C - R // corner piece height (side strips)
+const KT = OT + RT // top strip height
+const KB = OB + RB // bottom strip height
+const KVT = C - RT // side strips: top and bottom corner piece heights
+const KVB = C - RB
 
 function build() {
   if (typeof document === 'undefined') return null
@@ -58,12 +58,13 @@ function build() {
   g.shadowOffsetX = off
   g.shadowOffsetY = DY * S
   g.fillStyle = '#000'
-  rr((O - SPREAD) * S - off, (O - SPREAD) * S, (IW + 2 * SPREAD) * S, (IW + 2 * SPREAD) * S, (SHADOW_RADIUS + SPREAD) * S)
+  const sr = (r) => Math.max(0, r + SPREAD) * S
+  rr((O - SPREAD) * S - off, (O - SPREAD) * S, (IW + 2 * SPREAD) * S, (IW + 2 * SPREAD) * S, [sr(RT), sr(RT), sr(RB), sr(RB)])
   g.fill()
   // the window itself covers its shape: cut it out (translucent chrome never shows shadow)
   g.shadowColor = 'transparent'
   g.globalCompositeOperation = 'destination-out'
-  rr(O * S, O * S, IW * S, IW * S, SHADOW_RADIUS * S)
+  rr(O * S, O * S, IW * S, IW * S, [RT * S, RT * S, RB * S, RB * S])
   g.fill()
   const piece = (x, y, w, h) => {
     const p = document.createElement('canvas')
@@ -74,13 +75,13 @@ function build() {
   }
   const xl = O - OS, xr = O + IW // left / right side strips
   const x1 = O + IW - C // right corner pieces
-  const yt = O - OT, yb = O + IW - R // top / bottom strips
+  const yt = O - OT, yb = O + IW - RB // top / bottom strips
   const mid = O + C // a uniform column / row
   return {
     tl: piece(xl, yt, KS, KT), tm: piece(mid, yt, 1, KT), tr: piece(x1, yt, KS, KT),
     bl: piece(xl, yb, KS, KB), bm: piece(mid, yb, 1, KB), br: piece(x1, yb, KS, KB),
-    lt: piece(xl, O + R, OS, KV), lm: piece(xl, mid, OS, 1), lb: piece(xl, O + IW - C, OS, KV),
-    rt: piece(xr, O + R, OS, KV), rm: piece(xr, mid, OS, 1), rb: piece(xr, O + IW - C, OS, KV),
+    lt: piece(xl, O + RT, OS, KVT), lm: piece(xl, mid, OS, 1), lb: piece(xl, O + IW - C, OS, KVB),
+    rt: piece(xr, O + RT, OS, KVT), rm: piece(xr, mid, OS, 1), rb: piece(xr, O + IW - C, OS, KVB),
   }
 }
 const IMG = build()
@@ -93,7 +94,7 @@ if (IMG) {
   const row = (a, m, b) =>
     `background: url(${a}) 0 0 / ${KS}px 100% no-repeat, url(${m}) ${KS}px 0 / calc(100% - ${2 * KS}px) 100% no-repeat, url(${b}) 100% 0 / ${KS}px 100% no-repeat;`
   const col = (a, m, b) =>
-    `background: url(${a}) 0 0 / 100% ${KV}px no-repeat, url(${m}) 0 ${KV}px / 100% calc(100% - ${2 * KV}px) no-repeat, url(${b}) 0 100% / 100% ${KV}px no-repeat;`
+    `background: url(${a}) 0 0 / 100% ${KVT}px no-repeat, url(${m}) 0 ${KVT}px / 100% calc(100% - ${KVT + KVB}px) no-repeat, url(${b}) 0 100% / 100% ${KVB}px no-repeat;`
   const css = document.createElement('style')
   css.textContent = [
     `.${CLS.t} { ${row(IMG.tl, IMG.tm, IMG.tr)} }`,
@@ -112,9 +113,9 @@ export const WindowShadow = memo(function WindowShadow({ w, h, op = 1 }) {
   return (
     <>
       <div className={CLS.t} style={strip(-OS, -OT, w + 2 * OS, KT, o)} />
-      <div className={CLS.b} style={strip(-OS, h - R, w + 2 * OS, KB, o)} />
-      <div className={CLS.l} style={strip(-OS, R, OS, h - 2 * R, o)} />
-      <div className={CLS.r} style={strip(w, R, OS, h - 2 * R, o)} />
+      <div className={CLS.b} style={strip(-OS, h - RB, w + 2 * OS, KB, o)} />
+      <div className={CLS.l} style={strip(-OS, RT, OS, h - RT - RB, o)} />
+      <div className={CLS.r} style={strip(w, RT, OS, h - RT - RB, o)} />
     </>
   )
 })

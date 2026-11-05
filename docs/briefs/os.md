@@ -22,7 +22,9 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
 
 ## Window chrome rules (every window and dialog)
 - **Corners.** Only the window's own outline is rounded: the title bar's top corners and the
-  window's bottom corners (PlexWindow `RIM_R` = 8; the client area is clipped to them). Every bar
+  window's bottom corners (os/frame.js, fitted on the video: top 11.5 px for the body, 13.5 for
+  the rim's outer edge, bottom 14.5; the client area is clipped to them). Along the top chrome
+  the rim's 2 px left edge lies outside the glass, as on the right. Every bar
   inside it (glass toolbar, menu band, command row, address / task band, status bar) and every
   panel that reaches an edge runs square and flush to the window's edges, even where the video's
   band shows a slight rounding (the user's rule wins). Controls keep their rounding (buttons,

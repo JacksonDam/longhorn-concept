@@ -26,6 +26,7 @@ export const INACTIVE_SHADOW = 0.5 // the inactive shadow's opacity relative to 
 // op = how inactive it looks (0..1)
 export const LookLayer = memo(function LookLayer({ x, y, w, h, th, r, op }) {
   const top = 3 // the window body starts 3 px down (PlexWindow's clip; the rim is above it)
+  const inset = r > 0 ? 1 : 0 // and 1 px in from the left along the top chrome (the rim's place)
   const round = r > 0 ? `${r}px ${r}px 0 0` : 0
   return (
     <div
@@ -34,8 +35,8 @@ export const LookLayer = memo(function LookLayer({ x, y, w, h, th, r, op }) {
         opacity: op, visibility: op > 0 ? 'visible' : 'hidden', willChange: 'opacity',
       }}
     >
-      <div style={{ position: 'absolute', left: 0, top, width: w, height: th - top, background: titleGrad, opacity: TITLE_DIM, borderRadius: round }} />
-      <div style={{ position: 'absolute', left: 0, top, width: w, height: h - top, background: WASH, opacity: WASH_ALPHA, borderRadius: round }} />
+      <div style={{ position: 'absolute', left: inset, top, width: w - inset, height: th - top, background: titleGrad, opacity: TITLE_DIM, borderRadius: round }} />
+      <div style={{ position: 'absolute', left: inset, top, width: w - inset, height: h - top, background: WASH, opacity: WASH_ALPHA, borderRadius: round }} />
     </div>
   )
 })

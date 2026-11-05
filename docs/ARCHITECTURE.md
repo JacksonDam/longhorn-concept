@@ -65,7 +65,8 @@ OS in the same style. Everything still derives from (time, event log).
   (a cheap stand-in) when the app has one. `src/os/ErrorBoundary.jsx` keeps a crash inside its
   window.
 - Window chrome rules (details in docs/briefs/os.md, "Window chrome rules"): only the window's
-  outline is rounded (title bar top corners, bottom corners; the client area is clipped to them);
+  outline is rounded (title bar top corners, bottom corners, radii in `src/os/frame.js`; the
+  client area is clipped to them);
   every bar and edge panel inside runs square and flush. `src/os/shadow.jsx`: the drop shadow
   fitted on the video (pre-rendered nine-slice strips on one layer per window that follows the
   window, during motion blur at the shutter's middle pose; blur copies carry none; nothing is
