@@ -2,7 +2,7 @@
 // ('music.playlist' { name, tracks }) and, if asked, plays it through the shell's silent player
 // ('media.play' { playlist, track: 0 }).
 import { emit } from '../../core/events.js'
-import { scoped, wid, valueOf, TextField, textOf, Button, Checkbox, ListView, select, C, FONT } from '../../ui/index.js'
+import { scoped, wid, valueOf, TextField, textOf, Button, Checkbox, ListView, select, focusField, C, FONT } from '../../ui/index.js'
 import { DEFAULT_PLAYLIST, formatTime } from '../../os/media.js'
 import { closeWin } from '../lib/common.js'
 
@@ -27,9 +27,9 @@ function Playlist({ win, t, w, h }) {
       <div style={{ position: 'absolute', left: 16, top: 12, fontFamily: FONT, fontSize: 19, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap' }}>
         create <span style={{ fontWeight: 500, color: C.heading }}>playlist</span>
       </div>
-      <div style={{ position: 'absolute', left: 16, top: 46, fontFamily: FONT, fontSize: 11, color: C.text }}>Playlist name:</div>
+      <div onPointerDown={(e) => e.button === 0 && focusField(id('name'))} style={{ position: 'absolute', left: 16, top: 46, fontFamily: FONT, fontSize: 11, color: C.text }}>Playlist name:</div>
       <TextField id={id('name')} def="My Playlist 1" x={100} y={43} w={w - 116} h={20} />
-      <div style={{ position: 'absolute', left: 16, top: 74, fontFamily: FONT, fontSize: 11, color: C.text }}>Tracks:</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('picked'), value: set.size === TRACKS.length ? [] : TRACKS.map((tr) => tr.title) })} style={{ position: 'absolute', left: 16, top: 74, fontFamily: FONT, fontSize: 11, color: C.text }}>Tracks:</div>
       <ListView
         id={id('list')}
         x={16}

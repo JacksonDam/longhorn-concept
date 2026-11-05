@@ -3,7 +3,7 @@
 // the numbered list); Preview runs it as a slide show, Create this album saves it ('pics.album').
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
-import { scoped, wid, valueOf, TextField, textOf, Button, Scrollbar, hoverKeys, pt, C, FONT, HEAVY } from '../../ui/index.js'
+import { scoped, wid, valueOf, TextField, textOf, Button, Scrollbar, hoverKeys, pt, focusField, C, FONT, HEAVY } from '../../ui/index.js'
 import { photoById, TAGS } from '../lib/pictures.jsx'
 import { visibleGroups, CAL0 } from '../pictures/state.js'
 import { Calendar } from '../pictures/Calendar.jsx'
@@ -77,13 +77,13 @@ function Album({ win, t, w, h }) {
       </AppTop>
       {/* 1. Find */}
       {colHead(14, top + 8, 1, 'Find')}
-      <div style={{ ...small, left: 16, top: top + 32 }}>Containing the words:</div>
+      <div style={{ ...small, left: 16, top: top + 32 }} onPointerDown={(e) => e.button === 0 && focusField(id('words'))}>Containing the words:</div>
       <TextField id={id('words')} x={16} y={top + 46} w={150} h={17} size={10.5} pad={4} />
-      <div style={{ ...small, left: 16, top: top + 70 }}>Show all files by:</div>
+      <div style={{ ...small, left: 16, top: top + 70 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('tag'), value: null })}>Show all files by:</div>
       {TAGS.slice(0, 4).map((tg, i) => L(tg, top + 86 + i * 16, tg, st.tag === tg, () => emit('ui.value', { id: id('tag'), value: st.tag === tg ? null : tg })))}
-      <div style={{ ...small, left: 16, top: top + 154 }}>Refine By Date:</div>
+      <div style={{ ...small, left: 16, top: top + 154 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
       <Calendar id={id('cal')} x={16} y={top + 168} w={150} />
-      <div style={{ ...small, left: 16, top: top + 318 }}>Of this file type:</div>
+      <div style={{ ...small, left: 16, top: top + 318 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('type'), value: 'all' })}>Of this file type:</div>
       {L('tp', top + 334, 'Pictures', st.type === 'picture', () => emit('ui.value', { id: id('type'), value: st.type === 'picture' ? 'all' : 'picture' }))}
       <div style={{ position: 'absolute', left: 70, top: 0 }}>{L('tv', top + 334, 'Videos', st.type === 'video', () => emit('ui.value', { id: id('type'), value: st.type === 'video' ? 'all' : 'video' }))}</div>
       {/* 2. Choose images */}
@@ -137,7 +137,7 @@ function Album({ win, t, w, h }) {
         </div>
       </div>
       {/* footer */}
-      <div style={{ ...small, left: c2.x, top: h - 40, fontSize: 11, color: '#3b7cc6' }}>File Location:</div>
+      <div style={{ ...small, left: c2.x, top: h - 40, fontSize: 11, color: '#3b7cc6' }} onPointerDown={(e) => e.button === 0 && openWin('pictures', 'pictures')}>File Location:</div>
       <div style={{ position: 'absolute', left: c2.x + 76, top: h - 43, width: 210, height: 19, borderRadius: 3, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, fontFamily: FONT, fontSize: 10.5, lineHeight: '19px', paddingLeft: 6, color: C.text, whiteSpace: 'nowrap' }}>
         my Pictures &amp; Videos\Albums
       </div>
