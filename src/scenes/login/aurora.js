@@ -7,8 +7,9 @@
 // - ribbons: up to NS glowing curves; each is a centreline y = Y(x) and a per-channel amplitude
 //   A(x) (cubic B-splines over x, KX control points) with a gaussian cross-section of width s,
 //   keyframed every 4 frames (public/img/login/aurora-ribbons.webp).
-// Each frame, JS interpolates the keys (Catmull-Rom), evaluates every ribbon's curves at RCOLS
-// columns into a small float texture, and the shader sums the gaussians analytically per pixel.
+// Each frame, JS interpolates the keys (Catmull-Rom) and uploads each ribbon's control points
+// (~10 KB); the shader evaluates the curves and sums the gaussians analytically per pixel. JS also
+// samples the curves at MC columns for the per-tile ribbon masks.
 //
 // Time: the video's background is a loop of 395 frames (frames 436.. repeat 41..), with an
 // extra swell of light (frames ~140-435) that we keep inside the loop. auroraFrame(t) maps
@@ -28,7 +29,7 @@ const KX = 8
 const BX0 = -60
 const BSX = (1020 - BX0) / (KX - 3)
 const PER = 4 * KX + 1 // per slot: KX centreline, 3*KX amplitudes, sigma
-const RCOLS = 512
+const MC = 128 // columns at which JS samples the ribbons for the tile masks
 const XFADE = 16 // frames: the end of the loop crossfades into the frames just before LOOP_A
 const MAXR = 128
 
@@ -115,12 +116,12 @@ function interpKeys(keys, a, out, step = KEY_STEP) {
   return out
 }
 
-// B-spline basis of the ribbon curves at the RCOLS sample columns (and its x derivative)
-const colB = new Float32Array(RCOLS * 4)
-const colD = new Float32Array(RCOLS * 4)
-const colI = new Int32Array(RCOLS)
-for (let c = 0; c < RCOLS; c++) {
-  const x = (c * 960) / (RCOLS - 1)
+// B-spline basis of the ribbon curves at the MC mask columns (and its x derivative)
+const colB = new Float32Array(MC * 4)
+const colD = new Float32Array(MC * 4)
+const colI = new Int32Array(MC)
+for (let c = 0; c < MC; c++) {
+  const x = (c * 960) / (MC - 1)
   const u = (x - BX0) / BSX + 1
   const i = Math.floor(u)
   const f = u - i
@@ -141,14 +142,17 @@ const REACH = Math.sqrt(2 * CUT) // in sigmas
 let grid = null
 let grid2 = null
 let rib = null
-let ribTex = null // Float32Array RCOLS x (2*MAXR) x RGBA
+let ribTex = null // Float32Array (KX+1) x MAXR x RGBA: per ribbon its control points
+// (y, r, g, b amplitude) and, in the last column, 1/(2 sigma^2): ~10 KB per frame to upload
+let ribY = null // y and slope factor at the MC columns, for the tile masks
 
 // evaluate the ribbons of aurora frame a, amplitudes scaled by w, into rows from `row`
 function ribbonsAt(a, w, row) {
   if (!ribbonKeys || w <= 0) return row
   if (!rib) {
     rib = new Float32Array(NS * PER)
-    ribTex = new Float32Array(RCOLS * 2 * MAXR * 4)
+    ribTex = new Float32Array((KX + 1) * MAXR * 4)
+    ribY = new Float32Array(MC * 2)
   }
   interpKeys(ribbonKeys, a, rib)
   for (let s = 0; s < NS && row < MAXR; s++) {
@@ -158,38 +162,34 @@ function ribbonsAt(a, w, row) {
     if (amax * w < 0.5) continue
     const sig = Math.max(0.8, rib[o + 4 * KX])
     const inv = 1 / (2 * sig * sig)
-    const r0 = row * 2 * RCOLS * 4
-    const r1 = r0 + RCOLS * 4
-    for (let c = 0; c < RCOLS; c++) {
-      let y = 0, dy = 0, ar = 0, ag = 0, ab = 0
+    const r0 = row * (KX + 1) * 4
+    for (let k = 0; k < KX; k++) {
+      ribTex[r0 + k * 4] = rib[o + k]
+      ribTex[r0 + k * 4 + 1] = (w * rib[o + KX + k]) / 255
+      ribTex[r0 + k * 4 + 2] = (w * rib[o + 2 * KX + k]) / 255
+      ribTex[r0 + k * 4 + 3] = (w * rib[o + 3 * KX + k]) / 255
+    }
+    ribTex[r0 + KX * 4] = inv
+    for (let c = 0; c < MC; c++) {
+      let y = 0, dy = 0
       for (let m = 0; m < 4; m++) {
         const k = Math.max(0, Math.min(KX - 1, colI[c] + m))
-        const b = colB[c * 4 + m]
-        y += b * rib[o + k]
+        y += colB[c * 4 + m] * rib[o + k]
         dy += colD[c * 4 + m] * rib[o + k]
-        ar += b * rib[o + KX + k]
-        ag += b * rib[o + 2 * KX + k]
-        ab += b * rib[o + 3 * KX + k]
       }
-      ribTex[r0 + c * 4] = y
-      ribTex[r0 + c * 4 + 1] = 1 / Math.sqrt(1 + dy * dy)
-      ribTex[r0 + c * 4 + 2] = inv
-      ribTex[r0 + c * 4 + 3] = 0
-      ribTex[r1 + c * 4] = (w * ar) / 255
-      ribTex[r1 + c * 4 + 1] = (w * ag) / 255
-      ribTex[r1 + c * 4 + 2] = (w * ab) / 255
-      ribTex[r1 + c * 4 + 3] = 0
+      ribY[c * 2] = y
+      ribY[c * 2 + 1] = 1 / Math.sqrt(1 + dy * dy)
     }
     // mark the tiles this ribbon reaches
     const word = row >> 5
     const bit = (1 << (row & 31)) >>> 0
     for (let tx = 0; tx < TX; tx++) {
-      const c0 = Math.max(0, Math.floor(((tx * TS) / 960) * (RCOLS - 1)) - 1)
-      const c1 = Math.min(RCOLS - 1, Math.ceil((((tx + 1) * TS) / 960) * (RCOLS - 1)) + 1)
+      const c0 = Math.max(0, Math.floor(((tx * TS) / 960) * (MC - 1)) - 1)
+      const c1 = Math.min(MC - 1, Math.ceil((((tx + 1) * TS) / 960) * (MC - 1)) + 1)
       let lo = Infinity, hi = -Infinity
       for (let c = c0; c <= c1; c++) {
-        const y = ribTex[r0 + c * 4]
-        const ext = (REACH * sig) / ribTex[r0 + c * 4 + 1]
+        const y = ribY[c * 2]
+        const ext = (REACH * sig) / ribY[c * 2 + 1] + 1 // +1 px: the curve between mask columns
         if (y - ext < lo) lo = y - ext
         if (y + ext > hi) hi = y + ext
       }
@@ -213,7 +213,7 @@ precision highp float;
 in vec2 vUv;
 out vec4 outColor;
 uniform sampler2D uGrid;   // NX x NY control points (RGB)
-uniform sampler2D uRib;    // RCOLS x (2 * count): (Y, 1/sqrt(1+Y'^2), 1/(2 s^2)), (Ar, Ag, Ab)
+uniform sampler2D uRib;    // (KX+1) x MAXR: control points (y, Ar, Ag, Ab), then 1/(2 s^2)
 uniform highp usampler2D uTiles; // per 30 px tile: bitmask of the ribbons that reach it
 uniform int uCount;
 uniform float uDim;
@@ -244,8 +244,14 @@ vec3 coarse(vec2 p) {
 void main() {
   vec2 p = vec2(vUv.x * 960.0, (1.0 - vUv.y) * 720.0);
   vec3 col = coarse(p);
-  float h = float(2 * uCount);
-  float u = (p.x / 960.0 * ${RCOLS - 1}.0 + 0.5) / ${RCOLS}.0;
+  // the ribbons are cubic B-splines in x (KX control points, BSX apart): the basis weights and
+  // their x derivative depend only on the pixel's x, so they are computed once here
+  float ru = (p.x - ${BX0}.0) / ${BSX.toFixed(6)} + 1.0;
+  float rf = ru - floor(ru);
+  int ri = int(floor(ru)) - 1;
+  vec4 wb = bw(rf);
+  vec4 wd = vec4(-(1.0 - rf) * (1.0 - rf) * 0.5, (9.0 * rf * rf - 12.0 * rf) / 6.0, (-9.0 * rf * rf + 6.0 * rf + 3.0) / 6.0, rf * rf * 0.5) / ${BSX.toFixed(6)};
+  ivec4 ks = clamp(ivec4(ri, ri + 1, ri + 2, ri + 3), 0, ${KX - 1});
   uvec4 m = texelFetch(uTiles, ivec2(clamp(int(p.x / ${TS}.0), 0, ${TX - 1}), clamp(int(p.y / ${TS}.0), 0, ${TY - 1})), 0);
   for (int w = 0; w < ${MAXR / 32}; w++) {
     uint bits = m[w];
@@ -253,11 +259,17 @@ void main() {
       uint low = bits & (~bits + 1u);   // lowest set bit (GLSL ES 3.00 has no findLSB)
       int i = w * 32 + int(floor(log2(float(low)) + 0.5));
       bits ^= low;
-      vec4 c = texture(uRib, vec2(u, (float(2 * i) + 0.5) / h));
-      float d = (p.y - c.x) * c.y;
-      float e = d * d * c.z;
+      vec4 c0 = texelFetch(uRib, ivec2(ks.x, i), 0);
+      vec4 c1 = texelFetch(uRib, ivec2(ks.y, i), 0);
+      vec4 c2 = texelFetch(uRib, ivec2(ks.z, i), 0);
+      vec4 c3 = texelFetch(uRib, ivec2(ks.w, i), 0);
+      vec4 ys = vec4(c0.x, c1.x, c2.x, c3.x);
+      float y = dot(wb, ys);
+      float dy = dot(wd, ys);
+      float d = (p.y - y) * inversesqrt(1.0 + dy * dy);
+      float e = d * d * texelFetch(uRib, ivec2(${KX}, i), 0).x;
       if (e > ${CUT}.0) continue;
-      vec3 amp = texture(uRib, vec2(u, (float(2 * i) + 1.5) / h)).rgb;
+      vec3 amp = wb.x * c0.yzw + wb.y * c1.yzw + wb.z * c2.yzw + wb.w * c3.yzw;
       col += amp * exp(-e);
     }
   }
@@ -277,7 +289,6 @@ export class AuroraRenderer {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: false })
     this.gl = gl
     this.canvas = canvas
-    this.linear = !!gl.getExtension('OES_texture_float_linear')
     const prog = gl.createProgram()
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS))
     gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS))
@@ -301,9 +312,15 @@ export class AuroraRenderer {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
       return t
     }
+    // textures are allocated once (immutable storage) and only updated with texSubImage2D, so a
+    // frame never reallocates GPU memory (reallocating ~1 MB per frame could stall behind other
+    // GPU work, e.g. right after the desktop releases its resources)
     this.tex = mk(gl.NEAREST)
-    this.ribTex = mk(this.linear ? gl.LINEAR : gl.NEAREST)
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGB32F, NX, NY)
+    this.ribTex = mk(gl.NEAREST)
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, KX + 1, MAXR)
     this.tileTex = mk(gl.NEAREST)
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32UI, TX, TY)
     this.u = {}
     for (const n of ['uGrid', 'uRib', 'uTiles', 'uCount', 'uDim']) this.u[n] = gl.getUniformLocation(prog, n)
   }
@@ -334,15 +351,15 @@ export class AuroraRenderer {
     gl.useProgram(this.prog)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.tex)
-    if (g) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, NX, NY, 0, gl.RGB, gl.FLOAT, g)
+    if (g) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, NX, NY, gl.RGB, gl.FLOAT, g)
     gl.uniform1i(this.u.uGrid, 0)
     gl.activeTexture(gl.TEXTURE1)
     gl.bindTexture(gl.TEXTURE_2D, this.ribTex)
-    if (n) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, RCOLS, 2 * n, 0, gl.RGBA, gl.FLOAT, ribTex.subarray(0, RCOLS * 2 * n * 4))
+    if (n) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, KX + 1, n, gl.RGBA, gl.FLOAT, ribTex.subarray(0, (KX + 1) * n * 4))
     gl.uniform1i(this.u.uRib, 1)
     gl.activeTexture(gl.TEXTURE2)
     gl.bindTexture(gl.TEXTURE_2D, this.tileTex)
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32UI, TX, TY, 0, gl.RGBA_INTEGER, gl.UNSIGNED_INT, tileMask)
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, TX, TY, gl.RGBA_INTEGER, gl.UNSIGNED_INT, tileMask)
     gl.uniform1i(this.u.uTiles, 2)
     gl.uniform1i(this.u.uCount, n)
     gl.uniform1f(this.u.uDim, g ? 1 : 0)
