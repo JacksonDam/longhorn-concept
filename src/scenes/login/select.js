@@ -162,19 +162,24 @@ export const SLAB_REST = SLAB
 export const RETURN_FRAMES = 14
 const indexOf = (id) => USERS.findIndex((u) => u.id === id)
 
+// A change replays in up to two phases:
+//   A (k 2-10.5)  only when a slab was out: everything opens back up to the 5-slot layout, so the
+//                 returning slab (back in RETURN_FRAMES) lands in its own slot
+//   B (k 18.6-27) only when a user is selected: the others close the gap it leaves (the video's slide)
+const PHASE_A = [2, 8.5]
+
 export function rowState(t) {
-  const n = USERS.length
   const sels = selections(t)
-  let pos = USERS.map((_, i) => SLOTS5[i]) // settled positions before the change being replayed
+  let pos = USERS.map((_, i) => SLOTS5[i])
   let sel = -1
-  let change = null // { t, from: [x], to: [x], sel, prev }
+  let change = null // { t, from, mid, to, sel, prev }
   for (const s of sels) {
     const next = s.id ? indexOf(s.id) : -1
-    // positions at the moment of this change (the previous change may still be sliding)
+    // positions at the moment of this change (the previous change may still be moving)
     if (change) pos = USERS.map((_, i) => tileX(change, i, s.t))
-    const to = USERS.map((_, i) => slotX(i, next < 0 ? null : next))
-    if (next >= 0) to[next] = pos[next]
-    change = { t: s.t, from: pos, to, sel: next, prev: sel }
+    const mid = sel >= 0 ? USERS.map((_, i) => SLOTS5[i]) : pos
+    const to = next >= 0 ? USERS.map((_, i) => (i === next ? mid[i] : slotX(i, next))) : mid
+    change = { t: s.t, from: pos, mid, to, sel: next, prev: sel }
     sel = next
   }
   const records = []
@@ -183,40 +188,39 @@ export function rowState(t) {
     const back = j + 1 < sels.length ? sels[j + 1].t : null
     if (back != null && (t - back) * FPS > RETURN_FRAMES + 3) return
     const index = indexOf(s.id)
-    const at = sels[j]
-    // launch from where the tile was; fly back to its slot in the next layout
-    let from
-    if (back == null) from = change && change.t === at.t ? change.from[index] : SLOTS5[index]
-    else {
-      const nextSel = sels[j + 1].id ? indexOf(sels[j + 1].id) : -1
-      from = slotX(index, nextSel < 0 ? null : nextSel)
-    }
-    records.push({ id: s.id, index, t0: at.t, back, from })
+    const own = change && change.t === s.t ? change : null
+    // launch from wherever the tile is in the bar; fly back to its slot in the 5-slot layout
+    const from = back == null ? (own ? own.mid[index] : SLOTS5[index]) : SLOTS5[index]
+    const xAt = back == null && own ? (tt) => tileX(own, index, tt) : null
+    records.push({ id: s.id, index, t0: s.t, back, from, xAt })
   })
   const tiles = USERS.map((u, i) => {
-    if (!change) return { x: SLOTS5[i], k: Infinity, sliding: false, slab: false }
+    if (!change) return { x: SLOTS5[i], k: Infinity, sliding: false, slab: false, labelFade: 1 }
     const k = (t - change.t) * FPS
     const x = tileX(change, i, t)
     const slab = records.some((r) => r.index === i && (r.back == null ? k > 2.5 : (t - r.back) * FPS < RETURN_FRAMES))
-    const sliding = change.from[i] !== change.to[i] && k > slideStart(change) && k < slideStart(change) + SLIDE_FRAMES + 1
-    return { x, k, sliding, slab, labelFade: sliding ? labelFade(change, k) : 1 }
+    const inA = change.from[i] !== change.mid[i] && k > PHASE_A[0] && k < PHASE_A[0] + PHASE_A[1] + 1
+    const inB = change.sel >= 0 && change.mid[i] !== change.to[i] && k > SLIDE_START && k < SLIDE_START + SLIDE_FRAMES + 1
+    const fade = inA ? labelFade(k - PHASE_A[0]) : inB ? labelFade(k - SLIDE_START) : 1
+    return { x, k, sliding: inA || inB, slab, labelFade: fade }
   })
   return { tiles, records, sel, change }
 }
 
-const slideStart = (change) => (change.sel >= 0 ? SLIDE_START : 4)
+const easeOut2 = (u) => 1 - (1 - u) * (1 - u)
 
 function tileX(change, i, t) {
   const k = (t - change.t) * FPS
-  const st = slideStart(change)
-  const u = clamp((k - st) / SLIDE_FRAMES)
-  const e = 1 - (1 - u) * (1 - u)
-  const spread = change.sel >= 0 ? spreadX(i, change.sel, k) : 0
-  return lerp(change.from[i] + spread, change.to[i], e)
+  const a = easeOut2(clamp((k - PHASE_A[0]) / PHASE_A[1]))
+  let x = lerp(change.from[i], change.mid[i], a)
+  if (change.sel >= 0) {
+    const b = easeOut2(clamp((k - SLIDE_START) / SLIDE_FRAMES))
+    x = lerp(x + spreadX(i, change.sel, k), change.to[i], b)
+  }
+  return x
 }
 
-// labels of sliding tiles fade out at once and come back as they settle
-function labelFade(change, k) {
-  const st = slideStart(change)
-  return Math.max(1 - clamp((k - st) / 1.2), clamp((k - st - 5.5) / 3))
+// labels of moving tiles fade out at once and come back as they settle (u = frames into the move)
+function labelFade(u) {
+  return Math.max(1 - clamp(u / 1.2), clamp((u - 5.5) / 3))
 }

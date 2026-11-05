@@ -108,7 +108,10 @@ export function TileRow({ t, row, submitT }) {
           labelGlow = clamp((k - 4) / 2)
           // washed out by the glow, then back as a white bold label before the launch
           labelOpacity = (1 - 0.7 * clamp((k - 5) / 2) * (1 - clamp((k - 11) / 3))) * (1 - clamp((k - 17) / 2.5))
-        } else if (st.slab) opacity = 0
+        } else if (st.slab) {
+          opacity = 0
+          labelOpacity = 0
+        }
         const exit = submitT != null ? tileExit(t - submitT, i, sel) : null
         // the blur layer is the tile's own box (so exit flips pivot on the tile)
         const box = { left: st.x - BOX.w / 2, top: BOX.top, width: BOX.w, height: BOX.h }

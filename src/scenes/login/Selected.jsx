@@ -57,7 +57,7 @@ function poseFor(rec, submitT) {
       k = Math.max(LAUNCH - 0.5, Math.min(kb, LAUNCH + RETURN_FRAMES) - r)
       if (r > RETURN_FRAMES + 2) return { visible: false }
     }
-    const p = slabPose(k, rec.index, tt, rec.from)
+    const p = slabPose(k, rec.index, tt, rec.xAt ? rec.xAt(tt) : rec.from)
     const s = p.size / BASE
     let pose = { x: p.x, y: p.y, z: 0, ry: p.ry, rx: p.rx, rz: p.rz ?? 0, s, faceBand: p.faceBand, brightness: p.brightness, opacity: rec.back != null ? 1 : clamp((k - 1.5) / 1) }
     if (submitT != null && rec.back == null) pose = slabExit(tt - submitT, pose)
@@ -72,7 +72,7 @@ function Halo({ t, rec, submitT }) {
   if (rec.back != null) a *= 1 - clamp(((t - rec.back) * FPS) / 3)
   if (submitT != null) a *= 1 - clamp(((t - submitT) * FPS - 0.5) / 1.5)
   if (a <= 0) return null
-  const p = slabPose(k, rec.index, t, rec.from)
+  const p = slabPose(k, rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
   const w = p.size * Math.abs(Math.cos(p.ry)) + 30 * (p.size / BASE) * Math.abs(Math.sin(p.ry)) - 8
   const h = p.size - 8
   return (
