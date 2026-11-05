@@ -109,7 +109,20 @@ async function runScenario(name) {
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 959, y: 1 })
   await sleep(400)
   const snapshot = await evaluate('window.__lh.log().length')
-  await evaluate('window.__auditSnap = window.__lh.log().slice()')
+  let snap = await evaluate('JSON.stringify(window.__lh.log())')
+  const restore = async (force = false) => {
+    // a click may have reloaded or broken the page: rebuild the scenario then
+    const ok = !force && (await evaluate('!!(window.__lh && window.__lh.setLog)').catch(() => false))
+    if (!ok) {
+      await fresh()
+      for (const s of steps) {
+        if (typeof s === 'number') await sleep(s)
+        else await evaluate(`window.__lh.emit(${JSON.stringify(s[0])}, ${JSON.stringify(s[1])})`)
+      }
+      snap = await evaluate('JSON.stringify(window.__lh.log())')
+    }
+    await evaluate(`window.__lh.setLog(JSON.parse(${JSON.stringify(snap)}))`)
+  }
   // self-changing pixels: two shots 1.2 s apart, dilated
   const s0 = await shot()
   await sleep(1200)
@@ -146,12 +159,12 @@ async function runScenario(name) {
     await mouse('mouseMoved', tg.x, tg.y)
     await sleep(350)
     const a = await shot()
-    const n0 = await evaluate('window.__lh.log().length')
+    const n0 = await evaluate('window.__lh ? window.__lh.log().length : 0')
     await mouse('mousePressed', tg.x, tg.y)
     await sleep(40)
     await mouse('mouseReleased', tg.x, tg.y)
     await sleep(1100)
-    const evs = await evaluate(`window.__lh.log().slice(${n0}).map(e => e.type).filter(t => !['hover', 'press', 'ui.focus', 'login.hover', 'power.hover'].includes(t))`)
+    const evs = await evaluate(`(window.__lh ? window.__lh.log() : []).slice(${n0}).map(e => e.type).filter(t => !['hover', 'press', 'ui.focus', 'login.hover', 'power.hover'].includes(t))`).catch(() => ['(page navigated)'])
     const b = await shot()
     const m = diffMask(a, b)
     let changed = 0
@@ -164,16 +177,13 @@ async function runScenario(name) {
     if (error) {
       console.log(`  ERROR after clicking ${JSON.stringify(tg.text)} at ${Math.round(tg.x)},${Math.round(tg.y)}:\n    ${error.split('\n').slice(0, 6).join('\n    ')}`)
       // the page may be broken: rebuild the scenario from scratch
-      await fresh()
-      for (const s of steps) {
-        if (typeof s === 'number') await sleep(s)
-        else await evaluate(`window.__lh.emit(${JSON.stringify(s[0])}, ${JSON.stringify(s[1])})`)
-      }
-      await evaluate('window.__auditSnap = window.__lh.log().slice()')
+      await restore(true)
+      await mouse('mouseMoved', 959, 1)
+      await sleep(500)
       continue
     }
     // restore the scenario
-    await evaluate('window.__lh.setLog(window.__auditSnap)')
+    await restore()
     await mouse('mouseMoved', 959, 1)
     await sleep(500)
   }
