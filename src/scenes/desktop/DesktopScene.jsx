@@ -1,13 +1,26 @@
-// Desktop: wallpaper, the my Music window layer, sidebar, taskbar, my Music flyout.
+// Desktop shell: wallpaper, the window layer, sidebar, taskbar, the my Music flyout, the
+// Start menu, the shell's flyouts and menus.
 // `since` is the time of 'login.submit'; the desktop's entrance animates from it.
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { WindowLayer } from '../../os/WindowLayer.jsx'
 import { useTime, useEvents } from '../../core/time.jsx'
+import { FPS } from '../../core/clock.js'
+import { emit, last } from '../../core/events.js'
 import { asset, preload } from '../../core/preload.js'
+import { clamp, ease } from '../../core/anim.js'
+import { ContextMenu, DropMenu, contextHandler, closeMenu } from '../../ui/index.js'
+import { currentUser, wallpaper } from '../../os/session.js'
+import { mediaState } from '../../os/media.js'
 import { IconDefs } from './icons.jsx'
-import { Sidebar } from './Sidebar.jsx'
+import { Sidebar, PANEL } from './Sidebar.jsx'
+import { SidebarHits, SidebarLive } from './SidebarHits.jsx'
 import { TaskbarLayer } from './TaskbarLayer.jsx'
-import { Flyout, flyoutState, toggleFlyout, closeFlyout, hoverLevel } from './Flyout.jsx'
+import { Flyout, flyoutState, closeFlyout, hoverLevel } from './Flyout.jsx'
+import { StartMenu } from './StartMenu.jsx'
+import { WeatherFlyout, CalendarFlyout } from './Flyouts.jsx'
+import { closePopups, sidebarVisible } from './shellState.js'
+import { USER_MENU, STATUS_MENU } from './sidebarMenus.js'
+import { DESK_MENU } from './deskMenu.js'
 import { framesSince, ramp } from './timing.js'
 
 const IMAGES = [
@@ -27,8 +40,9 @@ const IMAGES = [
 preload(IMAGES)
 
 // The wallpaper photo is the 4:3 crop x 94..1459 of the 1536x1024 source, mapped onto the
-// stage at scale 0.70315 (fitted with SIFT against the reference frames).
-const Wallpaper = memo(function Wallpaper() {
+// stage at scale 0.70315 (fitted with SIFT against the reference frames). Display Properties
+// can swap it for a plain colour (os/session.js wallpaper()).
+const Photo = memo(function Photo() {
   return (
     <img
       src={asset('img/desktop/wallpaper.webp')}
@@ -38,6 +52,19 @@ const Wallpaper = memo(function Wallpaper() {
     />
   )
 })
+const PHOTO = <Photo />
+function Wallpaper({ wp, dim }) {
+  return (
+    <>
+      <div style={{ position: 'absolute', inset: 0, background: wp.kind === 'color' ? wp.color : '#000', visibility: wp.kind === 'color' ? 'visible' : 'hidden' }} />
+      <div style={{ position: 'absolute', inset: 0, visibility: wp.kind === 'photo' ? 'visible' : 'hidden' }}>{PHOTO}</div>
+      <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: dim, visibility: dim > 0 ? 'visible' : 'hidden' }} />
+    </>
+  )
+}
+
+// marquee offset of the strip's title while a track plays (20 px/s, a 40 px gap)
+const marquee = (title, pos) => (pos * 20) % (title.length * 4.3 + 40)
 
 // Tile entrance (absolute video frames; each tile fades in over one frame, measured as
 // half opacity on the frame it first shows): see docs/desktop-spec.md.
@@ -57,6 +84,8 @@ function sidebarOpacity(f) {
   }
 }
 
+const SIDEBAR_HITS = <SidebarHits />
+
 export function DesktopScene({ since }) {
   const t = useTime()
   useEvents()
@@ -67,19 +96,51 @@ export function DesktopScene({ since }) {
   // media strip hover highlight: fades in over 3.1 frames, out over 5.5 (the brighter
   // flashes around the flyout's opening and closing are its own motion-blurred ghost)
   const mediaHL = { hover: hoverLevel(t, 'sb.media', 3.1, 5.5) }
+  const user = currentUser(t)
+  const ms = mediaState(t)
+  const media = { title: ms.track.display, playing: ms.playing, scroll: ms.playing || ms.position > 0 ? marquee(ms.track.display, ms.position) : 0 }
+  // the clock's chevron slides the sidebar out to the right and back (6 frames)
+  const sb = sidebarVisible(t)
+  const k = ease.inOut(clamp(((t - sb.at) * FPS) / 6))
+  const slide = PANEL.w * (sb.visible ? 1 - k : k) * (sb.at === -Infinity ? 0 : 1)
+  // desktop context menu > Refresh: a short dip of the wallpaper
+  const rf = last(t, (e) => e.type === 'desk.refresh')
+  const rdf = rf ? (t - rf.t) * FPS : Infinity
+  const dim = rdf < 6 ? 0.25 * (1 - Math.abs(rdf - 1.5) / 4.5) * (rdf < 1.5 ? rdf / 1.5 : 1) : 0
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      closePopups()
+      closeFlyout()
+    }
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [])
   return (
     <div
       style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}
       onPointerDown={() => {
         if (fly.open) closeFlyout()
+        closePopups()
       }}
     >
       <IconDefs />
-      <Wallpaper />
+      <Wallpaper wp={wallpaper(t)} dim={Math.max(0, dim)} />
+      {/* the desktop surface: right-click opens the desktop menu */}
+      <div style={{ position: 'absolute', inset: 0 }} onContextMenu={contextHandler('desk.ctx', DESK_MENU, () => closePopups())} />
       <WindowLayer />
-      <Sidebar opacity={op} haze={haze} onMedia={toggleFlyout} mediaHL={mediaHL} />
-      <TaskbarLayer t={t} f={f} />
+      <Sidebar opacity={op} haze={haze} mediaHL={mediaHL} user={user} media={media} slide={slide} live={<SidebarLive t={t} />} hits={SIDEBAR_HITS} />
+      <TaskbarLayer t={t} f={f} sidebarHidden={!sb.visible} sidebarAt={sb.at} />
       <Flyout t={t} />
+      <StartMenu t={t} user={user} />
+      <WeatherFlyout t={t} />
+      <CalendarFlyout t={t} />
+      <ContextMenu id="desk.ctx" items={DESK_MENU} />
+      <DropMenu id="sb.user" items={USER_MENU} />
+      <DropMenu id="sb.status" items={STATUS_MENU} />
     </div>
   )
 }
+
+void closeMenu
+void emit
