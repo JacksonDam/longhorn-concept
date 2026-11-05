@@ -39,6 +39,8 @@ demo input: src/demo/login.js.
 - Picture = blue duotone (gradient map from luminance, measured ramp (24,82,164) -> white),
   2 px half-white glass frame, vertical sheen at 80% width, drop shadow down-left.
 - Labels: Franklin 600 12 px, centre y ~679, rgb(214,232,255), dark soft shadow.
+- Hover pictures are washed out in the video (saturation ~0.2, floor ~95): users/*-hover.webp =
+  (desaturate 0.8) * 0.62 + (90, 95, 105).
 - Hover (continuous across events): colour cross-fade 2 frames in / 2 out; scale grows
   linearly over 3.6 frames, shrinks over 1.6. Two hover sizes appear: the first sweep
   (frames 48-73, right to left) enlarges to 1.27 with a bold, 1.5 px larger label moved 5 px down;
@@ -55,6 +57,10 @@ demo input: src/demo/login.js.
   188 (417,367) 158 /92 (edge-on); 189 (392,339) /126 (back face, mirrored); 190 /166;
   191 /196; 192 /228; 193 /262 (edge-on); 194 /292; 195 /320; 196 /340; 197 /352; 198 rest
   (380,347), ~170 px. Motion blur: 12 samples, 1-frame shutter.
+- Flight lighting (face brightness / light band): darkens as it turns away (186 0.72 with a band at
+  the left, 187-188 ~0.3, 192-193 0.45) and catches a white glint while coming round
+  (194 band u .42 x1.5, 195 u .27 x1.3, 196 u .2 x.7, 197 x.3). The back face shows the picture
+  mirrored (glass), frames 189-191.
 - Rest: tilted 4 deg (top right raised). Sway (deg, + = right side toward the viewer):
   198 0, 204 +20, 210-216 +38..40 (face in shade, right glass edge lit), 228 +12, 250-280
   -20..-26 (white band on the left of the face), 288-340 ~+2, 348-394 -12..-39 (band),
@@ -78,3 +84,21 @@ demo input: src/demo/login.js.
 - Slab flies to the top right corner, shrinking and spinning: 512 (388,325), 513 (400,263),
   514 (440,213), 515 (488,147), 516 (541,85), 517 (657,52), 518 (771,35), 519 (860,15).
 - Panel fades 512-515; Shut Down and clock fade 511-515.
+
+## Motion blur (blur.js; fitted with tools/login/fit_blur.py, then judged by eye)
+- [samples, shutter in frames, phase]: slab flight [6, 0.6, -0.5] (4-6 discrete copies ~17 px
+  apart at 185-187); tile slide [6, 1.25, -0.6] (RMSE minimum); panel sweep [32, 1, -0.5]
+  (continuous streak); flag and tile exit [10, 0.9-1, -0.5].
+
+## Interactive behaviour (not in the video, built to match its language)
+- Hover any tile: the enlarged hover (pointer events emit login.hover with big: true).
+- Click a tile: the same selection sequence as the video. Panel shows the name; the e-mail line
+  only for Sondra (the only one the video shows).
+- Click another tile while one is selected: the old slab flies back (the flight reversed,
+  14 frames) while the bar reopens to 5 slots (k 2-10.5), then the new one runs the normal
+  sequence. Escape or a click on the background: the slab flies back and the bar reopens.
+- Typing adds a bullet per key (max 10 shown), Backspace removes one, Enter or the go orb submits
+  (any password). Shut Down does nothing. The clock shows the real time (h:mm AM/PM).
+- Local verification aids: ?capture&refbg (reference frame behind the UI), ?capture&nobar
+  (aurora without the bar, for tools/login/fit_bar.py), ?mb={...} (blur overrides),
+  ?slab={...} (slab material overrides).
