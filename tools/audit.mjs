@@ -92,6 +92,8 @@ async function fresh() {
   await send('Page.navigate', { url: base })
   for (let i = 0; i < 300 && !(await evaluate('!!(window.__lh && window.__lh.emit)').catch(() => false)); i++) await sleep(100)
   await evaluate('window.__lh.ready()')
+  // the boot fades the login screen in (os/session.js BOOT_DUR) and blocks input meanwhile
+  for (let i = 0; i < 100 && (await evaluate('window.__lh.now()')) < 1.2; i++) await sleep(50)
   await sleep(800)
 }
 

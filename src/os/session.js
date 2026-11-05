@@ -8,7 +8,8 @@
 //   'session.logoff'   {}      end the session, back to the login screen (windows close, see wm.js)
 //   'session.switch'   {}      Switch User: back to the login screen
 //   'session.shutdown' {}      from the login screen or the desktop: shutting-down sequence, then off
-//   'session.boot'     {}      from the off screen: boot sequence, then the login screen
+//   'session.boot'     {}      from the off screen: boot sequence, then the login screen (a log
+//                              that starts with one at t <= 0 starts off: the real OS's first boot)
 //   'desk.wallpaper'   { kind, color? }  Display Properties / Control Panel > Display
 //
 // currentUser(t)  -> { id, name, email, picture, washed } of the logged-in user, or null
@@ -59,10 +60,14 @@ export function screens(t) {
 }
 
 function build(t) {
-  const out = [{ name: 'login', t0: -Infinity, from: null, user: null }]
+  // a log that starts with 'session.boot' at t <= 0 starts powered off: the real OS boots at load
+  // (core/boot.js), its login screen fading in from black like any boot
+  const evs = all(t, (e) => TYPES.has(e.type))
+  const first = evs[0]
+  const out = [{ name: first?.type === 'session.boot' && first.t <= 0 ? 'off' : 'login', t0: -Infinity, from: null, user: null }]
   const cur = () => out[out.length - 1]
   const push = (name, t0, user = null) => out.push({ name, t0, from: cur().name, user })
-  for (const e of all(t, (e) => TYPES.has(e.type))) {
+  for (const e of evs) {
     // timed transitions that completed before this event
     settle(out, e.t)
     const c = cur().name

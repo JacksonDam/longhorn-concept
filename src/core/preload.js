@@ -1,6 +1,7 @@
 // Image preloading so the first appearance of any asset is instant (and so the capture
 // tool can wait until everything has decoded). Call preload([...urls]) at module level for
-// every image a scene uses, including CSS background images.
+// every image a scene uses, including CSS background images. The boot (core/boot.js) also
+// preloads every file under public/img before the clock starts.
 const pending = new Map()
 
 export function preload(urls) {
@@ -18,8 +19,13 @@ export function waitFor(promise) {
   pending.set('promise:' + extra++, Promise.resolve(promise).catch(() => {}))
 }
 
-export function preloaded() {
-  return Promise.all(pending.values())
+// resolves once everything registered so far (and anything registered while waiting) is ready
+export async function preloaded() {
+  let n
+  do {
+    n = pending.size
+    await Promise.all(pending.values())
+  } while (pending.size !== n)
 }
 
 // public/ asset URL helper (respects the Vite base path)

@@ -21,7 +21,9 @@ const send = (method, params = {}) => new Promise((res) => { const i = ++id; pen
 const ev = async (expression) => (await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }))?.result?.value
 await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1080, deviceScaleFactor: 1, mobile: false })
 await send('Page.navigate', { url: '' + (process.argv[2] || 'http://127.0.0.1:5299/longhorn-concept/') + '?demo' })
-await sleep(4000)
+// the boot: the demo's clock starts once the OS has loaded and warmed up (core/boot.js)
+for (let i = 0; i < 300 && !(await ev('!!window.__lh')); i++) await sleep(100)
+await ev('window.__lh.ready()')
 await ev(`(() => { window.__pf = []; let l = performance.now(); const f = () => { const n = performance.now(); window.__pf.push([window.__lh.now(), n - l]); l = n; requestAnimationFrame(f) }; requestAnimationFrame(f) })()`)
 await sleep(48000)
 const data = await ev('window.__pf')

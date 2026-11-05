@@ -1,6 +1,7 @@
 // One clock drives every animation, so a frame is a pure function of time.
-// Real mode follows performance.now(); capture mode (?capture) is seeked by the
-// capture tool through window.__lh.seek(t) and never advances on its own.
+// Real mode follows performance.now() from the moment the boot (core/boot.js) starts it; until
+// then it is held, and the boot's warm-up seeks it like capture does. Capture mode (?capture) is
+// seeked by the capture tool through window.__lh.seek(t) and never advances on its own.
 
 export const FPS = 30000 / 1001 // the reference video's frame rate
 export const frameTime = (n) => ((n - 1) * 1001) / 30000 // 1-based video frame -> seconds
@@ -14,9 +15,27 @@ export const CAPTURE = params.has('capture') || BENCH
 let virtualT = 0
 let origin = performance.now()
 let speed = 1
+// real mode: held (at virtualT) until startClock()
+let running = false
 
 export function now() {
-  return CAPTURE ? virtualT : ((performance.now() - origin) / 1000) * speed
+  return CAPTURE || !running ? virtualT : ((performance.now() - origin) / 1000) * speed
+}
+
+// real mode: the boot is done, time starts now at t = 0
+export function startClock() {
+  if (CAPTURE || running) return
+  virtualT = 0
+  origin = performance.now()
+  running = true
+  tick()
+}
+export const clockRunning = () => running
+// the boot's warm-up: show time t while the clock is held (capture: the same as seek)
+export function holdAt(t) {
+  if (running) return
+  virtualT = t
+  tick()
 }
 
 const subs = new Set()
@@ -66,7 +85,7 @@ export function runBench(frames) {
 
 // capture / debugging hooks
 export function seek(t) {
-  if (CAPTURE) virtualT = t
+  if (CAPTURE || !running) virtualT = t
   else origin = performance.now() - (t / speed) * 1000
   tick()
 }

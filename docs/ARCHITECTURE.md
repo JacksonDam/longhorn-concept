@@ -17,6 +17,7 @@ Vite + React app deployed to GitHub Pages (base `/longhorn-concept/`).
 
 ## Time, events, determinism
 - `core/clock.js`: `now()` is the only time source. `?capture` freezes it; the capture tool seeks it.
+  In real time (`?demo` included) it is held at 0 until the boot starts it (`startClock()`, see Boot).
   **Never use CSS transitions/animations, setTimeout-driven visuals or Date.now() for visuals**:
   every visual must be a pure function of (time, event log).
 - `core/events.js`: an append-only time-stamped event log. User input calls `emit(type, data)`;
@@ -101,6 +102,38 @@ OS in the same style. Everything still derives from (time, event log).
 - Design sources beyond the video: docs/briefs/days-video.md (second demo video: pictures apps,
   log off), docs/briefs/start-menu-mockup.md (Start menu, my Programs & Services).
 
+## Boot (real time only)
+`core/boot.js`, started by App.jsx; `?capture` / `?bench` never boot (they wait on `__lh.ready()`).
+The clock is held and the screen is the session's black layer (App.jsx `Scenes`, the element the
+boot fade uses) at opacity 0.999 while the OS:
+1. loads every font face (`document.fonts`), every file under `public/img` (the list is the
+   `virtual:boot-assets` module from vite.config.js, so new images are included automatically),
+   the scenes' `preload()` / `waitFor()` assets and the slab textures; the login screen is mounted
+   and drawn meanwhile;
+2. rehearses (`core/rehearsal.js`): a scripted session (the video's input, the shell scenario,
+   every registered app from `os/apps.js` in batches (`rehearseWindows`, the place for other
+   window warm-ups), log off / shut down / boot) drawn state by
+   state, each state only once the GPU has caught up with the previous one (a 1 px WebGL
+   readback). Every first-time cost lands here: GPU pipeline compiles (Graphite / Dawn / Metal on
+   macOS: one per new kind of draw, blend or render-pass format; tens to hundreds of ms each on a
+   cold shader cache), WebGL program links, texture uploads, decodes at drawn sizes, glyph
+   rasterisation, the first run of each component's code, first style / layout / raster;
+3. installs the start log (real OS: `session.boot` at t = 0, so `os/session.js` starts powered
+   off and the login screen fades in from black; `?demo`: the video's input) and starts the clock.
+
+A browser's first boot of a build rehearses everything (~2 s on the M4, more on a slower or
+brand-new machine); later boots (localStorage `longhorn.boot` = bundle URL + user agent) rehearse
+the video's path only. A 10 s deadline ends the boot whatever is left; that part then happens on
+first use. `?rehearse=all|video|none` overrides the level, `?boottrace` records each rehearsed
+state, `__lh.bootStats` has the timings, `__lh.booted` says whether the clock runs.
+Rules: one-off work (a new asset kind, a new scripted interaction, a new app) belongs in the boot:
+images in `public/img` and apps are picked up automatically; a new interaction or animation that
+none of the scripts shows should get an event in `core/rehearsal.js`. The boot black must stay the
+session's own black element: a separate cover changed the layers enough that the GPU compiled new
+pipelines on the first frames of the fade-in. Nothing in the rehearsal may persist: it only
+emits into the event log, which the boot replaces. The boot black is an overlay on top of the
+scenes, never an opacity group around them (see Glass).
+
 ## Performance (144 Hz)
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
@@ -108,6 +141,7 @@ http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbenc
 `?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?scenario=shell&`,
 `?scenario=session&` with frames past the video's end).
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
+Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
 
 ## Usability audit
 `node tools/audit.mjs --url <base> --scenarios desktop,start,flyout,music,album,app:<id>,...`

@@ -46,3 +46,52 @@ draws exactly what `?capture` draws for the same time.
   expensive: prefer pre-blurred images or WebGL.
 - You may change the tech (WebGL / three.js / WebGPU / OffscreenCanvas / canvas 2D) for any part
   if that's what it takes; keep text crisp at any scale.
+
+## Cold start (the first run on a new machine)
+A warm session holding 144 Hz says nothing about the first run: there every kind of draw is new
+to the GPU, and the first appearance of each costs a pipeline compile (Chrome on macOS: Skia
+Graphite on Dawn / Metal, compiled on worker threads, but the frame that needs it waits; tens to
+hundreds of ms each with an empty system shader cache, ~160 for the login-to-my-Music path),
+besides first decodes, first runs of code and first layouts. The boot (ARCHITECTURE.md, Boot)
+pays all of that under the black screen before the clock starts; keep it that way:
+- New one-off costs go into the boot. Images in `public/img` and registered apps are picked up
+  automatically; a new interaction or animation that no script shows needs an event in
+  `core/rehearsal.js` (its frames: the first frames of the motion, the motion-blur copies,
+  settled). Don't add work that runs after the boot on a timer or idle callback: the login
+  screen animates the whole time, and a GPU compile stalls every frame until it is done.
+- Measure with `tools/coldstart.mjs` on the production build served by `tools/pages.mjs`
+  (HTTP/2, gzip and the live site's cache headers; `vite preview` sends no-cache and no gzip):
+  `npx vite build && node tools/pages.mjs --dir dist --port <your prod port>`, then
+  `node tools/coldstart.mjs --url https://127.0.0.1:<port>/longhorn-concept/ --runs cold,warm`.
+  A fresh `--user-data-dir` per cold run (cold HTTP cache, GPU program cache, V8 code cache), the
+  real interactive flow at real speed (the tools/interact.mjs steps, then every app from the
+  Start menu twice), per-phase frame stats: missed frames, frames over 25 / 50 ms, stall ms (the
+  display time lost). `--cpu 4` (weaker laptop), `--net 20,40` (Mbit/s, RTT ms), `--flow login`
+  (to my Music only), `--shots`, `--trace` (with `--trace-secs`: attributes every frame over
+  25 ms: main-thread events, JS functions via the source map, GPU pipelines compiled with their
+  labels), `--compare a.json b.json` (side-by-side), `--page` (table of a raw run).
+- The display: headless Chrome has no 144 Hz vsync, so the tool runs it unpaced (vsync and the
+  frame-rate limit off) and paces the page's requestAnimationFrame to a 144 Hz grid (a 1 px
+  change on every native frame keeps Chrome from idling down to ~55 Hz between ticks). A missed
+  vsync is then a 14 ms interval. Unpaced (`--hz 0`, like bench.mjs) the aurora renders ~1000 fps
+  and saturates the GPU process: other GPU work queues behind hundreds of WebGL frames and shows
+  as 500 ms stalls a real display never has.
+- A fresh profile alone keeps the system's shader cache warm (macOS keeps compiled Metal
+  functions per app in the user cache dir), so it hides most of the GPU cost. `--new-machine
+  --chrome <Chrome for Testing binary>` empties that build's own Metal cache before each cold run
+  (the installed Chrome's is never touched): a brand-new Chrome install, the worst case. Get the
+  binary matching the installed version from
+  storage.googleapis.com/chrome-for-testing-public/<version>/mac-arm64/chrome-mac-arm64.zip.
+- Results, 2026-11-05 (M4, full flow: login to my Music, then every app from the Start menu;
+  stall = display time lost to missed frames; before = main, after = the boot):
+  | variant | before: visible / stall / frames > 50 ms | after: boot / stall / frames > 50 ms |
+  |---|---|---|
+  | fresh profile, cold | 0.42 s / 163 ms / 0 (intro 46 ms) | 2.5 s / 21 ms / 0 |
+  | same profile, warm | 0.44 s / 208 ms / 0 | 1.3 s / 45 ms / 0 |
+  | brand-new Chrome (`--new-machine`), cold | 2.9 s (first 2.8 s of the intro lost) / 11.8 s / 35 | 7.9 s / 0.7 s / 1 |
+  | brand-new Chrome, warm | 1.1 s / 0.9 s / 0 | 1.4 s / 0.25 s / 0 |
+  | `--cpu 4`, cold | 1.1 s / 11.0 s / 13 (intro 198 ms) | 5.5 s / 7.2 s / 0 |
+  | `--net 20,40`, cold (login flow) | 0.6 s / 170 ms / 0 | 2.6 s / 158 ms / 0 |
+  At 4x CPU most of the stall is steady state (my Music and the app windows miss 144 Hz on
+  every motion), which the boot doesn't change. `__lh.bootStats` (printed by coldstart.mjs)
+  splits the boot into fonts, images and the rehearsal's parts.
