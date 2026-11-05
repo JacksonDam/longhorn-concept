@@ -86,14 +86,17 @@ OS in the same style. Everything still derives from (time, event log).
   toolbar block, `src/os/WindowLayer.jsx` renders all windows. Every motion-blur copy draws the
   app's full Content (memoised snapshots, re-rendered when the content settles on new state,
   `copyKey`); there are no stand-in copies. Copies mount one per frame from the open (two
-  frames in) and are rasterised in their first visible pose before the window shows. Layers
-  that are parked (closed, never shown, still mounting) carry `content-visibility: hidden`, so a
-  session that opened many windows costs nothing per frame for them; a closed window also lets
-  its compositing layers go. Idle copies of a shown window rest on its rect at opacity 0 (Chrome
-  keeps the rasters of will-change layers there), and keep the size the window settled at while
-  it is resized or maximised. Each window's layers sit in one group positioned by a transform,
-  so a drag moves one transform. `usesActive: true` marks Content that draws differently when
-  the window isn't active (otherwise focus changes don't re-render it).
+  frames in) and are rasterised in their first visible pose before the window shows (an
+  opening window's layers are never hidden: revealing one costs ~3 ms). Other parked layers
+  (closed, never shown) carry `content-visibility: hidden`, so a session that opened many
+  windows costs nothing per frame for them; a window running at login rasterises its copies one
+  per step of the background mount queue, not all at once; a closed window also lets its
+  compositing layers go. Idle copies of a shown window rest on its rect at opacity 1e-4 (drawn,
+  so they stay painted and rasterised; at opacity 0 Chrome lets them go), and keep the size the
+  window settled at while it is resized or maximised. Each window's layers sit in one group
+  positioned by a transform, so a drag moves one transform. `usesActive: true` marks Content
+  that draws differently when the window isn't active (otherwise focus changes don't re-render
+  it).
   `src/os/ErrorBoundary.jsx` keeps a crash inside its window.
 - Input and the log: continuous input (window drags and resizes) goes through
   `core/time.jsx nextFrame`, one event per frame at the frame's time, emitted in the same render

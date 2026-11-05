@@ -509,7 +509,10 @@ function mountedCopies(win, app, t, N) {
 // a window layer that shows nothing: parked off-stage at a near-zero opacity, so Blink keeps it
 // painted (it skips opacity-0 subtrees) while the compositor draws nothing on screen
 const PARKED = { transform: 'translateX(-4000px)', opacity: 1e-4 }
-const REST = { opacity: 0 }
+// an idle copy of a shown window rests on its rect at a near-zero opacity too: drawn, so it stays
+// painted and rasterised and the next blur only composites (at opacity 0, Blink and the compositor
+// let it go and the minimise re-paints and re-rasterises it mid-animation, a 15-60 ms frame)
+const REST = { opacity: 1e-4 }
 
 // A window that shows nothing and has nothing scheduled (minimised, closed, running at login,
 // prewarmed) renders the same every frame: this key changes only when its layers would change
