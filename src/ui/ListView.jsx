@@ -2,7 +2,8 @@
 // headers that sort, its own scrolling, double-click to open and right-click for a context menu.
 //
 //   <ListView id x y w h items={[{ key, cells: [...], icon, sort: [...] }]} columns={[{ label, w, align }]}
-//             rowH multi onOpen(item) onSelect(keys) onContext(e, item) active />
+//             rowH multi onOpen(item) onSelect(keys) onContext(e, item) active selected? />
+//   (selected: keys shown as selected instead of the logged selection, until the user picks)
 //   selectionOf(t, id) -> [keys], select(id, keys)
 // Logged: 'ui.value' `${id}:sel` { keys, anchor }, `${id}:sort` { col, dir }, `${id}:scroll`;
 // hover rows: 'hover' { id: `${id}:rows`, key }.
@@ -139,10 +140,10 @@ function sortItems(items, sort) {
   })
 }
 
-export function ListView({ id, x, y, w, h, items, columns, rowH = 19, multi = true, onOpen, onSelect, onContext, active = true, header = true, emptyText, defSort = null, t: tProp }) {
+export function ListView({ id, x, y, w, h, items, columns, rowH = 19, multi = true, onOpen, onSelect, onContext, active = true, header = true, emptyText, defSort = null, selected, t: tProp }) {
   const t0 = useTime()
   const t = tProp ?? t0
-  const sel = valueOf(t, id + ':sel', NO_SEL)
+  const sel = selected ? { keys: selected, anchor: selected[selected.length - 1] ?? null } : valueOf(t, id + ':sel', NO_SEL)
   const sort = valueOf(t, id + ':sort', defSort)
   const list = sortItems(items, sort)
   const showHead = !!columns && header
@@ -172,7 +173,7 @@ export function ListView({ id, x, y, w, h, items, columns, rowH = 19, multi = tr
       keys = a < 0 ? [item.key] : ks.slice(Math.min(a, b), Math.max(a, b) + 1)
       anchor = cur.anchor
     } else {
-      if (cur.keys.length === 1 && cur.keys[0] === item.key) return
+      if (!selected && cur.keys.length === 1 && cur.keys[0] === item.key) return
       keys = [item.key]
     }
     emit('ui.value', { id: id + ':sel', value: { keys, anchor } })
