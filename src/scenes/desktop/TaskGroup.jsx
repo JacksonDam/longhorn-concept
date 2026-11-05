@@ -5,6 +5,7 @@
 import { memo } from 'react'
 import { FPS } from '../../core/clock.js'
 import { lastOfType } from '../../os/logIndex.js'
+import { sessionFloor } from './shellState.js'
 import { ease, clamp, track } from '../../core/anim.js'
 import { Blur } from './Blur.jsx'
 import { GroupBg, TaskButton, TaskHits } from './Taskbar.jsx'
@@ -64,6 +65,7 @@ function ButtonLive({ t, b }) {
 // sit inside an isolated blur copy)
 function PressFlash({ t, b }) {
   const e = lastOfType(t, 'tb.press', b.id)
+  if (e && e.t < sessionFloor()) return null
   let press = 0
   if (e) {
     const df = (t - e.t) * FPS
