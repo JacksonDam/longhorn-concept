@@ -208,7 +208,8 @@ const winKey = (w) => {
 // rounded top corners rt and bottom corners rb; along the top chrome (cut px) it starts 1 px in
 // from the left, where the rim's 2 px left edge lies wholly outside the glass, as on the right
 // (video f1300: the rim covers x 44-45 and the glass starts at 46 down to the bands' bottom; the
-// body below starts at 45)
+// body below starts at 45). Only the live layer takes that step (a path clip); the motion-blur
+// copies keep the cheaper rounded-inset clip, where a pixel column doesn't show.
 const clipCache = new Map()
 function bodyClip(w, h, rt, rb, cut) {
   const key = `${w}|${h}|${rt}|${rb}|${cut}`
@@ -571,7 +572,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
+          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
