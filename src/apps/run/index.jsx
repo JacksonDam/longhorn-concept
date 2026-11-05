@@ -29,6 +29,11 @@ export function runCommand(raw) {
     helpctr: () => openWin('help', 'help'),
     winver: () => openWin('about', 'about'),
     search: () => openWin('search', 'search'),
+    calc: () => openWin('calc', 'calc'),
+    notepad: () => openWin('notepad', 'notepad'),
+    charmap: () => openWin('charmap', 'charmap'),
+    mspaint: () => openWin('paint', 'paint'),
+    sol: () => openWin('solitaire', 'solitaire'),
   }[c]
   if (app) {
     app()

@@ -472,6 +472,38 @@ const big = {
       <path d="M19 19 L27 27" stroke="#3d6fb5" strokeWidth="4" strokeLinecap="round" />
     </>
   ),
+  calc: (
+    <>
+      <rect x="6" y="3" width="20" height="26" rx="3" fill="url(#ig-greyl)" stroke="#6f7f99" strokeWidth="0.8" />
+      <rect x="9" y="6" width="14" height="6" rx="1" fill="#dff2df" stroke="#6f7f99" strokeWidth="0.6" />
+      {[0, 1, 2].map((r) => [0, 1, 2].map((c) => <rect key={r + '' + c} x={9 + c * 5} y={15 + r * 4.4} width="4" height="3.4" rx="0.8" fill={c === 2 ? '#f5a623' : '#fff'} stroke="#8a97ad" strokeWidth="0.4" />))}
+    </>
+  ),
+  charmap: (
+    <>
+      <rect x="4" y="4" width="24" height="24" rx="2" fill="#fff" stroke="#6f86a8" strokeWidth="0.9" />
+      <path d="M4 12 H28 M4 20 H28 M12 4 V28 M20 4 V28" stroke="#c5d3e8" strokeWidth="0.8" />
+      <text x="16" y="19.5" textAnchor="middle" fontFamily="Georgia, serif" fontSize="12" fill="#2c6cc4">{'\u03a9'}</text>
+      <text x="8" y="11" textAnchor="middle" fontFamily="Georgia, serif" fontSize="6" fill="#5b6886">a</text>
+      <text x="24" y="27" textAnchor="middle" fontFamily="Georgia, serif" fontSize="6" fill="#5b6886">{'\u00e9'}</text>
+    </>
+  ),
+  cards: (
+    <>
+      <rect x="4" y="6" width="15" height="21" rx="2" fill="#fff" stroke="#6f7f99" strokeWidth="0.8" transform="rotate(-12 11 16)" />
+      <rect x="12" y="5" width="15" height="21" rx="2" fill="#fff" stroke="#6f7f99" strokeWidth="0.8" transform="rotate(8 19 15)" />
+      <path d="M19.5 10 C17.5 13 16 14.5 16 16.5 A2 2 0 0 0 19.5 17.5 A2 2 0 0 0 23 16.5 C23 14.5 21.5 13 19.5 10 Z" fill="#d0442c" transform="rotate(8 19 15)" />
+    </>
+  ),
+  paint: (
+    <>
+      <path d="M16 4 C8 4 3 9.5 3 16 C3 22 7.5 27 13 27 C15.5 27 15.5 24.5 14.5 23 C13.5 21.5 14 19.5 16.5 19.5 H20 C25 19.5 29 16.5 29 12.5 C29 7.5 23 4 16 4 Z" fill="#f4e6c8" stroke="#a88a5a" strokeWidth="0.8" />
+      <circle cx="9" cy="14" r="2.3" fill="#d0442c" />
+      <circle cx="13" cy="9" r="2.3" fill="#3d8ef0" />
+      <circle cx="19.5" cy="8.5" r="2.3" fill="#4dbb3a" />
+      <circle cx="24.5" cy="12.5" r="2.3" fill="#f5c542" />
+    </>
+  ),
   recycle: (
     <>
       <path d="M8 9 H24 L22.5 28 H9.5 Z" fill="url(#ig-greyl)" stroke="#6f7f99" strokeWidth="0.8" strokeLinejoin="round" />

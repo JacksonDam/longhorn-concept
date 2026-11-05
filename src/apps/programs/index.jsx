@@ -1,0 +1,191 @@
+// my Programs & Services (start-menu-mockup.md): an explorer window with "program tasks" and
+// category tiles with big glass icons, three programs each and "more..." (expands). Only programs
+// this OS has; each entry launches it.  win.open { id: 'programs', app: 'programs' }
+import { memo } from 'react'
+import { emit } from '../../core/events.js'
+import { scoped, wid, valueOf, hoverKeys, pt, DropMenu, dropBelow, ScrollView, C, FONT, HEAVY } from '../../ui/index.js'
+import { Ico } from '../lib/icons.jsx'
+import { openWin, openUrl, messageBox } from '../lib/common.js'
+import { openMusic } from '../lib/fs.js'
+import { ChromeMenu, useChromeCommands, chromeToggled } from '../lib/Explorer.jsx'
+import { getApp } from '../../os/apps.js'
+
+const P = (name, icon, go) => ({ name, icon, go })
+export const CATEGORIES = [
+  { key: 'accessories', label: 'Accessories', color: ['#e9f3ff', '#7fb2ec', '#2f62ad'], glyph: 'programs', items: [P('Calculator', 'calc', () => openWin('calc', 'calc')), P('Notepad', 'text', () => openWin('notepad', 'notepad')), P('Character Map', 'charmap', () => openWin('charmap', 'charmap')), P('Run...', 'run', () => openWin('run', 'run')), P('Search', 'search32', () => openWin('search', 'search'))] },
+  { key: 'communications', label: 'Communications', color: ['#e9fbff', '#6cc6e8', '#1f7aa6'], glyph: 'mailbig', items: [P('Outlook', 'mailbig', () => openWin('inbox', 'outlook')), P('Messenger', 'users', () => openWin('im:Hank', 'im', { buddy: 'Hank' })), P('Network Connections', 'network', () => openWin('cpl:network', 'applet', { applet: 'network' }))] },
+  { key: 'entertainment', label: 'Entertainment', color: ['#f6eaff', '#b98ae8', '#6a3aa8'], glyph: 'music', items: [P('Winamp3', 'sound', () => openWin('winamp', 'winamp')), P('my Music', 'music', () => openMusic()), P('Slide Show', 'display', () => openWin('slideshow', 'slideshow', { auto: true }))] },
+  { key: 'games', label: 'Games', color: ['#ecffe6', '#7ccf62', '#2e8a1f'], glyph: 'cards', items: [P('Solitaire', 'cards', () => openWin('solitaire', 'solitaire'))] },
+  { key: 'imaging', label: 'Imaging', color: ['#fff4e2', '#f2b45a', '#b8700f'], glyph: 'picture', items: [P('Paint', 'paint', () => openWin('paint', 'paint')), P('my Pictures & Videos', 'picture', () => openWin('pictures', 'pictures')), P('Create an Album', 'folder', () => openWin('album', 'album'))] },
+  { key: 'internet', label: 'Internet', color: ['#e9f3ff', '#5fa8ee', '#1d5cb0'], glyph: 'ie', items: [P('Internet Explorer', 'ie', () => openUrl('www.msn.com')), P('MSN', 'ie', () => openUrl('www.msn.com')), P('Windows Update', 'ie', () => openUrl('windowsupdate.microsoft.com'))] },
+  { key: 'productivity', label: 'Productivity', color: ['#eef3ff', '#8ea6e0', '#3a52a0'], glyph: 'doc', items: [P('Word', 'doc', () => openWin('doc1', 'word')), P('my Documents', 'folder', () => openWin('documents', 'documents')), P('Notepad', 'text', () => openWin('notepad', 'notepad'))] },
+]
+
+// a big glass tile icon: the category glyph on a glossy rounded square
+const GlassIcon = memo(function GlassIcon({ color, glyph }) {
+  const [hi, mid, lo] = color
+  return (
+    <div style={{ position: 'relative', width: 56, height: 56 }}>
+      <div style={{ position: 'absolute', left: 4, top: 52, width: 48, height: 6, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(30,60,120,0.35), rgba(30,60,120,0))' }} />
+      <div style={{ position: 'absolute', inset: '0 0 4px 0', borderRadius: 12, background: `linear-gradient(160deg, ${hi} 0, ${mid} 55%, ${lo} 100%)`, boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.6), 0 2px 4px rgba(30,60,120,0.35)` }} />
+      <div style={{ position: 'absolute', left: 4, top: 3, width: 48, height: 22, borderRadius: '10px 10px 30px 30px / 10px 10px 14px 14px', background: 'linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.15))' }} />
+      <div style={{ position: 'absolute', left: 12, top: 10 }}>
+        <Ico kind={glyph} size={32} />
+      </div>
+    </div>
+  )
+})
+
+function Tile({ win, t, cat, open }) {
+  const lit = hoverKeys(t, wid(win, 'pi'))
+  const shown = open ? cat.items : cat.items.slice(0, 3)
+  return (
+    <div style={{ position: 'relative', width: 268, minHeight: 104 }}>
+      <div style={{ position: 'absolute', left: 0, top: 4 }}>
+        <GlassIcon color={cat.color} glyph={cat.glyph} />
+      </div>
+      <div style={{ position: 'absolute', left: 68, top: 0, fontFamily: HEAVY, fontSize: 13, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{cat.label}</div>
+      {shown.map((it, i) => {
+        const k = cat.key + ':' + i
+        const l = lit.get(k) || 0
+        return (
+          <div
+            key={k}
+            style={{ position: 'absolute', left: 64, top: 19 + i * 17, height: 16, padding: '0 4px', borderRadius: 3, display: 'flex', gap: 5, alignItems: 'center', background: l > 0.5 ? C.rowHover : 'transparent', fontFamily: FONT, fontSize: 11, color: l > 0.5 ? C.link : C.textDark, whiteSpace: 'nowrap' }}
+            onPointerEnter={(e) => emit('hover', { id: wid(win, 'pi'), key: k, on: true, ...pt(e) })}
+            onPointerLeave={() => emit('hover', { id: wid(win, 'pi'), key: k, on: false })}
+            onPointerDown={(e) => e.button === 0 && it.go()}
+          >
+            <Ico kind={it.icon} size={14} />
+            {it.name}
+          </div>
+        )
+      })}
+      {cat.items.length > 3 && (
+        <div style={{ position: 'absolute', left: 68, top: 19 + shown.length * 17, fontFamily: FONT, fontSize: 10.5, color: '#8aa6d2' }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'more:' + cat.key), value: !open })}>
+          {open ? 'less...' : 'more...'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const TaskPane = memo(function TaskPane({ win }) {
+  const link = (k, label, icon, fn, y) => (
+    <div key={k} style={{ position: 'absolute', left: 14, top: y, display: 'flex', gap: 6, alignItems: 'center', fontFamily: FONT, fontSize: 11, color: C.textDark, whiteSpace: 'nowrap' }} onPointerDown={(e) => e.button === 0 && fn()}>
+      <Ico kind={icon} size={16} />
+      {label}
+    </div>
+  )
+  return (
+    <>
+      <div style={{ position: 'absolute', left: 14, top: 14, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
+        program <span style={{ fontWeight: 500, color: C.heading }}>tasks</span>
+      </div>
+      {link('add', 'Add new programs', 'programs', () => messageBox({ title: 'Add New Programs', icon: 'info', text: 'There are no new programs available to add from your network or from a CD.\nInsert a program CD into the DVD-RW Drive (D:) to install from it.' }), 44)}
+      {link('cfg', 'Configure a program', 'display', () => openWin('control', 'control'), 64)}
+      {link('rm', 'Remove a program', 'recycle', () => openWin('cpl:programs', 'applet', { applet: 'programs' }), 84)}
+      {link('upd', 'Search for updates', 'ie', () => openUrl('windowsupdate.microsoft.com'), 104)}
+      <div style={{ position: 'absolute', left: 14, top: 146, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
+        other <span style={{ fontWeight: 500, color: C.heading }}>places</span>
+      </div>
+      {link('docs', 'my Documents', 'folder', () => openWin('documents', 'documents'), 176)}
+      {link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), 196)}
+      {link('cp', 'Control Panel', 'programs', () => openWin('control', 'control'), 216)}
+      {void win}
+    </>
+  )
+})
+
+const sel2 = (a, b) => (
+  <>
+    <span style={{ fontWeight: 500, color: '#6d8db8' }}>{a} </span>
+    <span style={{ color: '#8cb8ee' }}>{b}</span>
+  </>
+)
+
+function Programs({ win, t, w, h, live }) {
+  useChromeCommands(win, t, live, {
+    up: () => openWin('computer', 'computer'),
+    find: () => openWin('search', 'search'),
+    folders: () => openWin('documents', 'documents'),
+  })
+  const hide = chromeToggled(t, win, 'hide')
+  const group = valueOf(t, wid(win, 'group'), 'category')
+  const order = valueOf(t, wid(win, 'order'), 'alpha')
+  const groupItems = [
+    { label: 'By Category', radio: group === 'category', onClick: () => emit('ui.value', { id: wid(win, 'group'), value: 'category' }) },
+    { label: 'All Programs', radio: group === 'all', onClick: () => emit('ui.value', { id: wid(win, 'group'), value: 'all' }) },
+  ]
+  const orderItems = [
+    { label: 'Alphabetically', radio: order === 'alpha', onClick: () => emit('ui.value', { id: wid(win, 'order'), value: 'alpha' }) },
+    { label: 'Default Order', radio: order === 'default', onClick: () => emit('ui.value', { id: wid(win, 'order'), value: 'default' }) },
+  ]
+  const sortIt = (list) => (order === 'alpha' ? [...list].sort((a, b) => a.name.localeCompare(b.name)) : list)
+  let cats = order === 'alpha' ? [...CATEGORIES].sort((a, b) => a.label.localeCompare(b.label)) : CATEGORIES
+  if (group === 'all') {
+    const seen = new Set()
+    const items = sortIt(CATEGORIES.flatMap((c) => c.items).filter((it) => !seen.has(it.name) && seen.add(it.name)))
+    cats = [{ key: 'all', label: 'All Programs', color: ['#eef3ff', '#7fb2ec', '#2f62ad'], glyph: 'programs', items }]
+  } else cats = cats.map((c) => ({ ...c, items: sortIt(c.items) }))
+  const menus = {
+    File: [{ label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
+    Edit: [{ label: 'Select All', disabled: true }],
+    View: [...groupItems, '-', ...orderItems],
+    Help: [{ label: 'Help and Support Center', onClick: () => openWin('help', 'help') }],
+    Favorites: [{ label: 'MSN.com', onClick: () => openUrl('www.msn.com') }],
+  }
+  let y = 0
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
+      {!hide && <TaskPane win={win} />}
+      <div style={{ position: 'absolute', left: 200, top: 10, height: 16, display: 'flex', gap: 30, fontFamily: FONT, fontSize: 11.5, whiteSpace: 'nowrap' }}>
+        <span onPointerDown={(e) => e.button === 0 && dropBelow(wid(win, 'dd.g'), e.currentTarget, groupItems)}>
+          {sel2('Group programs', group === 'all' ? 'all together' : 'by category')} {'▾'}
+        </span>
+        <span onPointerDown={(e) => e.button === 0 && dropBelow(wid(win, 'dd.o'), e.currentTarget, orderItems)}>
+          {sel2('Arrange', order === 'alpha' ? 'alphabetically' : 'by default')} {'▾'}
+        </span>
+      </div>
+      <DropMenu id={wid(win, 'dd.g')} items={groupItems} />
+      <DropMenu id={wid(win, 'dd.o')} items={orderItems} />
+      <ScrollView id={wid(win, 'sv')} x={196} y={34} w={w - 204} h={h - 40}>
+        <div style={{ position: 'relative', height: Math.ceil(cats.length / 2) * 118 + 10 }}>
+          {cats.map((c, i) => {
+            const open = group === 'all' || valueOf(t, wid(win, 'more:' + c.key), false)
+            const node = (
+              <div key={c.key} style={{ position: 'absolute', left: (i % 2) * 280 + 6, top: Math.floor(i / 2) * 118 + 6 }}>
+                <Tile win={win} t={t} cat={c} open={open} />
+              </div>
+            )
+            void y
+            return node
+          })}
+        </div>
+      </ScrollView>
+      <ChromeMenu win={win} t={t} menus={menus} app={getApp('programs')} />
+    </div>
+  )
+}
+
+export default {
+  id: 'programs',
+  title: () => 'my Programs & Services',
+  taskbarLabel: () => 'My Programs & Services',
+  icon: null,
+  size: { w: 777, h: 600 },
+  position: { x: 60, y: 40 },
+  minSize: { w: 700, h: 460 },
+  explorer: {
+    crumbs: ['my Computer', 'my Programs & Services'],
+    search: 'search my for...',
+    commands: [
+      { id: 'hide', label: 'Hide Program Tasks', icon: 'hide' },
+      { id: 'up', label: 'Up a Folder', icon: 'up' },
+      { id: 'folders', label: 'Folders', icon: 'folders' },
+      { id: 'find', label: 'Find', icon: 'find' },
+    ],
+    pressed: () => null,
+  },
+  Content: scoped(Programs, {}),
+}

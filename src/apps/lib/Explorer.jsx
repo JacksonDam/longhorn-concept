@@ -7,7 +7,7 @@
 //   'explorer.command' { id, command: 'up' | 'hide' | 'folders' | 'find' | 'preview' }
 //   'explorer.menu' { id, menu, x, y } the chrome's File / Edit / View / Help / Favorites
 //   'fs.mkdir' { path, name }, 'fs.delete' { path, name }   (fictional file system changes)
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { emit, getLog, getVersion } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, hoverKeys, pt, selectionOf, ListView, ContextMenu, contextHandler, MenuPopup, Overlay, menuState, C, FONT, HEAVY, useLive, find } from '../../ui/index.js'
@@ -463,6 +463,22 @@ export function ChromeMenu({ win, t, menus, app }) {
       <MenuPopup id={win.id + '.xmenu.' + em.menu} items={items} x={Math.round(r.x + em.x)} y={Math.round(r.y + em.y + 1)} openT={em.t} onClose={() => emit('ui.menu', { id: win.id + '.xmenu', open: null })} />
     </Overlay>
   )
+}
+// run handlers for the chrome's command row (Up a Folder, Find, ...) once per click
+export function useChromeCommands(win, t, live, handlers) {
+  const [a, i] = find(t, 'explorer.command', win.id)
+  const e = i >= 0 && a[i].t >= win.openedAt ? a[i] : null
+  useEffect(() => {
+    if (live && e && now() - e.t < 0.5) handlers[e.command]?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [e?.t, live])
+}
+// a chrome command used as a toggle (Hide Tasks): on after an odd number of clicks
+export function chromeToggled(t, win, command) {
+  const [a, i] = find(t, 'explorer.command', win.id)
+  let n = 0
+  for (let j = 0; j <= i; j++) if (a[j].t >= win.openedAt && a[j].command === command) n++
+  return n % 2 === 1
 }
 function lastWin(t, win, type) {
   const [a, i] = find(t, type, win.id)
