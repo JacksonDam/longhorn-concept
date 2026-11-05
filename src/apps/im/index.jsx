@@ -1,6 +1,7 @@
 // Instant message window for a sidebar buddy: history, input box, Send. Sent messages appear in
 // the history ('im.send' { id, buddy, text }); buddies never reply, a status line says they are
 // away instead.  win.open { id: 'im:<name>', app: 'im', props: { buddy } }
+import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -100,6 +101,22 @@ function IM({ win, t, w, h }) {
   )
 }
 
+// what the blur copies draw: the history and input panels and the buddy picture
+const AppProxy = memo(function AppProxy({ win, w, h }) {
+  const top = appTopHeight()
+  const histH = h - top - 140
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
+      <TopProxy w={w} labels="File  Edit  Actions  Help" />
+      <Text x={12} y={top + 10} size={11} color="#2c6cc4">To: {win.props?.buddy || 'Buddy'}</Text>
+      {box(10, top + 28, w - 78, histH, { borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.borderLight}` })}
+      <Lines x={20} y={top + 38} w={w - 120} n={3} gap={14} bar={6} />
+      {box(w - 58, top + 28, 48, 48, { borderRadius: 4, background: 'linear-gradient(180deg, #dbe9fb, #a9c4ea)', boxShadow: '0 0 0 1px #fff, 0 0 0 2px #8fa9cf' })}
+      {box(10, top + 52 + histH, w - 78, 64, { borderRadius: 3, background: '#fff', boxShadow: 'inset 0 0 0 1px #a6b9d6' })}
+      {box(w - 62, top + 52 + histH, 52, 64, { borderRadius: 4, background: 'linear-gradient(180deg, #ffffff 0, #f1f6fd 45%, #dfe9f8 55%, #e8f0fb 100%)', boxShadow: 'inset 0 0 0 1px #5d8fd6' })}
+    </div>
+  )
+})
 export default {
   id: 'im',
   title: (p) => `${p.buddy || 'Buddy'} - Conversation`,
@@ -111,4 +128,5 @@ export default {
   explorer: false,
   background: '#f6f9fe',
   Content: scoped(IM, { watch: ['im'] }),
+  Proxy: AppProxy,
 }

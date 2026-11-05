@@ -5,6 +5,10 @@ import { find } from '../../ui/state.js'
 import { getWindow } from '../../os/wm.js'
 import './benchScript.js'
 
+// dev-only test hook: the app registry (tests swap Content for Proxy to check the copies' look);
+// imported lazily, apps.js imports every app
+if (import.meta.env.DEV && typeof window !== 'undefined') window.__apps = { app: async (id) => (await import('../../os/apps.js')).getApp(id) }
+
 export const openWin = (id, app, props) => emit('win.open', props ? { id, app, props } : { id, app })
 export const closeWin = (id) => emit('win.close', { id })
 export const setProps = (id, props) => emit('win.props', { id, ...props })

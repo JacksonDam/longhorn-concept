@@ -1,6 +1,7 @@
 // my Programs & Services (start-menu-mockup.md): an explorer window with "program tasks" and
 // category tiles with big glass icons, three programs each and "more..." (expands). Only programs
 // this OS has; each entry launches it.  win.open { id: 'programs', app: 'programs' }
+import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { scoped, wid, valueOf, hoverKeys, pt, DropMenu, dropBelow, ScrollView, C, FONT, HEAVY } from '../../ui/index.js'
@@ -184,6 +185,25 @@ function Programs({ win, t, w, h, live }) {
   )
 }
 
+// what the blur copies draw: the task pane as bars and the category tiles as glass squares and bars
+const AppProxy = memo(function AppProxy({ w, h }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
+      <Text x={14} y={16} size={17.5} color={C.heading} light>program tasks</Text>
+      <Lines x={36} y={44} w={120} n={4} gap={20} bar={7} />
+      <Text x={14} y={148} size={17.5} color={C.heading} light>other places</Text>
+      <Lines x={36} y={176} w={100} n={3} gap={20} bar={7} />
+      {box(192, 32, w - 200, h - 38, { borderRadius: 6, background: 'linear-gradient(180deg, #ffffff 0, #ffffff 60%, #eef4fc 100%)', boxShadow: 'inset 0 0 0 1px #c9daf0' })}
+      {CATEGORIES.slice(0, 7).map((c, i) => (
+        <div key={c.key}>
+          {box(202 + (i % 2) * 280, 42 + Math.floor(i / 2) * 118, 52, 52, { borderRadius: 7, background: 'linear-gradient(150deg, rgba(235,246,255,0.95) 0, rgba(176,214,250,0.9) 45%, rgba(120,175,235,0.9) 100%)', boxShadow: 'inset 0 0 0 1px #fff, 0 2px 5px rgba(40,80,150,0.3)' })}
+          <Text x={274 + (i % 2) * 280} y={42 + Math.floor(i / 2) * 118} size={13.5} heavy color="#2c6cc4">{c.label}</Text>
+          <Lines x={274 + (i % 2) * 280} y={60 + Math.floor(i / 2) * 118} w={110} n={Math.min(3, c.items.length)} gap={16} bar={6} />
+        </div>
+      ))}
+    </div>
+  )
+})
 export default {
   id: 'programs',
   title: () => 'my Programs & Services',
@@ -205,4 +225,5 @@ export default {
     menus: (win, t) => programMenus(win, t),
   },
   Content: scoped(Programs, {}),
+  Proxy: AppProxy,
 }

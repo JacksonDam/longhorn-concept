@@ -4,6 +4,7 @@
 // from them. The formatting bar works on the selection (or the next typed text), File > Save
 // logs 'word.save' and clears the modified mark; closing with changes asks to save.
 //   win.open { id: 'doc1', app: 'word' } / { id: 'word:<file>', app: 'word', props: { file } }
+import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -463,6 +464,32 @@ function wordCount(doc) {
 const noPrinter = () => messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 
 
+// what the blur copies draw: the bars, the ruler and the page with its text as bars
+const AppProxy = memo(function AppProxy({ win, t, w, h }) {
+  const top = appTopHeight({ row2: 24 })
+  const x0 = (w - PAGE_W) / 2
+  const de = lastOf(t, 'ui.value', wid(win, 'doc'))
+  const doc = de ? de.value : docFor(win.props?.file || 'Document 12')
+  let y = top + 34 + MARGIN
+  const paras = paraRanges(doc.text).slice(0, 30).map(([a, b], i) => {
+    const f = fmtAt(doc.runs, a + 1)
+    const lh = f.size * PX * 1.25
+    const n = Math.max(1, Math.ceil(((b - a) * f.size * 0.55) / (PAGE_W - 2 * MARGIN)))
+    const yy = y
+    y += lh * n
+    const bullet = doc.paras[i]?.bullet ? 22 : 0
+    return b > a ? <Lines key={i} x={x0 + MARGIN + bullet} y={yy} w={Math.min(PAGE_W - 2 * MARGIN - bullet, (b - a) * f.size * 0.55)} n={n} gap={lh} bar={f.size * 0.6} color={f.b ? 'rgba(31,63,122,0.5)' : 'rgba(0,0,0,0.28)'} ragged={false} /> : null
+  })
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: '#9fb1cc' }}>
+      <TopProxy w={w} row2={24} labels="File  Edit  View  Insert  Format  Tools  Help" />
+      {box(0, top, w, 20, { background: 'linear-gradient(180deg, #eef3fa, #dbe5f2)' })}
+      {box(x0, top + 34, PAGE_W, h - top - 54, { background: '#fff', boxShadow: '2px 3px 6px rgba(20,40,80,0.35), 0 0 0 1px #7f93b3' })}
+      {paras}
+      {box(0, h - 20, w, 20, { background: 'linear-gradient(180deg, #e3eaf6 0, #d3dfef 100%)' })}
+    </div>
+  )
+})
 export default {
   id: 'word',
   title: (p) => `${docName(p)} - Microsoft Word`,
@@ -474,4 +501,5 @@ export default {
   explorer: false,
   background: '#9fb1cc',
   Content: scoped(Word, { watch: ['word'] }),
+  Proxy: AppProxy,
 }

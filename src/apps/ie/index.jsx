@@ -4,6 +4,7 @@
 // Navigation is logged per window: 'ie.go' { id, url } (typed address, Home, Favorites, links),
 // 'ie.back' / 'ie.fwd' / 'ie.refresh' / 'ie.stop' { id }; 'win.open' with props.url (web links in
 // other windows) navigates too. A navigation shows ~0.8 s of "Finding site" before the page.
+import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo } from 'react'
 import { emit, getLog, getVersion } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -356,6 +357,21 @@ function offlineBox() {
   messageBox({ title: 'Work Offline', icon: 'info', text: 'You are working offline. Pages are not available until the network cable is connected.' })
 }
 
+// what the blur copies draw: the bars, the page's heading and its text as bars
+const AppProxy = memo(function AppProxy({ w, h }) {
+  const top = appTopHeight({ row2: 24 })
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
+      <TopProxy w={w} row2={24} labels="File  Edit  View  Favorites  Tools  Help" />
+      {box(60, top + 16, 32, 32, { borderRadius: 16, background: 'radial-gradient(circle at 35% 30%, #d8ecff, #3b78d8 60%, #123f9a)' })}
+      <Text x={104} y={top + 24} size={17} heavy color="#000">The page cannot be displayed</Text>
+      <Lines x={104} y={top + 52} w={400} n={3} gap={14} bar={6} color="rgba(0,0,0,0.3)" />
+      {box(104, top + 100, 430, 1, { background: '#c0c0c0' })}
+      <Lines x={122} y={top + 120} w={410} n={Math.max(0, Math.floor((h - top - 150) / 14))} gap={14} bar={6} color="rgba(0,0,0,0.28)" />
+      {box(0, h - 20, w, 20, { background: 'linear-gradient(180deg, #e3eaf6 0, #d3dfef 100%)' })}
+    </div>
+  )
+})
 export default {
   id: 'ie',
   title: () => 'The page cannot be displayed - Microsoft Internet Explorer',
@@ -367,4 +383,5 @@ export default {
   explorer: false,
   background: '#ffffff',
   Content: scoped(IE, {}),
+  Proxy: AppProxy,
 }
