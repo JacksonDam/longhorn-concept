@@ -18,7 +18,6 @@ import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
 import { focusedField } from '../ui/state.js'
-import { Beam } from './Beam.jsx'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
 import {
@@ -149,11 +148,11 @@ const Title = memo(function Title({ w, title, TitleContent, active, props }) {
 // the frame + app content at time t (copies pass a snapshot time)
 const WindowBody = memo(
   // ck: optional content key (app.copyKey): copies with an unchanged key don't re-render
-  function WindowBody({ win, app, t, w, h, active, live, ck }) {
+  function WindowBody({ win, app, t, w, h, active, live, ck, proxy }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
-    const Content = app.Content
+    const Content = proxy || app.Content
     return (
       <div
         style={{
@@ -179,7 +178,7 @@ const WindowBody = memo(
   },
   (a, b) =>
     (a.ck != null && a.ck === b.ck ? true : sameRelT(a, b)) &&
-    a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && winKey(a.win) === winKey(b.win),
+    a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && a.proxy === b.proxy && winKey(a.win) === winKey(b.win),
 )
 // content time relative to the window's open: a prewarmed ghost and the window that takes over
 // its layers render identical content at the same relative time, so nothing re-renders
@@ -401,12 +400,15 @@ function liveContentT(win, app, t) {
 // Windows that exist at session start and the prewarmed windows (ghosts of apps with `prewarm`)
 // mount one copy every two frames from a little after the desktop entrance; a window opened
 // later mounts two copies per frame from its open event (the open becomes visible 5 frames in).
+export const DEFAULT_COPIES = 6 // blur copies per window (my Music, the video's window: 10)
 export const MOUNT_EVERY = 2 // frames between two background copy mounts (all windows share one queue)
 function mountedCopies(win, app, t, N) {
   // queued windows (ghosts, windows running at login) mount nothing until their turn
   let n = win.mountStart != null && (win.lastAction === 'ghost' || win.lastAction === 'initial') ? 0 : 1
   if (win.mountStart != null) n = Math.max(n, Math.ceil(toRel(t, win.mountStart) / MOUNT_EVERY))
-  if (win.lastAction !== 'ghost' && win.lastAction !== 'initial') n = Math.max(n, 1 + Math.floor(Math.max(0, toRel(t, win.openedAt)) * 2))
+  // a window opened later mounts one copy per frame during the frames before it shows (the open
+  // is visible from rel 5, the beam plays meanwhile)
+  if (win.lastAction !== 'ghost' && win.lastAction !== 'initial') n = Math.max(n, 1 + Math.floor(Math.max(0, toRel(t, win.openedAt))))
   return Math.max(0, Math.min(N, n))
 }
 
@@ -426,7 +428,7 @@ export function quietKey(win, app, t) {
     (win.lastAction === 'minimize' && toRel(t, win.changedAt) > MIN_END + 1) ||
     (win.state === 'closed' && toRel(t, win.changedAt) > CLOSE_END + 4)
   if (!done) return null
-  const N = app.copies ?? 8
+  const N = app.copies ?? DEFAULT_COPIES
   const ev = lastEventT(win, app, t)
   const bucket = Math.min(N + 1, Math.floor(toRel(t, ev) / STAGGER))
   return `${win.lastAction}|${win.state}|${win.changedAt}|${mountedCopies(win, app, t, N)}|${ev}|${bucket}|${winKey(win)}`
@@ -434,7 +436,7 @@ export function quietKey(win, app, t) {
 
 function PlexWindowImpl({ win, app, t, active, z }) {
   const m = motion(win, app, t) || { ...GHOST_MOTION, rect: () => normalRect(win, app) }
-  const N = app.copies ?? 8
+  const N = app.copies ?? DEFAULT_COPIES
   const mounted = mountedCopies(win, app, t, N)
   const nEff = Math.min(m.n, mounted)
   const blur = nEff > 1 && m.pose
@@ -482,19 +484,23 @@ function PlexWindowImpl({ win, app, t, active, z }) {
     const visible = style !== PARKED && style.opacity > 1e-3
     // the open's lighting layers: on the live layer always, on copies until the open is over
     // (unmounted one copy per frame afterwards)
-    const light = k === 0 || ghost || m.closedDone || (win.lastAction === 'open' && rel < 17 + k)
+    // (mounted from the open event, two copies per frame before the window shows; unmounted one
+    // copy per frame after the open)
+    const light = win.lastAction === 'open' && m.light != null && rel < 17 + k && rel >= k / 2 - 1
     layers.push(
       <div
         key={k}
         style={{
           position: 'absolute', left: rr.x, top: rr.y, width: rr.w, height: rr.h,
-          ...style, mixBlendMode: 'plus-lighter', willChange: 'transform, opacity',
+          // parked layers (off-stage, hidden windows) are not composited: they cost no layer and
+          // no raster, Blink only keeps their paint
+          ...style, mixBlendMode: 'plus-lighter', willChange: style === PARKED ? undefined : 'transform, opacity',
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
+          <WindowBody proxy={k > 0 ? app.Proxy : undefined} win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
@@ -506,9 +512,14 @@ function PlexWindowImpl({ win, app, t, active, z }) {
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
       <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>{layers}</div>
-      <Beam {...(m.beam || { rel: null })} />
     </div>
   )
+}
+
+// the beam of this window's current animation (null: none); WindowLayer draws one shared beam
+export function beamOf(win, app, t) {
+  const m = motion(win, app, t)
+  return m && m.beam ? m.beam : null
 }
 
 // re-renders every frame unless the window is quiet (see quietKey) and nothing else changed

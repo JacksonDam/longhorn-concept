@@ -3,7 +3,8 @@
 import { useTime, useEvents } from '../core/time.jsx'
 import { windows, focusedWindow, sessionStart } from './wm.js'
 import { getApp, listApps } from './apps.js'
-import { PlexWindow, MOUNT_EVERY, quietKey } from './PlexWindow.jsx'
+import { PlexWindow, MOUNT_EVERY, DEFAULT_COPIES, quietKey, beamOf } from './PlexWindow.jsx'
+import { Beam } from './Beam.jsx'
 import { FPS } from '../core/clock.js'
 import { emit } from '../core/events.js'
 
@@ -30,7 +31,7 @@ function withGhosts(list, S) {
     const app = getApp(w.app)
     if (!(w.lastAction === 'ghost' || w.initial || app.prewarm)) return w
     const r = { ...w, mountStart: at }
-    at += ((app.copies ?? 8) - 1) * (MOUNT_EVERY / FPS)
+    at += ((app.copies ?? DEFAULT_COPIES) - 1) * (MOUNT_EVERY / FPS)
     return r
   })
 }
@@ -44,12 +45,28 @@ export function WindowLayer() {
   // moves DOM (which would repaint its layers); the layer is one stacking context below the shell
   const z = new Map(list.map((w, i) => [w.id, i + 1]))
   const order = [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  // one beam, always mounted (its layers stay rasterised), driven by the latest window animation
+  let beam = null
+  let beamT = -Infinity
+  for (const w of list) {
+    if (w.lastAction === 'ghost' || w.lastAction === 'initial') continue
+    const at = w.lastAction === 'open' ? w.openedAt : w.changedAt
+    if (at <= beamT) continue
+    const b = beamOf(w, getApp(w.app), t)
+    if (b && b.rel != null && b.rel > -2 && b.rel < 20) {
+      beam = b
+      beamT = at
+    }
+  }
   return (
     <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>
       {order.map((w) => {
         const app = getApp(w.app)
         return <PlexWindow key={w.id} win={w} app={app} t={t} active={focus?.id === w.id} z={z.get(w.id)} quiet={quietKey(w, app, t)} />
       })}
+      <div style={{ position: 'absolute', inset: 0, zIndex: list.length + 1, pointerEvents: 'none' }}>
+        <Beam {...(beam || { rel: null })} />
+      </div>
     </div>
   )
 }

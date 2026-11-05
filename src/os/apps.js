@@ -18,6 +18,12 @@
 //     Overlay: ({ win, t }) =>           // live layer drawn once above the blur copies (3D slabs)
 //     liveTime: (win, t, base) => time   // see os/PlexWindow liveContentT (long app animations)
 //     copyKey: (win, t) => string        // the copies' visual state at t: equal keys skip re-rendering
+//     Proxy: ({ win, t, w, h }) =>       // what the motion-blur copies draw instead of Content: a cheap
+//                                        // stand-in that looks the same at a glance (same backgrounds,
+//                                        // big shapes and images, no controls, no long lists), so
+//                                        // opening the window mounts a few nodes per copy instead of a
+//                                        // full client area. Optional; without it copies render Content.
+//     copies: n                          // blur copies (default 6); my Music uses 10
 //     relevant: (e, win) => bool         // events (besides its ui-kit ids and '<app>.*') that change
 //                                        // the content, so it animates `settle` s after them
 //   }
