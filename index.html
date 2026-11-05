@@ -2,7 +2,34 @@
 <html lang="en" style="background:#000">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" id="lh-viewport" />
+    <script>
+      // Phones and tablets: lay the page out at the stage's own 960x720 (fitted, the screen's aspect)
+      // and let the browser's page zoom shrink it to the screen, instead of the stage's CSS scale.
+      // WebKit backs every composited layer at its untransformed size times the device pixel ratio,
+      // so under a downscaling transform each window layer cost up to (3 / 0.41)^2 = 54 times the
+      // pixels it shows (a phone ran out of memory and reloaded); a page zoom is honoured. Canvas
+      // code sizes from devicePixelRatio, so it reads the pixels per CSS px that this zoom gives.
+      // (Desktop browsers ignore the viewport tag: nothing changes there.)
+      ;(function () {
+        if (!matchMedia('(pointer: coarse)').matches) return
+        var m = document.getElementById('lh-viewport')
+        var fit = function () {
+          var a = screen.width, b = screen.height
+          var land = matchMedia('(orientation: landscape)').matches
+          var sw = land ? Math.max(a, b) : Math.min(a, b), sh = land ? Math.min(a, b) : Math.max(a, b)
+          var w = Math.max(960, Math.ceil((720 * sw) / sh)), k = sw / w
+          m.setAttribute('content', 'width=' + w + ', initial-scale=' + k + ', minimum-scale=' + k)
+          return w
+        }
+        // (a browser that ignores the tag keeps its own layout width: then nothing changes)
+        var w = fit()
+        if (Math.abs(innerWidth - w) > 2) return m.setAttribute('content', 'width=device-width, initial-scale=1')
+        addEventListener('orientationchange', function () { setTimeout(fit, 50) })
+        var dpr = window.devicePixelRatio || 1, vv = window.visualViewport
+        Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: function () { return dpr * (vv ? vv.scale : 1) } })
+      })()
+    </script>
     <title>Longhorn</title>
     <link rel="icon" type="image/svg+xml" href="/img/desktop/flag.svg" />
   </head>
