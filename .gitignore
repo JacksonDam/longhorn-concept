@@ -4,6 +4,6 @@ dist
 ._*
 .env
 # reference video, frames and raw downloads stay local
-ref/
-assets-src/
-out/
+/ref
+/assets-src
+/out
