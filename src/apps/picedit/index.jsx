@@ -85,7 +85,7 @@ function PicEdit({ win, t, w, h }) {
         {mode === 'identify' && <div style={{ position: 'absolute', left: 0, right: 0, top: 8, textAlign: 'center', fontFamily: FONT, fontSize: 11, color: '#fff', textShadow: '0 1px 2px #000' }}>Click the person in the picture</div>}
       </div>
       {/* tool and annotation bar */}
-      <div style={{ position: 'absolute', left: PH.x, top: PH.y + PH.h + 4, width: PH.w, height: 28, borderRadius: '0 0 6px 6px', background: 'linear-gradient(180deg, #5b98e6, #3f78c4)' }} />
+      <div style={{ position: 'absolute', left: PH.x, top: PH.y + PH.h + 4, width: PH.w, height: 28, background: 'linear-gradient(180deg, #5b98e6, #3f78c4)' }} />
       {[
         ['rl', 'undo', 'Rotate counterclockwise', () => setEd({ rot: (ed.rot - 90) % 360 })],
         ['rr', 'redo', 'Rotate clockwise', () => setEd({ rot: (ed.rot + 90) % 360 })],

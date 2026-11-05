@@ -180,10 +180,10 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
   const Search = cfg.Search
   return (
     <>
-      {/* glass toolbar (title bar + favourites row) */}
-      <div style={abs(1, 0, w - 1, 75, { background: grad(toolbarStops, w) })} />
+      {/* glass toolbar (title bar + favourites row); every band runs square to the window's edges */}
+      <div style={abs(0, 0, w, 75, { background: grad(toolbarStops, w) })} />
       <div
-        style={abs(1, 0, w - 1, 75, {
+        style={abs(0, 0, w, 75, {
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 64px, rgba(255,255,255,0.06) 68px, rgba(255,255,255,0.1) 70px, rgba(0,0,0,0) 72px)',
         })}
@@ -199,9 +199,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
 
       {/* menu / address band and command row */}
       <div
-        style={abs(1, 72, w - 2, 50, {
+        style={abs(0, 72, w, 50, {
           background: grad(bandStops, w),
-          borderRadius: '8px 8px 0 0',
           boxShadow: 'inset 0 1px 0 rgba(20,60,130,0.6), inset 0 2px 0 rgba(140,190,255,0.12)',
         })}
       />
