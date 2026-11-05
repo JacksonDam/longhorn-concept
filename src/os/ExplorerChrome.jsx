@@ -190,7 +190,7 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
       />
       <img alt="" src={toolImg(w >= 760).src} width={toolImg(w >= 760).w} height={TOOL_IMG_H} style={abs(0, 0, toolImg(w >= 760).w, TOOL_IMG_H)} />
       {!copy && <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />}
-      {!copy && <div data-hit="nav:forward" style={abs(46, 30, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
+      {!copy && <div data-hit="nav:forward" style={abs(50, 32, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
       <Texts style={label.style} items={toolsFor(w).map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
       {!copy &&
         toolsFor(w).map((it) => (

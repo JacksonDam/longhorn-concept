@@ -32,31 +32,129 @@ export function Reflected({ x, y, w, h, gap = 1, depth = 12, op = 0.35, children
 }
 
 // ---------------------------------------------------------------- toolbar row
+// Back / forward: two glass orbs sunk in a well pressed into the toolbar (the hull of a circle
+// around each orb). The well's top wall is in shadow (a feathered dark edge above it), its floor
+// brightens to a lit lower lip; each orb has a soft dark outline, a body lit from the upper right,
+// a fresnel rim, a top cap and (back) a caustic low left. Fitted to the median of frames 800-1348
+// (tools: docs/music-spec.md "Toolbar icons"); gradients only, no filters.
 export const BackForward = () =>
   svg(
     60,
     40,
     <>
       <defs>
-        <radialGradient id="mw-bf" cx="0.45" cy="0.35" r="0.7">
-          <stop offset="0" stopColor="#d4e6ff" stopOpacity="0.85" />
-          <stop offset="0.6" stopColor="#8cb6f0" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#3f78cc" stopOpacity="0.5" />
-        </radialGradient>
-        <linearGradient id="mw-bfbase" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0.05" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0.35" />
+        <linearGradient id="bf-w" gradientUnits="userSpaceOnUse" x1="0" y1="6.41" x2="0" y2="36.74">
+          <stop offset="0" stopColor="#3e79cb" />
+          <stop offset="0.51" stopColor="#477bca" />
+          <stop offset="0.76" stopColor="#7eaded" />
+          <stop offset="1" stopColor="#81ace6" />
         </linearGradient>
+        <linearGradient id="bf-se" gradientUnits="userSpaceOnUse" x1="0" y1="3.41" x2="0" y2="36.74">
+          <stop offset="0" stopColor="#3e79cb" stopOpacity="0.15" />
+          <stop offset="0.5" stopColor="#3e79cb" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="bf-ad" gradientUnits="userSpaceOnUse" x1="22.13" y1="0" x2="24.87" y2="0">
+          <stop offset="0" stopColor="#3264bc" stopOpacity="0.63" />
+          <stop offset="1" stopColor="#3264bc" stopOpacity="0" />
+        </linearGradient>
+        <radialGradient id="bf-k" gradientUnits="userSpaceOnUse" cx="15.31" cy="33.59" r="8.63">
+          <stop offset="0" stopColor="#9ac7ff" stopOpacity="0.96" />
+          <stop offset="1" stopColor="#9ac7ff" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="bf-a" gradientUnits="userSpaceOnUse" x1="15.41" y1="0" x2="22.13" y2="0">
+          <stop offset="0" stopColor="#ccf6ff" />
+          <stop offset="1" stopColor="#aec6ec" />
+        </linearGradient>
+        <radialGradient id="bf-oB" cx="0.5" cy="0.5" r="0.5" fx="0.94" fy="0.27">
+          <stop offset="0" stopColor="#d4d9e3" />
+          <stop offset="0.25" stopColor="#acccf2" />
+          <stop offset="1" stopColor="#336fcd" />
+        </radialGradient>
+        <radialGradient id="bf-oR">
+          <stop offset="0" stopColor="#c0e4ff" stopOpacity="0" />
+          <stop offset="0.66" stopColor="#c0e4ff" stopOpacity="0" />
+          <stop offset="0.93" stopColor="#c0e4ff" stopOpacity="0.66" />
+          <stop offset="1" stopColor="#c0e4ff" stopOpacity="0.26" />
+        </radialGradient>
+        <linearGradient id="bf-oH" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#eaf9ff" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#eaf9ff" stopOpacity="0" />
+        </linearGradient>
+        <radialGradient id="bf-oD">
+          <stop offset="0.83" stopColor="#2a60bc" stopOpacity="0" />
+          <stop offset="0.9" stopColor="#2a60bc" stopOpacity="0.91" />
+          <stop offset="0.94" stopColor="#2a60bc" stopOpacity="0.91" />
+          <stop offset="1" stopColor="#2a60bc" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="bf-oD2">
+          <stop offset="0.83" stopColor="#639be1" stopOpacity="0" />
+          <stop offset="0.9" stopColor="#639be1" stopOpacity="0.91" />
+          <stop offset="0.94" stopColor="#639be1" stopOpacity="0.91" />
+          <stop offset="1" stopColor="#639be1" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="bf-oV" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+        <mask id="bf-ov" maskContentUnits="objectBoundingBox">
+          <rect width="1" height="1" fill="url(#bf-oV)" />
+        </mask>
+        <radialGradient id="bf-fB" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.37">
+          <stop offset="0" stopColor="#003eb0" />
+          <stop offset="0.83" stopColor="#6b96da" />
+          <stop offset="1" stopColor="#1040ce" />
+        </radialGradient>
+        <radialGradient id="bf-fR">
+          <stop offset="0" stopColor="#aae2ff" stopOpacity="0" />
+          <stop offset="0.68" stopColor="#aae2ff" stopOpacity="0" />
+          <stop offset="0.93" stopColor="#aae2ff" stopOpacity="0.81" />
+          <stop offset="1" stopColor="#aae2ff" stopOpacity="0.32" />
+        </radialGradient>
+        <linearGradient id="bf-fH" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#b8e5ff" stopOpacity="0.69" />
+          <stop offset="1" stopColor="#b8e5ff" stopOpacity="0" />
+        </linearGradient>
+        <radialGradient id="bf-fD">
+          <stop offset="0.69" stopColor="#3974ce" stopOpacity="0" />
+          <stop offset="0.81" stopColor="#3974ce" stopOpacity="0.73" />
+          <stop offset="0.88" stopColor="#3974ce" stopOpacity="0.73" />
+          <stop offset="1" stopColor="#3974ce" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="bf-fD2">
+          <stop offset="0.69" stopColor="#5184d0" stopOpacity="0" />
+          <stop offset="0.81" stopColor="#5184d0" stopOpacity="0.73" />
+          <stop offset="0.88" stopColor="#5184d0" stopOpacity="0.73" />
+          <stop offset="1" stopColor="#5184d0" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="bf-fV" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+        <mask id="bf-fv" maskContentUnits="objectBoundingBox">
+          <rect width="1" height="1" fill="url(#bf-fV)" />
+        </mask>
+        <clipPath id="bf-oc">
+          <circle cx="20.74" cy="21.3" r="12.84" />
+        </clipPath>
       </defs>
-      {/* the pill that joins both buttons */}
-      <path d="M8 22 C8 30 14 36 24 36 L44 36 C52 36 56 31 56 27 C56 23 52 21 48 23 C44 26 40 28 34 28 L22 28 Z" fill="url(#mw-bfbase)" />
-      <path d="M8 22 C8 30 14 36 24 36 L44 36 C52 36 56 31 56 27" fill="none" stroke="#dcebff" strokeOpacity="0.45" strokeWidth="1.2" />
-      <circle cx="22" cy="20" r="12.5" fill="url(#mw-bf)" stroke="#e8f2ff" strokeOpacity="0.55" strokeWidth="1" />
-      <ellipse cx="21" cy="14" rx="8" ry="4.5" fill="#fff" opacity="0.35" />
-      <circle cx="44" cy="21" r="8" fill="url(#mw-bf)" stroke="#e8f2ff" strokeOpacity="0.5" strokeWidth="1" />
-      <ellipse cx="43.5" cy="17" rx="5" ry="2.8" fill="#fff" opacity="0.3" />
-      <path d="M15.5 20 L21 15.5 L21 24.5 Z" fill="#eef5ff" opacity="0.8" />
-      <path d="M47 21 L42.5 17.5 L42.5 24.5 Z" fill="#eef5ff" opacity="0.75" />
+      <path d="M22.25,2.2 L51.65,7.79 A11.57 11.57 0 0 1 51.22,30.59 L21.63,35.06 A16.67 16.67 0 1 1 22.25,2.2 Z" fill="url(#bf-se)" />
+      <path d="M22.15,3.69 L51.55,9.28 A11.07 11.07 0 0 1 51.14,31.09 L21.55,35.56 A16.17 16.17 0 1 1 22.15,3.69 Z" fill="url(#bf-se)" />
+      <path d="M22.06,5.18 L51.46,10.77 A10.57 10.57 0 0 1 51.07,31.6 L21.48,36.07 A15.67 15.67 0 1 1 22.06,5.18 Z" fill="url(#bf-se)" />
+      <path d="M21.97,6.67 L51.37,12.26 A10.07 10.07 0 0 1 50.99,32.1 L21.4,36.57 A15.17 15.17 0 1 1 21.97,6.67 Z" fill="url(#bf-w)" />
+      <circle cx="20.74" cy="21.3" r="12.84" fill="url(#bf-oB)" />
+      <circle clipPath="url(#bf-oc)" cx="15.31" cy="33.59" r="8.63" fill="url(#bf-k)" />
+      <circle cx="20.74" cy="21.3" r="12.84" fill="url(#bf-oR)" />
+      <ellipse cx="20.74" cy="13.52" rx="11.04" ry="5.05" fill="url(#bf-oH)" />
+      <circle cx="20.74" cy="21.3" r="14.52" fill="url(#bf-oD2)" />
+      <circle cx="20.74" cy="21.3" r="14.52" fill="url(#bf-oD)" mask="url(#bf-ov)" />
+      <path d="M15.41 21.86 L22.13 16.61 L22.13 27.11 Z" fill="url(#bf-a)" />
+      <rect x="22.13" y="16.61" width="2.74" height="10.5" fill="url(#bf-ad)" />
+      <circle cx="49.13" cy="21.83" r="7.12" fill="url(#bf-fB)" />
+      <circle cx="49.13" cy="21.83" r="7.12" fill="url(#bf-fR)" />
+      <ellipse cx="49.13" cy="19.7" rx="6.12" ry="4.98" fill="url(#bf-fH)" />
+      <circle cx="49.13" cy="21.83" r="9.06" fill="url(#bf-fD2)" />
+      <circle cx="49.13" cy="21.83" r="9.06" fill="url(#bf-fD)" mask="url(#bf-fv)" />
+      <path d="M52.17 22 L46.96 18.3 L46.96 25.7 Z" fill="#c2e7fe" />
     </>,
   )
 
