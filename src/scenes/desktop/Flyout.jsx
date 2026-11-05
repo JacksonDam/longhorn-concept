@@ -118,6 +118,10 @@ const FlyoutBack = memo(function FlyoutBack() {
             'linear-gradient(to bottom, rgba(70,80,120,0.45) 0px, rgba(70,80,120,0.45) 2px, rgb(107,138,201) 2px, rgb(118,148,212) 4px, rgb(68,123,216) 4px, rgb(66,125,221) 30px, rgb(87,147,233) 30px, rgb(100,160,246) 31px, rgb(116,165,247) 32px, rgb(76,125,208) 33px, rgb(114,142,195) 34px, rgb(114,142,195) 35px, rgb(78,128,220) 218px, rgb(61,112,203) 219px, rgb(52,119,222) 220px, rgb(64,120,220) 226px, rgb(56,114,199) 233px, rgb(82,139,226) 234px, rgb(97,155,242) 235px, rgb(89,144,216) 236px, rgb(98,147,232) 238px, rgb(27,76,161) 239px, rgb(8,50,116) 241px)',
         }}
       />
+      {/* title bar: lighter around the note icon, fading to the plain blue on the right */}
+      <div style={{ position: 'absolute', left: x0, top: 262, width: FLY.w, height: 26, background: 'linear-gradient(to right, rgb(92,148,229) 0px, rgb(85,143,228) 30px, rgb(84,142,227) 95px, rgb(72,128,223) 125px, rgb(68,124,219) 145px, rgb(68,124,217) 193px)' }} />
+      {/* footer continues the scrollbar column's colour on the right */}
+      <div style={{ position: 'absolute', left: 840, top: 476, width: 18, height: 16, background: 'rgb(80,136,210)' }} />
       {/* left bevel */}
       <div style={{ position: 'absolute', left: x0 - 1, top: 260, width: 3, height: 237, background: 'linear-gradient(to right, rgba(118,139,201,0.9), rgba(140,170,225,0.9))' }} />
       {/* list */}
@@ -170,7 +174,7 @@ const FlyoutFront = memo(function FlyoutFront() {
       </div>
       <svg width="40" height="20" viewBox="0 0 40 20" style={{ position: 'absolute', left: 820.5, top: 262.3 }}>
         <path d="M4.5 7.5 L16.5 7.5 L10.5 12.5 Z" fill="#e4ecfb" opacity="0.8" />
-        <path d="M26 3 L36 13 M36 3 L26 13" stroke="#e4ecfb" strokeOpacity="0.75" strokeWidth="2.2" strokeLinecap="round" />
+        <path d="M24 3.5 L33.5 13 M33.5 3.5 L24 13" stroke="#e4ecfb" strokeOpacity="0.62" strokeWidth="2.2" strokeLinecap="round" />
       </svg>
       <img
         src={asset('img/desktop/album-standin.webp')}
