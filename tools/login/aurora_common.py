@@ -108,3 +108,80 @@ def bx_basis(xs):
 
 
 BXH, DXH = bx_basis(XS)  # half-res columns
+
+
+# ---------------------------------------------------------------- bottom bar (translucent overlay)
+BAR_TOP = 572
+_bar = None
+
+
+def bar_overlay_full():
+    """(P, a): premultiplied colour (148,960,3) and alpha (148,960) of public/img/login/bar.png,
+    upsampled across like the browser does (240 cells of 4 px, linear between cell centres)"""
+    global _bar
+    if _bar is None:
+        im = np.asarray(Image.open(os.path.join(ROOT, 'public', 'img', 'login', 'bar.png')).convert('RGBA'), np.float32)
+        a = im[..., 3] / 255
+        P = im[..., :3] * a[..., None]
+        u = (np.arange(960) + 0.5) / 4 - 0.5
+        i0 = np.clip(np.floor(u).astype(int), 0, 239)
+        i1 = np.clip(i0 + 1, 0, 239)
+        f = np.clip(u - np.floor(u), 0, 1)
+        f[u < 0] = 0
+        a2 = a[:, i0] * (1 - f) + a[:, i1] * f
+        P2 = P[:, i0] * (1 - f)[:, None] + P[:, i1] * f[:, None]
+        _bar = (P2, a2)
+    return _bar
+
+
+def tile_centres(n):
+    if n < 168:
+        return [363.2 + 100 * i for i in range(5)]
+    if n > 200:
+        return [341.5, 438.3, 535, 631.7]
+    return None
+
+
+def bar_ui_mask(n):
+    """True = no UI in front of the aurora+bar at this pixel (rows BAR_TOP..719 of the stage)"""
+    m = np.ones((720, 960), bool)
+    m[:BAR_TOP] = False
+    m[615:692, 30:102] = False          # Shut Down
+    m[624:666, 815:935] = False         # clock
+    cs = tile_centres(n)
+    if cs is None:
+        m[590:696, 300:800] = False     # tiles sliding
+    else:
+        for c in cs:
+            m[596:672, int(c - 38):int(c + 38)] = False
+            m[668:694, int(c - 40):int(c + 40)] = False
+    if 160 <= n <= 202:
+        m[560:720, 300:600] = False
+    cc = cursor_at(n)
+    if cc is not None:
+        x, y = int(cc[0]), int(cc[1])
+        m[max(0, y - 14):y + 34, max(0, x - 14):x + 36] = False
+    return m
+
+
+def fit_target(n, ref=None):
+    """full-res (target, weight) for fitting the aurora to reference frame n: the plain
+    background where visible (weight 1) and, under the bar, the aurora recovered by inverting
+    the overlay (ref = (1-a) aurora + a C), weighted by (1-a)^2 where a < 0.85"""
+    if ref is None:
+        ref = np.asarray(Image.open(os.path.join(REF, f'f{n:05d}.png')).convert('RGB'), np.float32)
+    T = ref.copy()
+    W = mask_full(n).astype(np.float32)
+    P, a = bar_overlay_full()
+    keep = bar_ui_mask(n)[BAR_TOP:] & (a < 0.85)
+    inv = (ref[BAR_TOP:] - P) / np.maximum(1 - a, 0.15)[..., None]
+    T[BAR_TOP:] = np.where(keep[..., None], inv, ref[BAR_TOP:])
+    W[BAR_TOP:] = np.where(keep, (1 - a) ** 2, 0)
+    return T, W
+
+
+def to_half(T, W):
+    w4 = W.reshape(360, 2, 480, 2)
+    ws = w4.sum((1, 3))
+    t = (T.reshape(360, 2, 480, 2, 3) * w4[..., None]).sum((1, 3)) / np.maximum(ws, 1e-6)[..., None]
+    return t, ws / 4

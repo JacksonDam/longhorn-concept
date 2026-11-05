@@ -8,7 +8,8 @@ d = perpendicular distance to the centreline y = Y_i(x); Y_i and the per-channel
 A_i(x) are cubic B-splines over x (aurora_common.KX control points)."""
 import sys, os, time, numpy as np, scipy.sparse.linalg as spl, cv2
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from aurora_common import XS, YS, KX, BXH, DXH, mask_half, load_half
+from aurora_common import XS, YS, KX, BXH, DXH, mask_half, load_half, fit_target, to_half
+from concurrent.futures import ProcessPoolExecutor
 from bspline import basis, laplacian, NX, NY
 
 args = sys.argv[1:]
@@ -35,13 +36,17 @@ LAP = laplacian()
 LT = (LAP.T @ LAP)
 
 
-def fit_coarse(img, m):
-    """img: (360,480,3) float, m: (360,480) bool -> grid (NY,NX,3)"""
-    q = img.reshape(180, 2, 240, 2, 3).mean((1, 3)).reshape(-1, 3)
-    mq = m.reshape(180, 2, 240, 2).all((1, 3)).ravel()
-    Bm = B4[mq]
-    solve = spl.factorized((Bm.T @ Bm + 0.02 * LT).tocsc())
-    return np.stack([solve(Bm.T @ q[mq, c]) for c in range(3)], -1).reshape(NY, NX, 3)
+def fit_coarse(img, w):
+    """img: (360,480,3) float, w: (360,480) weights in 0..1 -> grid (NY,NX,3)"""
+    w4 = w.reshape(180, 2, 240, 2)
+    ws = w4.sum((1, 3))
+    q = ((img.reshape(180, 2, 240, 2, 3) * w4[..., None]).sum((1, 3)) / np.maximum(ws, 1e-6)[..., None]).reshape(-1, 3)
+    wq = (ws / 4).ravel()
+    sel = wq > 1e-4
+    Bm = B4[sel]
+    Bw = Bm.multiply(wq[sel][:, None]).tocsr()
+    solve = spl.factorized((Bw.T @ Bm + 0.02 * LT).tocsc())
+    return np.stack([solve(Bw.T @ q[sel, c]) for c in range(3)], -1).reshape(NY, NX, 3)
 
 
 def eval_coarse(grid):
@@ -156,7 +161,7 @@ def ridge_map(r, W):
     # orientation: eigenvector of lmin; keep near-horizontal lines (|angle| < 50 deg)
     ang = 0.5 * np.arctan2(2 * rxy, rxx - ryy)    # orientation of the max-curvature axis
     horiz = np.abs(np.cos(ang)) < np.cos(np.radians(40))  # curvature axis mostly vertical
-    resp = resp * horiz * cv2.erode(W.astype(np.uint8), np.ones((5, 5), np.uint8))
+    resp = resp * horiz * cv2.erode((W > 0.5).astype(np.uint8), np.ones((5, 5), np.uint8))
     return resp, rs
 
 
@@ -247,9 +252,16 @@ def greedy_add(R, T, W, max_new, thr):
     return added
 
 
+TW = {}  # key -> (target, weight) at half res (see aurora_common.fit_target)
+
+
+def prep(n):
+    t, w = to_half(*fit_target(n))
+    return n, t.astype(np.float32), w.astype(np.float32)
+
+
 def fit_key(n, R, coarse_grid, prior_R, grow=True):
-    f = np.asarray(half[n - 1], np.float32)
-    W = mask_half(n).astype(np.float32)
+    f, W = TW[n]
     base = eval_coarse(coarse_grid)
     T = f - base
     T_all = T - render_all(R)
@@ -295,9 +307,13 @@ def fit_key(n, R, coarse_grid, prior_R, grow=True):
 def main():
     t0 = time.time()
     # round 0 coarse: plain fit
+    with ProcessPoolExecutor(10) as ex:
+        for n, t, w in ex.map(prep, KEYS, chunksize=4):
+            TW[n] = (t, w)
+    print('targets ready %.1fs' % (time.time() - t0), flush=True)
     coarse = {}
     for n in KEYS:
-        coarse[n] = fit_coarse(np.asarray(half[n - 1], np.float32), mask_half(n))
+        coarse[n] = fit_coarse(*TW[n])
     print('coarse0 done %.1fs' % (time.time() - t0), flush=True)
     hist = {}
     for rnd in range(ROUNDS):
@@ -316,8 +332,8 @@ def main():
                 print(f'round {rnd} key {n}: active {sum(r[3] for r in R)} added {added} resid {e:.2f}  {time.time()-t0:.0f}s', flush=True)
         # refit coarse with ribbons removed
         for n in KEYS:
-            f = np.asarray(half[n - 1], np.float32)
-            coarse[n] = fit_coarse(f - render_all(hist[n]), mask_half(n))
+            f, w = TW[n]
+            coarse[n] = fit_coarse(f - render_all(hist[n]), w)
         print(f'round {rnd} coarse refit {time.time()-t0:.0f}s', flush=True)
     keys = KEYS
     P = np.array([[r[0] for r in hist[n]] for n in keys])

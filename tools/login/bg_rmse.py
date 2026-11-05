@@ -4,14 +4,14 @@ usage: bg_rmse.py <frames spec> --cap dir [--blur 1] [--sheet out.png]"""
 import sys, os, numpy as np, cv2
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from aurora_common import mask_full, REF
+from aurora_common import mask_full, bar_ui_mask, REF
 
 args = sys.argv[1:]
 def opt(n, d=None):
     if n in args:
         i = args.index(n); v = args[i + 1]; del args[i:i + 2]; return v
     return d
-cap = opt('--cap'); blur = float(opt('--blur', 1)); sheet = opt('--sheet')
+cap = opt('--cap'); blur = float(opt('--blur', 1)); sheet = opt('--sheet'); region = opt('--region', 'bg')
 frames = []
 for part in args[0].split(','):
     step = 1
@@ -30,7 +30,7 @@ for n in frames:
     c = np.asarray(Image.open(cp).convert('RGB'), np.float32)
     if blur:
         r = cv2.GaussianBlur(r, (0, 0), blur); c = cv2.GaussianBlur(c, (0, 0), blur)
-    m = mask_full(n)
+    m = bar_ui_mask(n) if region == 'bar' else mask_full(n)
     e = float(np.sqrt((((r - c) ** 2).mean(2) * m).sum() / m.sum()))
     for rg in ranges:
         if rg[0] <= n <= rg[1]:
