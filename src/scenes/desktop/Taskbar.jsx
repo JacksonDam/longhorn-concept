@@ -22,10 +22,11 @@ const rowsGradient = (rows, a) =>
 // Task buttons. Two measured layouts: without and with the "My Music" button.
 // x: button left edge, w: width; icon/text offsets are from the left edge.
 export const TASKS = {
-  inbox: { label: 'Inbox - Microsoft Outlook', Icon: OutlookIcon },
+  // tw: visible text width, the last ~12 px fade out (measured where the video's text fades)
+  inbox: { label: 'Inbox - Microsoft Outlook', Icon: OutlookIcon, tw: 99 },
   yahoo: { label: 'Yahoo.com', icon: 'ic-ie.webp' },
   music: { label: 'My Music', icon: 'ic-mymusic.webp' },
-  doc: { label: 'Document 12 - Microsoft Word', icon: 'ic-word.svg' },
+  doc: { label: 'Document 12 - Microsoft Word', icon: 'ic-word.svg', tw: 66 },
   winamp: { label: 'Winamp3', Icon: WinampIcon },
 }
 export const LAYOUT4 = {
@@ -63,14 +64,11 @@ const btnText = {
   overflow: 'hidden',
 }
 
-export const TaskButton = memo(function TaskButton({ b, onClick, hover }) {
+export const TaskButton = memo(function TaskButton({ b, onClick }) {
   const t = TASKS[b.id]
-  const textW = b.w - b.text - 4
+  const textW = t.tw ?? b.w - b.text - 4
   return (
     <div style={{ position: 'absolute', left: 0, top: 0 }}>
-      {hover && (
-        <div style={{ position: 'absolute', left: b.x + 1, top: 700, width: b.w - 2, height: 19, background: 'rgba(255,255,255,0.14)' }} />
-      )}
       {t.Icon ? (
         <t.Icon x={b.x + b.icon} y={702} />
       ) : (
@@ -85,7 +83,7 @@ export const TaskButton = memo(function TaskButton({ b, onClick, hover }) {
           ...btnText,
           left: b.x + b.text,
           width: textW,
-          maskImage: `linear-gradient(to right, #000 ${textW - 14}px, transparent ${textW}px)`,
+          maskImage: `linear-gradient(to right, #000 ${textW - 12}px, transparent ${textW}px)`,
         }}
       >
         {t.label}

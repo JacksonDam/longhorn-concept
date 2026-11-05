@@ -7,11 +7,10 @@
 // "Go to my Music" emits 'music.open' and closes the flyout.
 import { memo } from 'react'
 import { emit, last } from '../../core/events.js'
-import { now } from '../../core/clock.js'
+import { now, FPS } from '../../core/clock.js'
 import { MotionBlur } from '../../core/MotionBlur.jsx'
 import { asset } from '../../core/preload.js'
 import { clamp, track } from '../../core/anim.js'
-import { FPS } from '../../core/clock.js'
 
 export const FLY = { x: 665, y: 258, w: 193, h: 241 }
 
