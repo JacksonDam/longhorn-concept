@@ -53,10 +53,10 @@ const Field = memo(function Field() {
           <stop offset="0.85" stopColor="#dfe8f6" />
           <stop offset="1" stopColor="#c6d7ec" />
         </linearGradient>
-        <radialGradient id="pw-orb" cx="0.45" cy="0.7" r="0.62">
-          <stop offset="0" stopColor="#5fe0ff" />
-          <stop offset="0.45" stopColor="#1c95ff" />
-          <stop offset="1" stopColor="#0a5fd8" />
+        <radialGradient id="pw-orb" cx="0.5" cy="0.72" r="0.6">
+          <stop offset="0" stopColor="#58d6ff" />
+          <stop offset="0.5" stopColor="#36a8ff" />
+          <stop offset="1" stopColor="#1878ee" />
         </radialGradient>
         <linearGradient id="pw-orb-top" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#d4f6ff" stopOpacity="0.95" />
@@ -72,9 +72,9 @@ const Field = memo(function Field() {
       <rect x="6" y="6" width="150.5" height="14" rx="7" fill="url(#pw-field)" />
       {/* go button */}
       <g transform="translate(178.5 11)">
-        <circle r="13.6" fill="#033a8c" opacity="0.75" />
+        <circle r="13.6" fill="#0a3f96" opacity="0.55" />
         <circle r="12" fill="url(#pw-orb)" />
-        <ellipse cx="0" cy="-5.2" rx="8.2" ry="5.6" fill="url(#pw-orb-top)" />
+        <ellipse cx="-0.5" cy="-4.2" rx="9" ry="6.8" fill="url(#pw-orb-top)" />
         <path d="M-2 -3 L2.5 0.5 L-2 4" stroke="#9fe4ff" strokeWidth="1.3" fill="none" opacity="0.45" strokeLinecap="round" />
       </g>
     </svg>
@@ -105,7 +105,7 @@ const PanelBody = memo(function PanelBody({ id, len }) {
         {u.name}
       </div>
       {u.email && (
-        <div style={{ ...text, left: 521.5 - P.left, top: 322.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 500, fontSize: 10.5, letterSpacing: 0.06, color: '#e6ebff' }}>
+        <div style={{ ...text, left: 521.5 - P.left, top: 322.5 - P.top, fontFamily: 'Libre Franklin', fontWeight: 420, fontSize: 10.5, letterSpacing: 0.12, color: '#e6ebff' }}>
           {u.email}
         </div>
       )}
