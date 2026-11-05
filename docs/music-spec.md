@@ -70,9 +70,9 @@ video frames; "rel" counts frames from an animation's reference point (see Timin
   right (the forward one darker), a fresnel rim, a top cap and, on the back orb, a caustic low
   left. The back arrow has a soft shadow along its base. The forward hit area moved to
   window-local (50, 32, 18, 18) over the orb. RMSE (f1300, crop 54,42,64,42) 19.15 -> 5.41.
-- my music: two glass eighth notes, heads (406.8, 71.1) 12 x 9.8 and (416.8, 72.5) 11.6 x 10,
-  tilted; stems at x 408.9 / 419.0 from y 53.2 / 55.5, 3.4 px tubes (navy rim #0c3a87, lit
-  core); wedge flags; each head has a specular spot upper left. 20.95 -> 8.88 (398,46,32,44).
+- my music: two glass eighth notes, heads (407.3, 70.9) 12.4 x 10.1 and (416.8, 72.8) 11.5 x 10.1,
+  tilted; stems at x 408.8 / 419.0 from y 52.9 / 55.5, 3.4 px tubes (navy rim, lit core); full
+  wedge flags; each head has a specular spot upper left. 20.95 -> 8.29 (398,46,32,44).
 - Home: MSN butterfly over a glass bowl (154.2, 68.8) r 11.1: white sail wing, navy outer wing,
   glowing ball (158.4, 61.4) r 3.1, bowl rim lit low. 24.66 -> 8.67 (132,42,40,52).
 - Search: lens (236.4, 61.9) r 7.8 (light ring with a soft dark edge, lit lower crescent), a

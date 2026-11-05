@@ -346,34 +346,34 @@ export const NotesIcon = () =>
     <>
       <defs>
         <linearGradient id="mn-fl" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#38b9f5" />
-          <stop offset="1" stopColor="#1a70be" />
+          <stop offset="0" stopColor="#32a7e9" />
+          <stop offset="1" stopColor="#1960a5" />
         </linearGradient>
-        <radialGradient id="mn-h" cx="0.4" cy="0.19" r="0.8">
-          <stop offset="0" stopColor="#9ee0ff" />
-          <stop offset="0.3" stopColor="#5ebeff" />
-          <stop offset="0.41" stopColor="#0f4992" />
-          <stop offset="1" stopColor="#58b0f5" />
+        <radialGradient id="mn-h" cx="0.39" cy="0.19" r="0.8">
+          <stop offset="0" stopColor="#94ddff" />
+          <stop offset="0.29" stopColor="#5ebcff" />
+          <stop offset="0.42" stopColor="#0c4992" />
+          <stop offset="1" stopColor="#5bb5f6" />
         </radialGradient>
         <radialGradient id="mn-p">
-          <stop offset="0" stopColor="#fff" />
+          <stop offset="0" stopColor="#fff" stopOpacity="0.99" />
           <stop offset="0.45" stopColor="#f0fbff" stopOpacity="0.8" />
           <stop offset="1" stopColor="#e0f4ff" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <path d="M7.86 4.22 C11.1 4.62 13.74 7.97 12.86 14.94 C12.27 10.65 9.92 7.61 7.86 8.21 Z" fill="url(#mn-fl)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
-      <path d="M7.86 4.52 L7.86 21.11" stroke="#0c3a87" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M7.86 4.52 L7.86 21.11" stroke="#40b3ee" strokeWidth="0.97" strokeLinecap="round" />
-      <g transform="rotate(-7.81 5.82 22.11)">
-        <ellipse cx="5.82" cy="22.11" rx="6.05" ry="4.9" fill="url(#mn-h)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
-        <ellipse cx="4.35" cy="20.36" rx="1.69" ry="1.3" fill="url(#mn-p)" />
+      <path d="M7.8 3.92 C10.95 4.32 13.53 7.62 12.67 14.49 C11.03 11.33 9.81 8.46 7.8 9.06 Z" fill="url(#mn-fl)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M7.8 4.22 L7.8 20.86" stroke="#0c3a87" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M7.8 4.22 L7.8 20.86" stroke="#42b4ee" strokeWidth="1.03" strokeLinecap="round" />
+      <g transform="rotate(-10.25 6.27 21.86)">
+        <ellipse cx="6.27" cy="21.86" rx="6.2" ry="5.05" fill="url(#mn-h)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+        <ellipse cx="4.19" cy="20.43" rx="1.88" ry="1.44" fill="url(#mn-p)" />
       </g>
-      <path d="M18.02 6.52 C20.9 6.92 23.26 9.59 22.48 15.28 C21.95 11.78 19.85 10.11 18.02 10.71 Z" fill="url(#mn-fl)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
-      <path d="M18.02 6.82 L18.02 22.52" stroke="#0c3a87" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M18.02 6.82 L18.02 22.52" stroke="#40b3ee" strokeWidth="0.97" strokeLinecap="round" />
-      <g transform="rotate(-16.44 15.77 23.52)">
-        <ellipse cx="15.77" cy="23.52" rx="5.75" ry="5.03" fill="url(#mn-h)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
-        <ellipse cx="14.86" cy="21.74" rx="1.69" ry="1.3" fill="url(#mn-p)" />
+      <path d="M18.02 6.52 C20.9 6.92 23.26 9.59 22.48 15.28 C21.28 12.45 19.85 10.59 18.02 11.19 Z" fill="url(#mn-fl)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M18.02 6.82 L18.02 22.77" stroke="#0c3a87" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M18.02 6.82 L18.02 22.77" stroke="#42b4ee" strokeWidth="1.03" strokeLinecap="round" />
+      <g transform="rotate(-16.44 15.8 23.77)">
+        <ellipse cx="15.8" cy="23.77" rx="5.74" ry="5.03" fill="url(#mn-h)" stroke="#0c3a87" strokeWidth="1.3" strokeLinejoin="round" />
+        <ellipse cx="15.3" cy="21.26" rx="1.88" ry="1.44" fill="url(#mn-p)" />
       </g>
     </>,
   )

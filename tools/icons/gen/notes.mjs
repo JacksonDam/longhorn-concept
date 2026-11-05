@@ -4,7 +4,7 @@ const P = (n, v, s, lo, hi) => ({ n, v, s, lo, hi })
 const note = (k, hx, hy, sx, sy) => [
   P(k + 'hx', hx, 0.25, hx - 2.5, hx + 2.5), P(k + 'hy', hy, 0.25, hy - 2.5, hy + 2.5), P(k + 'rx', 4.4, 0.2, 3.5, 6.2), P(k + 'ry', 3.8, 0.2, 2.8, 5.4), P(k + 'rot', -20, 3, -40, 0),
   P(k + 'sx', sx, 0.25, sx - 1.5, sx + 1.5), P(k + 'sy', sy, 0.3, sy - 2, sy + 2),
-  P(k + 'fw', 5, 0.3, 3, 8.5), P(k + 'fh', 8, 0.4, 5, 13), P(k + 'px', -1.3, 0.25, -3, 1), P(k + 'py', -1, 0.25, -3, 1), P(k + 'ft', 2.6, 0.2, 1.5, 4),
+  P(k + 'fw', 5, 0.3, 3, 8.5), P(k + 'fh', 8, 0.4, 5, 13), P(k + 'px', -1.3, 0.25, -3, 1), P(k + 'py', -1, 0.25, -3, 1), P(k + 'ft', 2.6, 0.2, 1.5, 4), P(k + 'fb', 0, 0.3, -1, 3),
 ]
 export const spec = [
   ...note('a', 4.5, 20.8, 7.8, 3),
@@ -20,7 +20,7 @@ const stops = (s) => s.map(([o, c, op = 1]) => `<stop offset="${f(Math.min(1, Ma
 function noteSvg(p, k) {
   const hx = p[k + 'hx'], hy = p[k + 'hy'], sx = p[k + 'sx'], sy = p[k + 'sy'], fw = p[k + 'fw'], fh = p[k + 'fh'], ft = p[k + 'ft']
   // flag: leaves the stem top, swells right and droops to its tip; its underside curves back to the stem
-  const flag = `M${f(sx)} ${f(sy)} C${f(sx + fw * 0.55)} ${f(sy + 0.4)} ${f(sx + fw)} ${f(sy + fh * 0.35)} ${f(sx + fw * 0.85)} ${f(sy + fh)} C${f(sx + fw * 0.75)} ${f(sy + fh * 0.6)} ${f(sx + fw * 0.35)} ${f(sy + ft + 1)} ${f(sx)} ${f(sy + ft + 1.6)} Z`
+  const flag = `M${f(sx)} ${f(sy)} C${f(sx + fw * 0.55)} ${f(sy + 0.4)} ${f(sx + fw)} ${f(sy + fh * 0.35)} ${f(sx + fw * 0.85)} ${f(sy + fh)} C${f(sx + fw * 0.75 - p[k + 'fb'])} ${f(sy + fh * 0.6 + p[k + 'fb'])} ${f(sx + fw * 0.35)} ${f(sy + ft + 1 + p[k + 'fb'])} ${f(sx)} ${f(sy + ft + 1.6 + p[k + 'fb'])} Z`
   const stem = `M${f(sx)} ${f(sy + 0.3)} L${f(sx)} ${f(hy - 1)}`
   const ol = `stroke="${rgb(p, 'ol')}" stroke-width="${f(p.ow)}" stroke-linejoin="round"`
   return `<path d="${flag}" fill="url(#fl)" ${ol}/>` +
