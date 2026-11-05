@@ -181,3 +181,17 @@ having changed their raster scale while they shrank in the minimise. Warm it cos
 two frames; in some full-range runs it blocks the commit (10-20 ms). Hiding the sub-0.3-scale
 samples, clamping the overshoot to 1 and an identity-perspective rest transform all left it
 unchanged.
+
+## Window-system round 4 (time-boxed, nothing kept)
+`?apps=opens`, load 1.5-4.6. Frame 8 after an open is 1-3 ms above frames 7 and 9: pictures
+8-9 ms, ie 5-7, documents 5-6. Ruled out as its cause (A/B, no change):
+- the blur-shutter switch at rel 8;
+- warming the copies at full scale instead of openPose(6);
+- keeping the beam layers rasterised on-stage;
+- the closed window's settle-back;
+- the slab canvases (disabling them changed nothing).
+The window's layer count doesn't change at rel 7-8.
+Restore end: re-rasterises 1-2 tiles per copy a few frames after the restore. Keeping the copies'
+last restore pose instead of the rest style didn't change it. In a standalone page, will-change
+copies run through the same minimise / restore transforms (2D and perspective, 1.5x stage) never
+re-rasterise. So the cause is in what the copies contain, not their transforms.
