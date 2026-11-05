@@ -542,7 +542,6 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
-        {k > 0 && hasShadow && <WindowShadow w={rr.w} h={rr.h} op={1 - mk} />}
         <LiveLayers.Provider value={k === 0}>
           <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} r={radius} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
@@ -559,20 +558,28 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   const wash = chromeTop > 0 && mounted > 0 && (
     <LookLayer key="look" x={r.x} y={r.y} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4} op={atRest ? inactive : 0} />
   )
-  // the live window's shadow: a layer of its own that takes copy 0's pose and opacity (times the
-  // look: lighter while inactive), accumulated like the copies (plus-lighter), so moving, blurring
-  // and the focus cross-fade only composite it; the motion-blur copies carry their own
-  const shadow = hasShadow && live0 && (
+  // The window's shadow: one layer of its own (the motion-blur copies carry none, so their
+  // layers and rasters stay the window's size), rasterised once and then only transformed: it
+  // takes the live layer's pose and opacity, and while the window blurs, the pose at the middle
+  // of the shutter at full opacity (a soft shadow reads the same blurred or not). Its opacity
+  // also carries the look (lighter while inactive), so the focus cross-fade only composites.
+  let sh = live0
+  if (blur && live0) {
+    const tm = t + (m.shutter / FPS) * (0.5 + m.phase)
+    const p = m.pose(tm)
+    sh = { style: { ...poseCss(p), opacity: Math.max(0, p.op) }, rr: m.rect(tm), mk: m.maxK(tm) }
+  }
+  const shadow = hasShadow && sh && (
     <div
       key="shadow"
       style={{
-        position: 'absolute', left: live0.rr.x, top: live0.rr.y, width: live0.rr.w, height: live0.rr.h, pointerEvents: 'none',
-        transform: live0.style.transform, transformOrigin: live0.style.transformOrigin,
-        opacity: live0.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)), mixBlendMode: 'plus-lighter',
+        position: 'absolute', left: sh.rr.x, top: sh.rr.y, width: sh.rr.w, height: sh.rr.h, pointerEvents: 'none',
+        transform: sh.style.transform, transformOrigin: sh.style.transformOrigin,
+        opacity: sh.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)), mixBlendMode: 'plus-lighter',
         willChange: live0.style === PARKED && !keepLayers ? undefined : 'transform, opacity',
       }}
     >
-      <WindowShadow w={live0.rr.w} h={live0.rr.h} op={1 - live0.mk} />
+      <WindowShadow w={sh.rr.w} h={sh.rr.h} op={1 - sh.mk} />
     </div>
   )
   return (

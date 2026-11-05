@@ -67,9 +67,9 @@ OS in the same style. Everything still derives from (time, event log).
 - Window chrome rules (details in docs/briefs/os.md, "Window chrome rules"): only the window's
   outline is rounded (title bar top corners, bottom corners; the client area is clipped to them);
   every bar and edge panel inside runs square and flush. `src/os/shadow.jsx`: the drop shadow
-  fitted on the video (pre-rendered nine-slice strips inside every blur copy's layer, plus one
-  layer per window that follows the live layer; nothing is blurred per frame); maximised windows
-  are square with no shadow.
+  fitted on the video (pre-rendered nine-slice strips on one layer per window that follows the
+  window, during motion blur at the shutter's middle pose; blur copies carry none; nothing is
+  blurred per frame); maximised windows are square with no shadow.
   `src/os/focus.js`: which windows look active (`activeIds`: hand-over rules for open, close and
   minimise) and the 4-frame cross-fade of the look (`activeLevels`), pure functions of the log;
   `src/os/look.jsx`: the inactive look (a wash over the window's top chrome, `app.chromeTop` px,

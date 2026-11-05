@@ -4,10 +4,11 @@
 // The second video (ref2 f01490, Edit Video over the explorer) shows the same kind of shadow.
 //
 // Cost: the shadow is pre-rendered once (canvas, at load) into nine-slice pieces (one stylesheet)
-// and drawn as four strips around the window: inside each motion-blur copy's layer (rasterised
-// with it, then only transformed), and for the live window on a layer of its own that follows
-// the live layer's pose and opacity (PlexWindow), so the focus cross-fade (a lighter shadow while
-// inactive) is compositor work. No blur is ever computed per frame.
+// and drawn as four strips around the window on one layer per window (PlexWindow) that follows
+// the live window's pose (during motion blur: the pose at the middle of the shutter), so it is
+// rasterised once and then only transformed; the blur copies' layers stay the window's size, and
+// the focus cross-fade (a lighter shadow while inactive) is compositor work. No blur is ever
+// computed per frame.
 import { memo } from 'react'
 import { preload } from '../core/preload.js'
 
