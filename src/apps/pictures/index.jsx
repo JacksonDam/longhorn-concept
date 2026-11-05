@@ -149,12 +149,12 @@ function HeaderButton({ id, x, icon, a, b, onClick }) {
 
 const Title = memo(function Title() {
   return (
-    <>
+    <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
       <div style={{ position: 'absolute', left: 324, top: 26, fontFamily: FONT, fontSize: 13, color: '#4f86d6' }}>Windows</div>
       <div style={{ position: 'absolute', left: 322, top: 38, fontFamily: FONT, fontSize: 31, fontWeight: 300, color: '#86b4ea', whiteSpace: 'nowrap', letterSpacing: -0.4 }}>
         my <span style={{ fontWeight: 400, color: '#2c6cc4' }}>Pictures &amp; Videos</span>
       </div>
-    </>
+    </div>
   )
 })
 
@@ -211,14 +211,18 @@ function TaskPane({ win, t, st }) {
   const tags = st.moreTags ? TAGS.slice(3) : TAGS.slice(0, 3)
   return (
     <>
-      <Head a="enjoy" b="pictures" y={8} />
+      <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
+        <Head a="enjoy" b="pictures" y={8} />
+      </div>
       {L('show', 30, 'View Slide show', 'display', () => slideshow(null, true))}
       {L('album', 46, 'Create an Album', 'picture', () => openWin('album', 'album'))}
       {L('dvd', 62, 'Burn DVD', 'cd', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
       {L('share', 78, 'Share Pictures', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: 'my Pictures & Videos' }))}
       {L('print', 94, 'Print Pictures', 'print', printBox)}
       {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()))}
-      <Head a="find" b="pictures" y={132} />
+      <div onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>
+        <Head a="find" b="pictures" y={132} />
+      </div>
       <div style={{ ...small, left: PANE_X - 8, top: 155 }} onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>Containing the words:</div>
       <TextField id={wid(win, 'words')} x={PANE_X - 8} y={170} w={136} h={17} size={10.5} pad={4} />
       <div style={{ ...small, left: PANE_X - 8, top: 194 }} onPointerDown={(e) => e.button === 0 && set(win, 'tag', null)}>Show all images by:</div>
@@ -268,7 +272,7 @@ function GridBar({ win, st, y, w }) {
     <>
       <DropLabel id={wid(win, 'dd.range')} x={AREA_X + 10} y={y} a="range" b={RANGES[st.range]} items={range} />
       <DropLabel id={wid(win, 'dd.view')} x={AREA_X + 175} y={y} a="View" b={`by ${st.viewby}`} items={views} />
-      <div style={{ position: 'absolute', left: w - 205, top: y, fontFamily: FONT, fontWeight: 500, fontSize: 11.5, color: '#6d8db8' }}>Size</div>
+      <div onPointerDown={(e) => e.button === 0 && set(win, 'size', st.size > 0.5 ? 0.2 : 0.8)} style={{ position: 'absolute', left: w - 205, top: y, fontFamily: FONT, fontWeight: 500, fontSize: 11.5, color: '#6d8db8' }}>Size</div>
       <Slider id={wid(win, 'size')} x={w - 178} y={y - 4} w={46} variant="wedge" def={0.45} />
     </>
   )
@@ -546,7 +550,7 @@ function Pictures({ win, t, w, h, active }) {
         <Grid win={win} t={t} groups={detail ? groups.filter((g) => g.photos.some((p) => p.id === st.photo)) : groups} x={areaX} y={gridY} w={w - areaX - 8} h={h - gridY - statusH} tw={tw} th={th} active={active} st={st} onOpen={onOpen} edits={edits} />
       )}
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - statusH, height: statusH, lineHeight: `${statusH}px`, textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>
-        {selCount ? '1 object selected' : `${list.length} objects`}
+        <span onPointerDown={(e) => e.button === 0 && clearFilters(win)}>{selCount ? '1 object selected' : `${list.length} objects`}</span>
       </div>
       <ContextMenu id={wid(win, 'ctx')} items={() => ctxItems(win, valueOf(now(), wid(win, 'photo'), null))} />
     </div>
