@@ -91,6 +91,9 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false })
   await send('Page.navigate', { url })
   for (let i = 0; i < 150 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
+  // the bundle may still be running after the load event: wait for the app's hooks, then for
+  // the boot (real time: the clock starts once everything is loaded and warmed up)
+  for (let i = 0; i < 300 && !(await evaluate('!!window.__lh')); i++) await sleep(100)
   await evaluate('window.__lh.ready()')
   await evaluate(`(() => { window.__ft = []; let l = performance.now(); const f = () => { const n = performance.now(); window.__ft.push(n - l); l = n; requestAnimationFrame(f) }; requestAnimationFrame(f) })()`)
   const r = await evaluate(`(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.x, y: b.y, s: b.width / 960 } })()`)
