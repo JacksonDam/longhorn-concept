@@ -41,12 +41,30 @@ Row pitches were fitted by template alignment (all labels within +-0.75 px).
 ## Taskbar (y 699-720)
 - Bar: per-row colour at alpha 0.55 over the wallpaper (top highlight rows 700-701), fitted
   on frames 575-592 / 1150-1350. Start end slightly darker.
-- Start: flag (XP flag SVG, monochrome white-blue) 7,702 17x15; "start" Plex 600 13 px at x 29.
+- Start: flag (XP flag, white-blue; settled: icons/flag-start.webp) 8,702.25 17x15; "start" Plex 600 13 px at x 29.
 - Task group: light blue band (top 2 rows 172,214,223; body 110,180,250), sticks up 1 px.
   Libre Franklin 600 9.9 px white, faded on the right edge of each button.
   4 buttons: group 248-675.5, separators 379.5, 481.5, 589.5.
   5 buttons: group 185.5-730.5, separators 312.5, 412.5, 644.5 (none between My Music and
   Document, as in the video). Icon/text offsets per button in `Taskbar.jsx`.
+
+## Icons (redrawn and fitted 2026-11-05; scenes/desktop/icons.jsx, appIcons.jsx, public/img/desktop/icons)
+- Sources in assets-src/SOURCES.md section 9. Real art: the taskbar My Music button is XP
+  shell32 icon 237 (16 px on the taskbar, 48 px in the Start menu); the settled Start flag is
+  the XP flag (Commons, CC0) recoloured white-blue, pre-rendered to WebP at 4x (the pastel
+  entrance flag is still flag.svg). Everything else is redrawn as layered-gradient SVG files
+  (no filters) fitted to medians of the video: sidebar 1100-1400, taskbar 1200-1395, flyout
+  612-688.
+- Icons are placed on whole pixels with the fitted sub-pixel remainder as a translate (Chrome
+  snaps an <img> box to whole pixels); the task button layers sit on whole pixels too
+  (TaskGroup.jsx), which had pushed every taskbar icon 1 px right. Row offsets the video shows
+  (mail rows up to 2 px, Kathy's away icon 4 px high) live in the icon components.
+- RMSE (1 px blur, before -> after): mail list 11.0 -> 8.4 (closed 13.6 -> 9.5, hot 18.7 ->
+  15.4, open 10.3 -> 7.7), away buddies 25.6-30.1 -> 14.1-15.4, media strip 21.9 -> 13.0,
+  Go Online 24.6 -> 13.5, thumbnails 19.7 / 20.6 / 44.1 / 20.7 -> 10.6 / 12.0 / 18.6 / 14.2,
+  clock chevron 35.0 -> 10.5, Start flag 25.4 -> 16.4, taskbar Outlook 22.1 -> 20.2, IE
+  17.4 -> 13.0, My Music 23.3 -> 16.9, Word 44.5 -> 15.5, Winamp 22.4 -> 19.0, flyout note
+  13.5 -> 11.0, flyout title buttons 10.9 -> 7.3, footer arrow 15.3 -> 14.9.
 
 ## Entrance (absolute frames; each tile fades in over ~1 frame)
 Measured by projecting each tile's pixels onto (final - glass): every tile reads 0.5 on its

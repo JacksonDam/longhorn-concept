@@ -87,6 +87,18 @@ video frames; "rel" counts frames from an animation's reference point (see Timin
   3.32 pitch from x 392.2, bottom 38.6. 22.89 -> 10.91 (389,26,22,15).
 - Cost: the toolbar is still one SVG image per explorer window size; rasterising it at 1.5x
   takes about 4-6 ms once (copies pre-mount from session start + 1 s, so not on an animation).
+- Command row, task pane and header buttons (os/taskIcons.jsx, images in public/img/music,
+  sources in assets-src/SOURCES.md section 8): Up a Folder, Folders and Find are the real XP
+  SP3 Explorer toolbar buttons (shell32 bitmap 214, 24 px art drawn at 19-21 stage px; Find's
+  handle points bottom left, no mirroring), Play All and Create Playlist the real shell32 icons
+  292 and 12 at 16 px (the design the video shows). Hide Music Tasks, Preview, Play Selected and
+  the Play Music / Burn CD / Share Music buttons are redrawn as layered-gradient SVGs and
+  pre-rendered to WebP at 3-4x (no filters at run time); every image is preloaded. Each sits
+  inside its existing box at a fitted offset. RMSE (median ref, crop as in the branch's survey):
+  hide 36.5 -> 11.6, up 33.7 -> 11.2, folders 40.1 -> 9.4, find 28.6 -> 11.5, preview 32.0 ->
+  12.8, Play All 34.5 -> 7.5, Play Selected 21.7 -> 9.8, Create Playlist 24.4 -> 5.7, header
+  speaker 42.0 -> 28.8, disc 34.3 -> 20.3, share 27.3 -> 19.5 (the rest there is the header's
+  background, not the icons), preview circle 12.2 -> 8.9.
 
 ## Slabs (gl/Slab3D renderer, own canvas 230 x 240 at window-local 175, 118, P = 900)
 - Both slabs are 136 x 136 x 26 rounded boxes (fitted size/depth: silhouette IoU grid search).
