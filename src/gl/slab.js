@@ -112,12 +112,13 @@ const frag = /* glsl */ `
   uniform float uBandWidth;
   uniform float uRim;        // fresnel rim brightness
   uniform float uBrightness;
+  uniform float uBackFlip;   // 1: the back face shows the picture unmirrored
   void main() {
     vec3 nL = normalize(vNormalL);
     float front = smoothstep(0.55, 0.95, nL.z);
     float back = smoothstep(0.55, 0.95, -nL.z);
     vec2 uv = vUv;
-    if (back > 0.5) uv.x = 1.0 - uv.x;
+    if (back > 0.5 && uBackFlip > 0.5) uv.x = 1.0 - uv.x;
     vec3 pic = uHasMap > 0.5 ? texture2D(uMap, clamp(uv, 0.002, 0.998)).rgb : uTint;
     vec3 side = mix(uEdgeColor, pic * 0.55 + uEdgeColor * 0.25, uEdgeMix);
     vec3 col = mix(side, pic, max(front, back)) * uBrightness;
@@ -153,6 +154,7 @@ function makeMaterial() {
       uBandWidth: { value: 0.18 },
       uRim: { value: 0.6 },
       uBrightness: { value: 1 },
+      uBackFlip: { value: 1 },
     },
   })
 }
@@ -232,7 +234,8 @@ function setupCamera(cam, cw, ch, P, ox, oy) {
   cam.updateMatrixWorld(true)
 }
 
-// slab: { w, h, d, radius, map (url), tint, edgeColor, edgeMix, spec, bandPos, bandWidth, rim, brightness }
+// slab: { w, h, d, radius, map (url), tint, edgeColor, edgeMix, spec, bandPos, bandWidth, rim, brightness,
+//         canvas + canvasVersion (live 2D canvas picture), backFlip (false: the back shows the mirror image) }
 // pose: { x, y, z, rx, ry, rz, s, sx, sy, opacity } in canvas px / radians
 function applySlab(obj, slab, pose) {
   const { mesh, material: m } = obj
@@ -252,6 +255,7 @@ function applySlab(obj, slab, pose) {
   u.uBandWidth.value = slab.bandWidth ?? 0.18
   u.uRim.value = slab.rim ?? 0.6
   u.uBrightness.value = slab.brightness ?? 1
+  u.uBackFlip.value = slab.backFlip === false ? 0 : 1
   u.uOpacity.value = pose.opacity ?? 1
   mesh.position.set(pose.x ?? 0, -(pose.y ?? 0), pose.z ?? 0)
   mesh.rotation.set(-(pose.rx ?? 0), pose.ry ?? 0, -(pose.rz ?? 0), 'YXZ')

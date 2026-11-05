@@ -2,7 +2,7 @@
 // Static (memoised): no clock reads. Window-local px (see geometry.js).
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
-import { Txt, abs } from './ui.jsx'
+import { Txt, abs, HEAVY } from './ui.jsx'
 import * as I from './icons.jsx'
 
 const toolbarBg =
@@ -10,7 +10,7 @@ const toolbarBg =
 const bandBg =
   'linear-gradient(90deg, #326ab4 0px, #356eba 85px, #3b73bd 125px, #427dc4 165px, #508bd2 245px, #5994d4 285px, #5a9ade 325px, #5c9ce0 365px, #5c9ad9 405px, #5a9ad8 445px, #5190d6 485px, #518cd1 525px, #4984cb 565px, #437ec3 605px, #3974bd 645px, #386ebb 685px, #326ab6 725px, #336bb5 777px)'
 
-const label = { size: 11.5, w: 600, c: '#e4f4ff', style: { filter: 'drop-shadow(0 0 1.2px rgba(10,50,120,0.75))' } }
+const label = { size: 11, w: 400, f: HEAVY, sx: 1, c: '#e4f4ff', style: { filter: 'drop-shadow(0 0 1.2px rgba(10,50,120,0.75))' } }
 
 function ToolItem({ x, text, tx, children, iw, ih, ix, iy }) {
   return (
@@ -86,16 +86,16 @@ export const Chrome = memo(function Chrome() {
       <div style={abs(0, 118, 777, 4, { background: 'linear-gradient(180deg, #3f7ac3, #5a96e0 50%, #3c76b7)' })} />
       <div style={abs(0, 122, 777, 1, { background: '#9cd8ff' })} />
 
-      <Txt x={16} y={88} size={10.5} w={500} c="#86bcff">
+      <Txt x={16} y={88} size={10} w={400} f={HEAVY} sx={1} c="#86bcff">
         File
       </Txt>
-      <Txt x={57} y={88} size={10.5} w={500} c="#86bcff">
+      <Txt x={57} y={88} size={10} w={400} f={HEAVY} sx={1} c="#86bcff">
         Edit
       </Txt>
-      <Txt x={100} y={88} size={10.5} w={500} c="#86bcff">
+      <Txt x={100} y={88} size={10} w={400} f={HEAVY} sx={1} c="#86bcff">
         View
       </Txt>
-      <Txt x={151} y={88} size={10.5} w={500} c="#8cc2ff">
+      <Txt x={151} y={88} size={10} w={400} f={HEAVY} sx={1} c="#8cc2ff">
         Help
       </Txt>
 
@@ -118,13 +118,13 @@ export const Chrome = memo(function Chrome() {
       <svg width="10" height="10" style={{ position: 'absolute', left: 205, top: 82, overflow: 'visible' }}>
         <path d="M4.5 1 L8 5 L6 5 L6 8.5 L3 8.5 L3 5 L1 5 Z" fill="#ffffff" />
       </svg>
-      <Txt x={217} y={90} size={11.5} w={600} c="#ffffff">
+      <Txt x={217} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#ffffff">
         my Computer
       </Txt>
       <div style={abs(291, 85, 7, 4)}>
         <I.DropArrow c="#e8f4ff" />
       </div>
-      <Txt x={312} y={90} size={11.5} w={600} c="#f0f6ff">
+      <Txt x={312} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#f0f6ff">
         my Pictures
       </Txt>
       <div style={abs(377, 85, 7, 4)}>
@@ -138,25 +138,25 @@ export const Chrome = memo(function Chrome() {
       <div style={abs(14, 104, 14, 14)}>
         <I.HideTasksIcon />
       </div>
-      <Txt x={35} y={113} size={11} w={600} c="#e6f2ff">
+      <Txt x={35} y={113} size={10.4} w={400} f={HEAVY} sx={1} c="#e6f2ff">
         Hide Music Tasks
       </Txt>
       <div style={abs(194, 99, 20, 20)}>
         <I.UpFolderIcon />
       </div>
-      <Txt x={218} y={112.5} size={11} w={500} c="#e6f2ff">
+      <Txt x={218} y={112.5} size={9.8} w={400} f={HEAVY} sx={1} c="#e6f2ff">
         Up a Folder
       </Txt>
       <div style={abs(295, 99, 26, 26)}>
         <I.FolderIcon size={26} />
       </div>
-      <Txt x={320} y={112.5} size={11} w={500} c="#e6f2ff">
+      <Txt x={320} y={112.5} size={9.8} w={400} f={HEAVY} sx={1} c="#e6f2ff">
         Folders
       </Txt>
       <div style={abs(372, 97, 24, 24)}>
         <I.FindIcon />
       </div>
-      <Txt x={396} y={112.5} size={11} w={500} c="#e6f2ff">
+      <Txt x={396} y={112.5} size={9.8} w={400} f={HEAVY} sx={1} c="#e6f2ff">
         Find
       </Txt>
       <div
@@ -169,7 +169,7 @@ export const Chrome = memo(function Chrome() {
       <div style={abs(441, 99, 18, 18)}>
         <I.PreviewIcon />
       </div>
-      <Txt x={462} y={112.5} size={11} w={500} c="#eef6ff">
+      <Txt x={462} y={112.5} size={9.8} w={400} f={HEAVY} sx={1} c="#eef6ff">
         Preview
       </Txt>
     </>

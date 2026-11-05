@@ -33,14 +33,19 @@ def segment(n, kind):
         m = (lum < 200) | ((sat > 60) & (lum < 235))
     x0, y0 = SC['x'] + WX, SC['y'] + WY
     m = m[y0:y0 + SC['h'], x0:x0 + SC['w']].copy()
-    m[:, (402 if kind == 'device' else 411) - x0:] = False  # title text / track list
+    m[:, (402 if kind == 'device' else 470) - x0:] = False  # title text / track list
     m[:146 - y0 + 1] = False  # window top
     lab, k = ndimage.label(m)
     if k == 0:
         return m
     sizes = ndimage.sum(m, lab, range(1, k + 1))
     m = lab == (1 + int(np.argmax(sizes)))
-    return ndimage.binary_fill_holes(m)
+    # the slab silhouette is convex: fill specular highlights the colour test misses
+    ys, xs = np.nonzero(m)
+    hull = cv2.convexHull(np.c_[xs, ys].astype(np.int32))
+    out = np.zeros(m.shape, np.uint8)
+    cv2.fillConvexPoly(out, hull, 1)
+    return out.astype(bool)
 
 
 def rot(rx, ry, rz):

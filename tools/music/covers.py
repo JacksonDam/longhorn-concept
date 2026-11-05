@@ -209,18 +209,29 @@ def k_tweet():  # gold strip, smoky grey field, an abstract hummingbird in fligh
 
 
 def tweet(c, big=False):
-    c.grad('#3a3a3c', '#7a7876', 120, .2, 0, 1, 1)
-    c.grad('#f2c24c', '#b5841f', 90, 0, 0, .26, 1)
-    c.rect((.24, 0, .28, 1), '#1a1714', blur=3, alpha=170)
-    c.ell(.62, .62, .34, .5, '#1d1c1d', blur=9, alpha=230)
-    c.ell(.66, .35, .2, .2, '#8d8a87', blur=10, alpha=200)
-    # hummingbird: body, wing and long bill, light grey on the dark field
-    c.poly([(.42, .55), (.6, .42), (.72, .44), (.66, .52), (.5, .6)], '#d8d6d2', blur=.8)
-    c.poly([(.55, .45), (.62, .2), (.7, .26), (.64, .46)], '#bdbab6', blur=.8)
-    c.line([(.72, .44), (.92, .37)], '#d8d6d2', .014, blur=.4)
-    c.poly([(.42, .55), (.3, .66), (.36, .56)], '#a9a6a2', blur=.8)
-    c.rect((.74, .04, .97, .13), '#e9b83c', alpha=230)
-    c.type(.06, .06, .12, '#5a3c08', alpha=200)
+    """gold foil band on the left, a high-key grey field framed by dark sweeping shapes,
+    and an original hummingbird drawn across the light centre (no photo, no face)"""
+    c.grad('#9a9a9a', '#7c7c7c', 110, .28, 0, 1, 1)
+    c.ell(.64, .46, .2, .3, '#c9c9c7', blur=9)
+    c.ell(.62, .95, .3, .14, '#b4b3b0', blur=8)
+    # dark sweeping shapes (left and right of the light centre, and over the top)
+    c.poly([(.3, 0), (.52, 0), (.46, .2), (.44, .5), (.47, .8), (.42, 1), (.28, 1), (.34, .6), (.3, .3)], '#2c2b2b', blur=3)
+    c.poly([(.78, .05), (.9, .02), (.96, .3), (.93, .7), (.98, 1), (.84, 1), (.86, .6), (.82, .3)], '#353434', blur=3)
+    c.ell(.64, .1, .2, .1, '#3a3939', blur=5)
+    # gold foil band with a soft highlight and fine vertical streaks
+    c.grad('#b88a2c', '#e9c25c', 0, 0, 0, .2, 1).grad('#e9c25c', '#a87c22', 0, .2, 0, .36, 1)
+    c.rect((.06, 0, .16, 1), '#fff2c0', blur=6, alpha=110)
+    c.ell(.12, .12, .14, .16, '#fff8dc', blur=8, alpha=150)
+    for k in range(9):
+        x = .02 + k * .037
+        c.rect((x, 0, x + .006, 1), '#7a5a18', blur=.8, alpha=25)
+    c.poly([(.33, 0), (.4, .25), (.37, .55), (.3, .75), (.33, 1), (.27, 1), (.3, .5), (.29, .2)], '#3a3027', blur=4, alpha=200)
+    c.rect((.04, .05, .2, .08), '#6a4c12', alpha=170, blur=.5)
+    # hummingbird: body, raised wing and long bill, mid grey on the light centre
+    c.poly([(.5, .62), (.62, .5), (.72, .48), (.68, .56), (.56, .66)], '#4e4d4c', blur=.8)
+    c.poly([(.6, .52), (.64, .26), (.72, .3), (.67, .5)], '#5e5d5b', blur=.8)
+    c.line([(.72, .49), (.88, .43)], '#4e4d4c', .012, blur=.4)
+    c.poly([(.5, .62), (.42, .72), (.47, .63)], '#5a5958', blur=.8)
     return c.grain(5 if not big else 3)
 
 

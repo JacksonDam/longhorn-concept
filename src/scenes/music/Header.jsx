@@ -2,11 +2,14 @@
 // the Play Music / Burn CD / Share Music buttons; after an album is opened, the album slab
 // and its track list. Everything is a pure function of (t, header state).
 import { memo } from 'react'
-import { Txt, abs, FONT } from './ui.jsx'
+import { Txt, abs, FONT, HEAVY } from './ui.jsx'
 import * as I from './icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
-import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, toRel } from './timeline.js'
+import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
+import { TWEET, TWEET_COVER } from './albums.js'
+import { loadTexture } from '../../gl/slab.js'
+import { FPS } from '../../core/clock.js'
 import { ease } from '../../core/anim.js'
 
 // slab canvas: window-local box that holds the device and its floor reflection
@@ -168,49 +171,128 @@ const FLOOR = DEV.cy + DEV.h / 2 + 6
 const mirror = (p) => ({ ...p, y: 2 * FLOOR - p.y, rx: -(p.rx || 0), rz: -(p.rz || 0), sy: -(p.sy ?? 1) })
 const reflMask = `linear-gradient(180deg, transparent ${FLOOR - 4}px, #000 ${FLOOR + 6}px, transparent ${FLOOR + 48}px)`
 
-// pose(tt) -> slab pose; t = this copy's time (sub-frame samples spread around it)
-export function DeviceSlab({ t, pose, samples = 1, shutter = 0 }) {
-  const canvas = drawDevice(t)
-  const slab = {
-    w: DEV.w,
-    h: DEV.h,
-    d: DEV.d,
-    radius: 8,
-    canvas,
-    canvasVersion: deviceVersion,
-    edgeColor: [0.1, 0.32, 0.42],
-    edgeMix: 0.5,
-    spec: 0.35,
-    rim: 0.45,
-  }
+loadTexture(TWEET_COVER) // start loading now so capture's ready() waits for it
+
+const deviceSlab = (canvas) => ({
+  w: DEV.w,
+  h: DEV.h,
+  d: DEV.d,
+  radius: 8,
+  canvas,
+  canvasVersion: deviceVersion,
+  edgeColor: [0.1, 0.32, 0.42],
+  edgeMix: 0.5,
+  spec: 0.35,
+  rim: 0.45,
+  backFlip: false,
+})
+const albumSlab = {
+  w: DEV.w,
+  h: DEV.h,
+  d: DEV.d,
+  radius: 8,
+  map: TWEET_COVER,
+  edgeColor: [0.42, 0.33, 0.14],
+  edgeMix: 0.65,
+  spec: 0.4,
+  rim: 0.4,
+  backFlip: false,
+}
+
+// The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
+function Slabs({ t, items, samples = 1, shutter = 0 }) {
   return (
     <>
       <SlabCanvas
         t={t}
         width={SC.w}
         height={SC.h}
-        items={[{ slab, pose: (tt) => mirror(pose(tt)) }]}
+        items={items.map((it) => ({ slab: it.slab, pose: (tt) => mirror(it.pose(tt)) }))}
         samples={samples}
         shutter={shutter}
         P={900}
         style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask }}
       />
-      <SlabCanvas t={t} width={SC.w} height={SC.h} items={[{ slab, pose }]} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} />
+      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} />
     </>
   )
 }
 
-// t: this copy's time; openT: time of music.open
-export function Header({ t, openT }) {
-  const rel = toRel(t, openT)
-  const devPose = (tt) => devicePoseRel(toRel(tt, openT))
-  const spinning = rel < 24
+// "Tweet  Southern Hummingbird" and the track list (track 3 highlighted, track 4's number blue)
+const LIST = { x: 429, sx: 496, y: 151.5, nx: 431, tx: 450, ty: 174.5, dy: 15 }
+const TrackListBody = memo(function TrackListBody() {
   return (
     <>
-      <Swoosh op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[1])} />
-      {rel > 5.5 && <DeviceSlab t={t} pose={devPose} samples={spinning ? 8 : 3} shutter={spinning ? 0.9 / 29.97 : 0.5 / 29.97} />}
-      <Title rel={rel} />
-      <Buttons rel={rel} />
+      <Txt x={LIST.x} y={LIST.y} size={20} f={HEAVY} sx={1} c="#d01a1c">
+        Tweet
+      </Txt>
+      <Txt x={LIST.sx} y={LIST.y} size={20} f={HEAVY} sx={1} c="#6c6a69">
+        Southern Hummingbird
+      </Txt>
+      {TWEET.tracks.map((name, i) => {
+        const hi = i === 2
+        const y = LIST.ty + i * LIST.dy
+        return (
+          <div key={i}>
+            <Txt x={LIST.nx} y={y} size={11} f={HEAVY} sx={1} c={hi || i === 3 ? '#2a9ff0' : '#8e8e8e'}>
+              {String(i + 1)}
+            </Txt>
+            <Txt x={LIST.tx} y={y} size={11} f={HEAVY} sx={1} c={hi ? '#2a9ff0' : '#8e8e8e'}>
+              {name}
+            </Txt>
+          </div>
+        )
+      })}
+    </>
+  )
+})
+
+// slides in from the right with a horizontal multi-sample blur
+function TrackList({ hrel }) {
+  if (hrel < 13) return null
+  const [dx0, op] = LIST_IN(hrel)
+  if (hrel >= 20) return <TrackListBody />
+  const n = 10
+  const layers = []
+  for (let k = 0; k < n; k++) {
+    const h = hrel + (k + 0.5) / n - 0.5
+    const [dx, o] = LIST_IN(h)
+    layers.push(
+      <div key={k} style={{ position: 'absolute', left: dx, top: 0, opacity: o / n, mixBlendMode: 'plus-lighter' }}>
+        <TrackListBody />
+      </div>,
+    )
+  }
+  return <div style={{ position: 'absolute', left: 0, top: 0, isolation: 'isolate', opacity: op > 0 ? 1 : 0 }}>{layers}</div>
+}
+
+// t: this copy's time; openT: music.open; pageT: start of the album page transition (or null)
+export function Header({ t, openT, pageT }) {
+  const rel = toRel(t, openT)
+  const hrel = pageT == null ? -1e9 : toRel(t, pageT)
+  const fadeOut = 1 - smoothRamp(hrel, 1.5, 8.5)
+  const devPose = (tt) => {
+    const p = devicePoseRel(toRel(tt, openT))
+    if (pageT == null) return p
+    const h = toRel(tt, pageT)
+    const s = spinOut(h)
+    return { ...p, ry: p.ry + s.ry, z: p.z + s.z, opacity: 1 - ramp(h, 4, 5) }
+  }
+  const albPose = (tt) => {
+    const h = toRel(tt, pageT)
+    return { ...albumPoseRel(h), opacity: ramp(h, 4, 5) }
+  }
+  const items = []
+  if (rel > 5.5 && hrel < 5.2) items.push({ slab: deviceSlab(drawDevice(t)), pose: devPose })
+  if (hrel > 3.8) items.push({ slab: albumSlab, pose: albPose })
+  const fast = rel < 24 || (hrel > 0 && hrel < 21)
+  return (
+    <>
+      {fadeOut > 0 && <Swoosh op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[1]) * fadeOut} />}
+      {items.length > 0 && <Slabs t={t} items={items} samples={fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} />}
+      {fadeOut > 0 && <Title rel={rel} op={fadeOut} />}
+      {fadeOut > 0 && <Buttons rel={rel} op={fadeOut} />}
+      <TrackList hrel={hrel} />
       <Preview />
     </>
   )

@@ -13,7 +13,7 @@
 //   'music.restore'   taskbar button while minimised
 //   'music.close'     title-bar close button
 //   'music.album' { id } album tile click (id = tile index 0..31, row-major)
-import { last } from '../../core/events.js'
+import { last, all } from '../../core/events.js'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { FPS } from '../../core/clock.js'
 import { WIN } from './geometry.js'
@@ -22,8 +22,8 @@ import { BodyBg, EnjoyGroup, TaskPane, GridBar, Scrollbar, StatusBar } from './B
 import { AlbumGrid } from './Grid.jsx'
 import { Header } from './Header.jsx'
 import { Beam } from './Beam.jsx'
-import { HEADER, openPose, openMoving, poseCss, smoothRamp, toRel } from './timeline.js'
-import './albums.js'
+import { HEADER, PAGE_DELAY, openPose, openMoving, poseCss, smoothRamp, toRel } from './timeline.js'
+import { ALBUMS } from './albums.js'
 
 export function musicWindowState(t) {
   const open = last(t, (e) => e.type === 'music.open')
@@ -39,9 +39,31 @@ export function musicWindowState(t) {
   }
 }
 
+// selection, hover and album page, derived from the log (window-session = since music.open)
+function viewState(t, openT) {
+  const after = (e) => e.t >= openT
+  const s = last(t, (e) => e.type === 'music.album' && after(e))
+  const tw = last(t, (e) => e.type === 'music.album' && after(e) && ALBUMS[e.id]?.tweet)
+  let first = tw
+  if (tw) {
+    // the page opens on the first Tweet click of this window session
+    for (const e of all(t, (e) => e.type === 'music.album' && after(e) && ALBUMS[e.id]?.tweet)) {
+      first = e
+      break
+    }
+  }
+  const h = last(t, (e) => e.type === 'hover' && after(e) && String(e.id).startsWith('music.album.'))
+  return {
+    sel: s ? { id: s.id, t: s.t } : null,
+    hover: h && h.on ? +String(h.id).slice('music.album.'.length) : -1,
+    pageT: first ? first.t + PAGE_DELAY / FPS : null,
+  }
+}
+
 // One rendering of the whole window at time t (motion-blur copies each get their own t).
-function WindowContent({ t, st }) {
+function WindowContent({ t, st, vs }) {
   const rel = toRel(t, st.openedAt)
+  const pageT = vs.pageT != null && t >= vs.pageT ? vs.pageT : null
   return (
     <div
       style={{
@@ -58,11 +80,11 @@ function WindowContent({ t, st }) {
     >
       <Chrome />
       <BodyBg />
-      <Header t={t} openT={st.openedAt} />
+      <Header t={t} openT={st.openedAt} pageT={pageT} />
       <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
       <TaskPane />
       <GridBar />
-      <AlbumGrid />
+      <AlbumGrid t={t} hover={vs.hover} sel={vs.sel && t >= vs.sel.t ? vs.sel : null} />
       <Scrollbar />
       <StatusBar />
     </div>
@@ -102,13 +124,14 @@ function MusicWindowLayer({ t }) {
   const st = musicWindowState(t)
   if (!st.exists) return null
   const rel = toRel(t, st.openedAt)
+  const vs = viewState(t, st.openedAt)
   const beam = <Beam rel={rel} />
   if (rel < 5) return beam
   if (!openMoving(rel)) {
     return (
       <>
         <div style={winBox}>
-          <WindowContent t={t} st={st} />
+          <WindowContent t={t} st={st} vs={vs} />
         </div>
         {beam}
       </>
@@ -121,7 +144,7 @@ function MusicWindowLayer({ t }) {
     const p = openPose(toRel(tt, st.openedAt))
     layers.push(
       <div key={k} style={{ ...winBox, ...poseCss(p), opacity: p.op / n, mixBlendMode: 'plus-lighter' }}>
-        <WindowContent t={tt} st={st} />
+        <WindowContent t={tt} st={st} vs={vs} />
       </div>,
     )
   }

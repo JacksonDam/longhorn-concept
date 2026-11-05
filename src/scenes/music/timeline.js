@@ -3,7 +3,7 @@
 // music.album at 945.5, music.minimize at 1353, music.restore at 1403).
 import { FPS } from '../../core/clock.js'
 import { clamp, lerp } from '../../core/anim.js'
-import { DEVICE_F0, DEVICE_POSES } from './devicePoses.js'
+import { DEVICE_F0, DEVICE_POSES, ALBUM_POSES } from './poses.js'
 
 export const toRel = (t, t0) => (t - t0) * FPS
 export const relToSec = (f) => f / FPS
@@ -68,21 +68,42 @@ export function poseCss(p) {
   }
 }
 
-// ---------------------------------------------------------------- header device (rel to music.open)
-const DEV = DEVICE_POSES.map((r, i) => [DEVICE_F0 + i, ...r])
-const devTable = table(DEV)
-const DEV_LOOP0 = 40 // idle part used for ping-pong playback after the fitted range
-const DEV_END = DEVICE_F0 + DEVICE_POSES.length - 1
-export function devicePoseRel(rel) {
-  let f = rel
-  if (f > DEV_END) {
-    const span = DEV_END - DEV_LOOP0
-    const k = (f - DEV_END) % (2 * span)
-    f = k < span ? DEV_END - k : DEV_LOOP0 + (k - span)
-  }
-  const [x, y, rx, ry, rz] = devTable(f)
-  return { x, y, rx, ry, rz }
+// ---------------------------------------------------------------- header slabs
+// ping-pong playback of the fitted idle range once the table runs out (interactive use)
+function pingPong(f, a, b) {
+  if (f <= b) return f
+  const span = b - a
+  const k = (f - b) % (2 * span)
+  return k < span ? b - k : a + (k - span)
 }
+const pose6 = ([x, y, rx, ry, rz, z]) => ({ x, y, rx, ry, rz, z })
+
+const devTable = table(DEVICE_POSES.map((r, i) => [DEVICE_F0 + i, ...r]))
+const DEV_END = DEVICE_F0 + DEVICE_POSES.length - 1
+// rel: frames since music.open
+export const devicePoseRel = (rel) => pose6(devTable(pingPong(rel, 40, DEV_END)))
+
+const albTable = table(ALBUM_POSES)
+const ALB_END = ALBUM_POSES[ALBUM_POSES.length - 1][0]
+// hrel: frames since the album page transition started
+export const albumPoseRel = (hrel) => pose6(albTable(pingPong(hrel, 40, ALB_END)))
+
+// the album page: the header changes this long after the album tile is clicked
+export const PAGE_DELAY = 22.5
+// device spins away (hrel = frames since the page transition started)
+export const spinOut = (h) => (h <= 1 ? { ry: 0, z: 0 } : { ry: 0.37 * (h - 1), z: -8 * (h - 1) })
+// track list slides in from the right: [hrel, dx, opacity]
+export const LIST_IN = table([
+  [13, 420, 0],
+  [14, 260, 0.35],
+  [15, 110, 0.75],
+  [15.5, 40, 0.9],
+  [16, 9, 1],
+  [17, 5, 1],
+  [18, 2, 1],
+  [19, 0.5, 1],
+  [20, 0, 1],
+])
 
 // ---------------------------------------------------------------- header intro fades (rel to music.open)
 export const ramp = (rel, a, b) => clamp((rel - a) / (b - a))
