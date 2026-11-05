@@ -80,14 +80,14 @@ function BuddyPic({ kind, baseline }) {
 // fade on the right where long labels run into the panel edge
 const clipRight = { width: 960 - 889, overflow: 'hidden', maskImage: 'linear-gradient(to right, #000 85%, transparent)' }
 
-const HeaderTile = memo(function HeaderTile() {
-  return (
-    <img
-      src={asset('img/desktop/user-sondra.webp')}
-      alt=""
-      style={{ position: 'absolute', left: 864, top: 4, width: 19, height: 18, objectFit: 'cover' }}
-    />
-  )
+// The user picture first shows colour-washed (pale yellow, as on the login screen's
+// selected tile) and turns to full colour as the name fades in (frames 568.5-574).
+const userPic = { position: 'absolute', left: 864, top: 4, width: 19, height: 18, objectFit: 'cover' }
+const HeaderPale = memo(function HeaderPale() {
+  return <img src={asset('img/desktop/user-sondra.webp')} alt="" style={{ ...userPic, filter: 'sepia(0.75) saturate(0.8) brightness(1.45) contrast(0.8)' }} />
+})
+const HeaderColor = memo(function HeaderColor() {
+  return <img src={asset('img/desktop/user-sondra.webp')} alt="" style={userPic} />
 })
 const HeaderName = memo(function HeaderName() {
   return <div style={text(887.5, 17, 11.2, { color: 'rgba(255,255,255,0.92)' })}>Sondra</div>
@@ -191,7 +191,8 @@ const ThumbsTile = memo(function ThumbsTile() {
 
 // Tile order and their stacking: each entry renders inside its own opacity group
 export const TILES = [
-  ['header', HeaderTile],
+  ['header', HeaderPale],
+  ['headerColor', HeaderColor],
   ['name', HeaderName],
   ['seattle', SeattleTile],
   ['mail', MailTile],

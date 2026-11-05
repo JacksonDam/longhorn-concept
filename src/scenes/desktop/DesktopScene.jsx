@@ -39,18 +39,21 @@ const Wallpaper = memo(function Wallpaper() {
   )
 })
 
+// Tile entrance (absolute video frames; each tile fades in over one frame, measured as
+// half opacity on the frame it first shows): see docs/desktop-spec.md.
 function sidebarOpacity(f) {
   return {
-    panel: ramp(f, 513, 520),
-    header: ramp(f, 520, 521),
-    name: ramp(f, 569, 573),
-    seattle: ramp(f, 522, 524),
-    mail: ramp(f, 523, 525),
-    media: ramp(f, 524, 526),
-    buddies: ramp(f, 525, 527),
-    photo: ramp(f, 525.5, 527),
-    online: ramp(f, 527, 529),
-    thumbs: ramp(f, 527, 529.5),
+    panel: ramp(f, 515, 520.5),
+    header: ramp(f, 520.4, 521.2),
+    headerColor: ramp(f, 568.5, 574),
+    name: ramp(f, 568.5, 574),
+    seattle: ramp(f, 522.5, 523.5),
+    mail: ramp(f, 523.5, 524.5),
+    media: ramp(f, 524.5, 525.5),
+    buddies: ramp(f, 525.5, 526.5),
+    photo: ramp(f, 526.4, 527.5),
+    online: ramp(f, 527.4, 528.5),
+    thumbs: ramp(f, 528.4, 529.5),
   }
 }
 
@@ -59,7 +62,7 @@ export function DesktopScene({ since }) {
   useEvents()
   const f = framesSince(t, since)
   const op = sidebarOpacity(f)
-  const haze = Math.min(ramp(f, 515, 518), 1 - ramp(f, 519, 521)) * 0.35
+  const haze = Math.min(ramp(f, 516, 518), 1 - ramp(f, 518, 520.5)) * 0.1
   const fly = flyoutState(t)
   // media strip hover highlight: fades in over 3.1 frames, out over 5.5 (the brighter
   // flashes around the flyout's opening and closing are its own motion-blurred ghost)

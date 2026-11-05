@@ -5,7 +5,7 @@ import { emit, last } from '../../core/events.js'
 import { MotionBlur } from '../../core/MotionBlur.jsx'
 import { ease, clamp, track } from '../../core/anim.js'
 import { musicWindowState } from '../music/MusicWindow.jsx'
-import { Bar, GroupBg, TaskButton, StartFlag, StartLabel, Clock, ShutDot, ClockChevron, LAYOUT4, LAYOUT5 } from './Taskbar.jsx'
+import { Bar, GroupBg, TaskButton, StartFlag, StartLabel, Clock, ShutDot, ClockChevron, EarlyBarTint, LAYOUT4, LAYOUT5 } from './Taskbar.jsx'
 import { ramp } from './timing.js'
 import { hoverLevel } from './Flyout.jsx'
 
@@ -139,25 +139,36 @@ function PressFlash({ t, b }) {
 }
 
 export function TaskbarLayer({ t, f }) {
+  // entrance (absolute video frames, measured element by element)
   const bar = ramp(f, 516, 520)
-  const flag = ramp(f, 520, 521)
-  const oldIn = ramp(f, 518, 520)
-  const swap = ramp(f, 569, 572)
-  const start = ramp(f, 569, 573)
+  const flag = ramp(f, 520.3, 521.3)
+  const dotIn = ramp(f, 519.4, 520.4)
+  const clockIn = ramp(f, 519.5, 520.5)
+  const dotOut = ramp(f, 568.3, 574.3)
+  const oldClockOut = ramp(f, 569.3, 574)
+  const newClock = ramp(f, 568.3, 574.3)
+  const chevron = ramp(f, 567.6, 574.2)
+  const start = ramp(f, 569.4, 574.8)
+  const built = ramp(f, 568.5, 574)
   // task buttons rise into place (vertical motion blur), frames ~521.5-524
-  const rise = (ff) => 22 * (1 - ease.outCubic(clamp((ff - (521.5 - 509)) / 2.5)))
-  const groupOp = ramp(f, 521, 523)
+  const rise = (ff) => 20 * (1 - ease.outCubic(clamp((ff - (522.3 - 509)) / 1.6)))
+  const groupOp = ramp(f, 521.6, 523)
   const ms = musicWindowState(t)
   const rel = ms.exists ? (t - ms.openedAt) * FPS - INSERT_DELAY : -Infinity
   const inserted = rel >= 0
   const oldClock = DEMO ? '7:09 PM' : realTime(true)
-  const newClock = DEMO ? '11:31 am' : realTime(false)
-  const moving = f > 521 && f < 525
+  const newLabel = DEMO ? '11:31 am' : realTime(false)
+  const moving = f > 521.5 && f < 524.5
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', inset: 0, opacity: bar }}>
         <Bar />
       </div>
+      {bar * (1 - built) > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: bar * (1 - built) }}>
+          <EarlyBarTint />
+        </div>
+      )}
       {groupOp > 0 && !inserted && (
         <>
           <div style={{ position: 'absolute', inset: 0, opacity: groupOp }}>
@@ -178,8 +189,13 @@ export function TaskbarLayer({ t, f }) {
         </>
       )}
       {inserted && <GroupInsert rel={rel} t={t} />}
-      {flag > 0 && (
-        <div style={{ position: 'absolute', inset: 0, opacity: flag }}>
+      {flag * (1 - built) > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: flag * (1 - built) }}>
+          <StartFlag pastel />
+        </div>
+      )}
+      {flag * built > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: flag * built }}>
           <StartFlag />
         </div>
       )}
@@ -188,15 +204,23 @@ export function TaskbarLayer({ t, f }) {
           <StartLabel />
         </div>
       )}
-      {oldIn * (1 - swap) > 0 && (
-        <div style={{ position: 'absolute', inset: 0, opacity: oldIn * (1 - swap) }}>
+      {dotIn * (1 - dotOut) > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: dotIn * (1 - dotOut) }}>
           <ShutDot />
-          <Clock label={oldClock} />
         </div>
       )}
-      {swap > 0 && (
-        <div style={{ position: 'absolute', inset: 0, opacity: swap }}>
-          <Clock label={newClock} />
+      {clockIn * (1 - oldClockOut) > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: clockIn * (1 - oldClockOut) }}>
+          <Clock label={oldClock} old />
+        </div>
+      )}
+      {newClock > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: newClock }}>
+          <Clock label={newLabel} />
+        </div>
+      )}
+      {chevron > 0 && (
+        <div style={{ position: 'absolute', inset: 0, opacity: chevron }}>
           <ClockChevron />
         </div>
       )}

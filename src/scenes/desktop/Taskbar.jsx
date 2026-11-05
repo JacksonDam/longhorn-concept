@@ -141,7 +141,8 @@ export const Bar = memo(function Bar() {
   )
 })
 
-export const StartFlag = memo(function StartFlag() {
+// The start flag first shows in washed-out colour, then turns white-blue (frames 568.5-574)
+export const StartFlag = memo(function StartFlag({ pastel }) {
   return (
     <img
       src={asset('img/desktop/flag.svg')}
@@ -152,7 +153,7 @@ export const StartFlag = memo(function StartFlag() {
         top: 702,
         width: 17,
         height: 15,
-        filter: 'grayscale(1) brightness(2.4) contrast(0.9)',
+        filter: pastel ? 'saturate(0.55) brightness(1.7) contrast(0.85)' : 'grayscale(1) brightness(2.4) contrast(0.9)',
       }}
     />
   )
@@ -166,13 +167,48 @@ export const StartLabel = memo(function StartLabel() {
   )
 })
 
-export function Clock({ label }) {
+export function Clock({ label, old }) {
+  // the entrance clock ("7:09 PM", carried over from the login screen) is dim and lighter
+  const look = old
+    ? { fontWeight: 500, fontSize: 10.6, color: 'rgba(196,212,226,0.55)', top: 702.5 }
+    : { fontWeight: 600, fontSize: 11.2, color: 'rgba(222,234,246,0.9)', top: 702.5 }
   return (
-    <div style={{ position: 'absolute', left: 858, width: 76, textAlign: 'right', top: 702.5, fontFamily: "'Libre Franklin', Tahoma, sans-serif", fontWeight: 600, fontSize: 11.2, lineHeight: '16px', color: 'rgba(222,234,246,0.9)' }}>
+    <div style={{ position: 'absolute', left: 858, width: 76, textAlign: 'right', fontFamily: "'Libre Franklin', Tahoma, sans-serif", lineHeight: '16px', ...look }}>
       {label}
     </div>
   )
 }
+
+// While the taskbar is still being built (frames ~520-574) it glows around the task group
+// and is darker towards both ends; measured as two overlays on the final bar.
+export const EarlyBarTint = memo(function EarlyBarTint() {
+  return (
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 699,
+          width: 858,
+          height: 21,
+          background:
+            'linear-gradient(to right, rgba(10,20,35,0.5) 0px, rgba(10,20,35,0.5) 40px, rgba(10,20,35,0.45) 60px, rgba(10,20,35,0.25) 100px, rgba(10,20,35,0.05) 140px, rgba(10,20,35,0) 160px, rgba(10,20,35,0) 780px, rgba(10,20,35,0.08) 820px, rgba(10,20,35,0.22) 858px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 699,
+          width: 858,
+          height: 21,
+          background:
+            'linear-gradient(to right, rgba(160,210,255,0) 140px, rgba(160,210,255,0.08) 170px, rgba(160,210,255,0.16) 200px, rgba(160,210,255,0.25) 248px, rgba(160,210,255,0.25) 676px, rgba(160,210,255,0.13) 724px, rgba(160,210,255,0.04) 772px, rgba(160,210,255,0) 800px)',
+        }}
+      />
+    </>
+  )
+})
 
 export const ShutDot = memo(function ShutDot() {
   return (
