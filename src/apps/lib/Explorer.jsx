@@ -242,7 +242,7 @@ function FolderTree({ win, path, h, t }) {
 }
 
 export const iconOf = (n) =>
-  ({ computer: 'computer', drive: 'drive', cd: 'cd', floppy: 'floppy', shared: 'shared', doc: 'doc', text: 'text', picture: 'picture', video: 'picture', music: 'music' })[n.kind] ||
+  ({ computer: 'computer', camera: 'camera', drive: 'drive', cd: 'cd', floppy: 'floppy', shared: 'shared', doc: 'doc', text: 'text', picture: 'picture', video: 'picture', music: 'music' })[n.kind] ||
   (n.special === 'pictures' ? 'picture' : n.special === 'music' ? 'music' : 'folder')
 
 // ---- item views -------------------------------------------------------------------------------

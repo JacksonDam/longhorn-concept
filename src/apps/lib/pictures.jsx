@@ -155,9 +155,11 @@ const COMMENTS = {
   autumn: 'Leaves everywhere. A good afternoon for a long walk.',
   snow: 'A rare snow day in town. Everything was quiet.',
   night: 'Watching the lights from the hill at midnight.',
+  cam1: 'A calm afternoon on the water. The light was perfect just before sunset.',
+  cam2: 'A slow Sunday walk through the park, with leaves still on most trees.',
 }
 
-export const GROUPS = GROUP_DEFS.map((g) => {
+function makeGroup(g) {
   const date = new Date(Date.UTC(g.y, g.m - 1, g.d))
   const title = `${MONTHS[g.m - 1]} ${g.d}, ${g.y} ${DOW[date.getUTCDay()]}`
   const photos = Array.from({ length: g.n }, (_, i) => {
@@ -183,10 +185,27 @@ export const GROUPS = GROUP_DEFS.map((g) => {
     }
   })
   return { ...g, title, photos }
-})
+}
+export const GROUPS = GROUP_DEFS.map(makeGroup)
 export const PHOTOS = GROUPS.flatMap((g) => g.photos)
-PHOTOS.forEach((p) => p.url) // rasterise every photo at load
-export const photoById = (id) => PHOTOS.find((p) => p.id === id) || null
+
+// The digital camera's pictures (Picture and Video Acquisition imports them as two events)
+export const CAMERA_EVENTS = [
+  { id: 'cam1', y: 2003, m: 11, d: 1, caption: 'Saturday at the lake', scene: 'lake', n: 15, keywords: ['Weekend trips'], location: 'Lake Washington', when: 'Saturday afternoon, November 1, 2003' },
+  { id: 'cam2', y: 2003, m: 11, d: 2, caption: 'Sunday walk', scene: 'autumn', n: 9, keywords: ['Family'], location: 'Volunteer Park', when: 'Sunday morning, November 2, 2003' },
+].map((g) => ({ ...makeGroup(g), when: g.when }))
+export const CAMERA_PHOTOS = CAMERA_EVENTS.flatMap((g) => g.photos)
+// an imported event: the camera's group under the name and keywords given in the wizard
+export function importedGroup(ev) {
+  const g = CAMERA_EVENTS.find((x) => x.id === ev.id)
+  if (!g) return null
+  const keywords = ev.keywords && ev.keywords.length ? ev.keywords : g.keywords
+  const caption = ev.name || g.caption
+  return { ...g, caption, photos: g.photos.map((p, i) => ({ ...p, name: `${caption} ${i + 1}`, keywords, get url() { return p.url } })) }
+}
+const ALL = [...PHOTOS, ...CAMERA_PHOTOS]
+ALL.forEach((p) => p.url) // rasterise every photo at load
+export const photoById = (id) => ALL.find((p) => p.id === id) || null
 export const TAGS = ['Family', 'Parties', 'Weekend trips', 'Hiking', 'Garden', 'Vacation', 'Outdoors']
 
 // ---- my Documents' picture files (fs.js) ----------------------------------------------------

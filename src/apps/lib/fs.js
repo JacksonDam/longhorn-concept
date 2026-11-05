@@ -8,6 +8,7 @@ import { now } from '../../core/clock.js'
 import { getWindow } from '../../os/wm.js'
 import { openWin, messageBox } from './common.js'
 import { PHOTOS } from './pictures.jsx'
+import { openCamera } from '../autoplay/index.jsx'
 
 const d = (s) => s // dates are display strings (m/d/yyyy h:mm AM/PM)
 
@@ -82,6 +83,7 @@ export const ROOT = {
     },
     { name: 'DVD-RW Drive (D:)', kind: 'cd', removable: 'disc', children: null },
     { name: '3½ Floppy (A:)', kind: 'floppy', removable: 'disk', children: null },
+    { name: 'Digital Camera', kind: 'camera', device: true, children: null },
   ],
 }
 
@@ -110,6 +112,9 @@ export function openFile(node, path) {
     return
   }
   switch (node.kind) {
+    case 'camera':
+      openCamera(now())
+      return
     case 'doc':
     case 'text':
       openWin('word:' + node.name, 'word', { file: node.name })
@@ -187,4 +192,5 @@ export const typeName = (n) =>
     drive: 'Local Disk',
     cd: 'CD Drive',
     floppy: '3½-Inch Floppy Disk',
+    camera: 'Digital Camera',
   })[n.kind] || 'File'

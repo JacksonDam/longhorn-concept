@@ -16,6 +16,7 @@ import { openWin, openUrl, messageBox } from '../lib/common.js'
 import { PHOTOS, photoById, TAGS, photoUrl } from '../lib/pictures.jsx'
 import { picState, visibleGroups, library, editStyle } from './state.js'
 import { Calendar } from './Calendar.jsx'
+import { openCamera } from '../autoplay/index.jsx'
 
 const PANE_X = 33
 const AREA_X = 190
@@ -208,11 +209,12 @@ function TaskPane({ win, t, st }) {
   return (
     <>
       <Head a="enjoy" b="pictures" y={8} />
-      {L('show', 32, 'View Slide show', 'display', () => slideshow(null, true))}
-      {L('album', 50, 'Create an Album', 'picture', () => openWin('album', 'album'))}
-      {L('dvd', 68, 'Burn DVD', 'cd', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
-      {L('share', 86, 'Share Pictures', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: 'my Pictures & Videos' }))}
-      {L('print', 104, 'Print Pictures', 'print', printBox)}
+      {L('show', 30, 'View Slide show', 'display', () => slideshow(null, true))}
+      {L('album', 46, 'Create an Album', 'picture', () => openWin('album', 'album'))}
+      {L('dvd', 62, 'Burn DVD', 'cd', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
+      {L('share', 78, 'Share Pictures', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: 'my Pictures & Videos' }))}
+      {L('print', 94, 'Print Pictures', 'print', printBox)}
+      {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()))}
       <Head a="find" b="pictures" y={132} />
       <div style={{ ...small, left: PANE_X - 8, top: 155 }}>Containing the words:</div>
       <TextField id={wid(win, 'words')} x={PANE_X - 8} y={170} w={136} h={17} size={10.5} pad={4} />
@@ -449,7 +451,7 @@ const DetailInfo = memo(function DetailInfo({ p, w }) {
 })
 
 function Detail({ win, t, st, list, w, edits }) {
-  const p = photoById(st.photo) || list[0]
+  const p = list.find((x) => x.id === st.photo) || photoById(st.photo) || list[0]
   if (!p) return null
   const i = list.findIndex((x) => x.id === p.id)
   const step = (d) => {
