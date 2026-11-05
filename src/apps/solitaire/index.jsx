@@ -158,6 +158,7 @@ function Solitaire({ win, t, w, h }) {
     emit('sol.new', { id: win.id, seed: Math.round(now() * 1000) % 100000 })
     setSel(null)
   }
+  const howTo = () => messageBox({ title: 'Solitaire', icon: 'info', heading: 'how to play', text: 'Build the four foundations up by suit from Ace to King. On the table, stack cards down in alternating colours. Only a King may fill an empty column.\n\nClick a card, then where to put it. Double-click a card to send it to a foundation. Click the stock to turn a card.' })
   const menus = [
     { key: 'game', label: 'Game', items: [{ label: 'Deal', shortcut: 'F2', onClick: newGame }, '-', { label: 'Exit', onClick: () => closeWin(win.id) }] },
     { key: 'help', label: 'Help', items: [{ label: 'How to Play', onClick: () => messageBox({ title: 'Solitaire', icon: 'info', heading: 'how to play', text: 'Build the four foundations up by suit from Ace to King. On the table, stack cards down in alternating colours. Only a King may fill an empty column.\n\nClick a card, then where to put it. Double-click a card to send it to a foundation. Click the stock to turn a card.' }) }, { label: 'Help and Support', onClick: () => openWin('help', 'help') }] },
@@ -184,7 +185,7 @@ function Solitaire({ win, t, w, h }) {
         {piles.stock.length ? <Card c={{ up: false }} /> : <Slot label={'↻'} />}
       </div>
       {/* waste */}
-      <div style={{ position: 'absolute', left: x0(1), top: yTop }}>{!piles.waste.length && <Slot label="" />}</div>
+      <div style={{ position: 'absolute', left: x0(1), top: yTop }} onPointerDown={(e) => e.button === 0 && (emit('sol.draw', { id: win.id }), setSel(null))}>{!piles.waste.length && <Slot label="" />}</div>
       {piles.waste.length > 0 && cardAt('waste', top(piles.waste), piles.waste.length - 1, x0(1), yTop)}
       {/* foundations */}
       {['f0', 'f1', 'f2', 'f3'].map((f, i) => (
@@ -218,7 +219,7 @@ function Solitaire({ win, t, w, h }) {
           <Button id={id('again')} label="Deal Again" isDefault x={100} y={56} w={100} h={24} onClick={newGame} />
         </div>
       )}
-      <StatusBar y={h - 20} w={w} left={<span>Moves: {moves}</span>} right={<span>Game #{seed}</span>} />
+      <StatusBar y={h - 20} w={w} left={<span onPointerDown={(e) => e.button === 0 && howTo()}>Moves: {moves}</span>} right={<span onPointerDown={(e) => e.button === 0 && newGame()}>Game #{seed}</span>} />
     </div>
   )
 }
