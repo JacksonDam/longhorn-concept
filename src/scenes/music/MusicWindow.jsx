@@ -206,7 +206,7 @@ function MusicWindowLayer({ t }) {
     if (mrel < RESTORE_END) {
       return (
         <>
-          <Blurred {...props} n={16} shutter={1 / FPS} pose={(tt) => restorePose(toRel(tt, st.changedAt))} />
+          <Blurred {...props} n={16} shutter={(mrel > 4.5 ? 1.36 : 1) / FPS} pose={(tt) => restorePose(toRel(tt, st.changedAt))} />
           <Beam rel={mrel} fan={[-0.5, 1.2, 3.2]} spark={[0.5, 2, 4.5]} />
         </>
       )

@@ -104,8 +104,8 @@ export const Chrome = memo(function Chrome() {
       <div
         style={abs(198, 78, 564, 17, {
           borderRadius: 9,
-          background: 'linear-gradient(90deg, #d9ecfb 0, #e5effa 300px, #dce9f6 440px, #b7cde6 564px)',
-          boxShadow: 'inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
+          background: 'linear-gradient(90deg, #d9ecfb 0, #e5effa 300px, #e3edf9 480px, #dce8f6 520px, #c3d5ec 564px)',
+          boxShadow: '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
         })}
       />
       <div
