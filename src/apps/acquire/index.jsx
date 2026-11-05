@@ -49,7 +49,7 @@ const txt = { fontFamily: FONT, fontSize: 11, color: C.text, whiteSpace: 'nowrap
 function Welcome({ win, t, w }) {
   return (
     <>
-      <div style={{ position: 'absolute', left: 48, top: 22 }}>
+      <div style={{ position: 'absolute', left: 48, top: 22 }} onPointerDown={(e) => e.button === 0 && setPage(win, 'capture')}>
         <Frame size={112} />
       </div>
       <div style={{ position: 'absolute', left: 240, top: 28, fontFamily: FONT, fontSize: 15, color: '#4f86d6' }}>Welcome</div>
@@ -59,11 +59,11 @@ function Welcome({ win, t, w }) {
       </div>
       <div style={panel(240, 130, w - 270, 168)} />
       <Radio group={wid(win, 'mode')} option="auto" def="auto" label={<span style={{ fontFamily: HEAVY, color: '#3a4260' }}>Auto Capture</span>} x={252} y={142} />
-      <div style={{ position: 'absolute', left: 272, top: 160, ...txt, color: '#8b91a6' }}>All the pictures and video on the device will be copied.</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'mode'), value: 'auto' })} style={{ position: 'absolute', left: 272, top: 160, ...txt, color: '#8b91a6' }}>All the pictures and video on the device will be copied.</div>
       <Radio group={wid(win, 'mode')} option="manual" def="auto" label={<span style={{ fontFamily: HEAVY, color: '#3a4260' }}>Manual Capture</span>} x={252} y={186} />
-      <div style={{ position: 'absolute', left: 272, top: 204, width: w - 310, fontFamily: FONT, fontSize: 11, color: '#8b91a6' }}>You select which pictures and which parts of the video are copied to your computer.</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'mode'), value: 'manual' })} style={{ position: 'absolute', left: 272, top: 204, width: w - 310, fontFamily: FONT, fontSize: 11, color: '#8b91a6' }}>You select which pictures and which parts of the video are copied to your computer.</div>
       <Checkbox id={wid(win, 'remove')} label="Remove video and pictures from the camera once copied" x={252} y={270} />
-      <div style={{ position: 'absolute', left: 240, top: 318, ...txt, color: '#2c6cc4' }}>To continue, click Next.</div>
+      <div onPointerDown={(e) => e.button === 0 && setPage(win, 'capture')} style={{ position: 'absolute', left: 240, top: 318, ...txt, color: '#2c6cc4' }}>To continue, click Next.</div>
       {void t}
     </>
   )
