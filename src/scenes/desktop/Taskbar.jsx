@@ -113,15 +113,15 @@ export const Bar = memo(function Bar() {
 export const StartFlag = memo(function StartFlag({ pastel }) {
   return (
     <img
-      src={asset('img/desktop/flag.svg')}
+      src={asset(pastel ? 'img/desktop/flag.svg' : 'img/desktop/icons/flag-start.webp')}
       alt=""
       style={{
         position: 'absolute',
-        left: 7,
-        top: 702,
+        left: 8,
+        top: 702.25,
         width: 17,
         height: 15,
-        filter: pastel ? 'saturate(0.55) brightness(1.7) contrast(0.85)' : 'grayscale(1) brightness(2.4) contrast(0.9)',
+        filter: pastel ? 'saturate(0.55) brightness(1.7) contrast(0.85)' : undefined,
       }}
     />
   )

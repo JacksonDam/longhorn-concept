@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="37" height="33" viewBox="0 0 37 33">
+<defs>
+<linearGradient id="frm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3c96e0"/><stop offset="0.5" stop-color="#1c84d4"/><stop offset="1" stop-color="#2c9cf0"/></linearGradient>
+<linearGradient id="ti" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#84d8fc"/><stop offset="1" stop-color="#6cc4f4"/></linearGradient>
+<linearGradient id="body" x1="0" y1="0" x2="1" y2="0.3"><stop offset="0" stop-color="#e2f2fc"/><stop offset="0.2" stop-color="#f8fcfc"/><stop offset="0.7" stop-color="#eaf2fa"/><stop offset="1" stop-color="#d8e8f6"/></linearGradient>
+</defs>
+<rect x="1" y="1" width="35" height="31" fill="#0c1c30" fill-opacity="0.35"/>
+<rect x="2" y="2" width="33" height="29" fill="url(#frm)"/>
+<rect x="3.6" y="4.4" width="28.4" height="2.8" fill="url(#ti)"/>
+<rect x="3.6" y="7.2" width="28" height="22.2" fill="url(#body)"/>
+<rect x="29.2" y="7.2" width="2.4" height="22.2" fill="#90c8f0" fill-opacity="0.8"/>
+<g transform="rotate(-8 16 11.6)"><rect x="12.4" y="8.2" width="6.6" height="6.6" fill="#3e4648"/><rect x="12.4" y="8.2" width="6.6" height="1.6" fill="#6a767c"/></g>
+<g fill-opacity="0.85">
+<rect x="13" y="16.6" width="3" height="2.8" fill="#a88c86"/><rect x="17.2" y="16.6" width="3" height="2.8" fill="#4c5258"/><rect x="21.4" y="16.6" width="3" height="2.8" fill="#8e8a7c"/><rect x="25.6" y="16.6" width="2.6" height="2.8" fill="#a07c74"/>
+<rect x="13" y="20.6" width="3" height="2.8" fill="#9c9488"/><rect x="17.2" y="20.6" width="3" height="2.8" fill="#2c3036"/><rect x="21.4" y="20.6" width="3" height="2.8" fill="#6c7078"/><rect x="25.6" y="20.6" width="2.6" height="2.8" fill="#8c8a90"/>
+<rect x="13" y="24.6" width="3" height="2.4" fill="#b8b09c"/><rect x="17.2" y="24.6" width="3" height="2.4" fill="#c0c4c8"/><rect x="21.4" y="24.6" width="3" height="2.4" fill="#a8acb0"/><rect x="25.6" y="24.6" width="2.6" height="2.4" fill="#b4b0a8"/>
+</g>
+<path d="M6 15 V27" stroke="#c4dcf0" stroke-width="1.2"/>
+<rect x="2" y="29.6" width="33" height="1.4" fill="#2c6894"/>
+<rect x="2.5" y="2.5" width="32" height="28" fill="none" stroke="#d8ecff" stroke-opacity="0.3" stroke-width="1"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="37" height="33" viewBox="0 0 37 33">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#a294e2"/><stop offset="0.5" stop-color="#a08ed8"/><stop offset="1" stop-color="#a69ad8"/></linearGradient>
+<linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f2f6"/><stop offset="1" stop-color="#ece8ec"/></linearGradient>
+<linearGradient id="fr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ece4ff" stop-opacity="0.5"/><stop offset="1" stop-color="#c0b4e8" stop-opacity="0.35"/></linearGradient>
+</defs>
+<rect x="1" y="1" width="35" height="31" fill="#0c1c30" fill-opacity="0.35"/>
+<rect x="2" y="2" width="33" height="29" fill="url(#bg)"/>
+<rect x="5" y="8" width="24" height="18" fill="url(#win)"/>
+<rect x="5" y="8" width="24" height="2.6" fill="#cec4f2"/>
+<rect x="7.4" y="12.4" width="7.4" height="7.6" fill="none" stroke="#cfc8d6" stroke-width="1.4"/>
+<path d="M17 13 H26 M17 15.6 H24.6 M17 18.2 H25.6 M7.6 22.6 H26" stroke="#d6d0dc" stroke-width="1"/>
+<rect x="29" y="8.6" width="1.4" height="17.4" fill="#8a78c0" fill-opacity="0.45"/>
+<rect x="2.5" y="2.5" width="32" height="28" fill="none" stroke="url(#fr)" stroke-width="1"/>
+</svg>

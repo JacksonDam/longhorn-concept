@@ -1,7 +1,8 @@
-// Small (16 px) Plex-style app icons for the taskbar, Start menu and menus. Images where the
-// video shows a real icon (IE, Word, my Music), drawn SVG for the rest.
-import { asset } from '../../core/preload.js'
-import { OutlookIcon, WinampIcon } from './icons.jsx'
+// Small (16 px) Plex-style app icons for the taskbar, Start menu and menus. Image files where the
+// video shows a real icon (IE, Word, my Music, Outlook, Winamp: XP/Office 2003 16 px designs,
+// public/img/desktop/icons), drawn SVG for the rest.
+import { preload } from '../../core/preload.js'
+import { OutlookIcon, WinampIcon, iconUrl } from './icons.jsx'
 
 const S = ({ x, y, size = 16, children, vb = 16 }) => (
   <svg width={size} height={size} viewBox={`0 0 ${vb} ${vb}`} style={{ position: 'absolute', left: x, top: y, overflow: 'visible' }}>
@@ -9,14 +10,17 @@ const S = ({ x, y, size = 16, children, vb = 16 }) => (
   </svg>
 )
 
-const Img = (file) =>
+const Img = (f) =>
   function ImgIcon({ x, y, size = 16 }) {
-    return <img src={asset('img/desktop/' + file)} alt="" draggable={false} style={{ position: 'absolute', left: x, top: y, width: size, height: size }} />
+    return <img data-ic={f} src={iconUrl(f)} alt="" draggable={false} style={{ position: 'absolute', left: x, top: y, width: size, height: size }} />
   }
+preload(['ic-ie', 'ic-word', 'ic-mymusic'].map(iconUrl))
 
-export const IEIcon = Img('ic-ie.webp')
-export const WordIcon = Img('ic-word.svg')
-export const MusicIcon = Img('ic-mymusic.webp')
+// Internet Explorer 6, the Office 2003 Word document and the XP My Music folder, each redrawn
+// from its 16 px design (the larger XP/Office versions are drawn differently)
+export const IEIcon = Img('ic-ie')
+export const WordIcon = Img('ic-word')
+export const MusicIcon = Img('ic-mymusic')
 export { OutlookIcon, WinampIcon }
 
 function folderBody(extra) {

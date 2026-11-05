@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="37" height="33" viewBox="0 0 37 33">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa0b8"/><stop offset="0.2" stop-color="#a6a8c0"/><stop offset="0.4" stop-color="#a698a8"/><stop offset="1" stop-color="#a69094"/></linearGradient>
+<linearGradient id="road" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfc6d4" stop-opacity="0.2"/><stop offset="0.5" stop-color="#d8c6ca" stop-opacity="0.55"/><stop offset="1" stop-color="#e2ccd0" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="fr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4f0ff" stop-opacity="0.5"/><stop offset="1" stop-color="#b0a8c0" stop-opacity="0.35"/></linearGradient>
+</defs>
+<rect x="1" y="1" width="35" height="31" fill="#0c1c30" fill-opacity="0.35"/>
+<rect x="2" y="2" width="33" height="29" fill="url(#bg)"/>
+<path d="M2 7.6 Q14 5.6 35 8.4 L35 10.6 Q16 8.2 2 10.4 Z" fill="#c4bccc" fill-opacity="0.4"/>
+<path d="M12.6 9 L16.4 9 L29 31 L21.6 31 Z" fill="url(#road)"/>
+<path d="M26 14 Q31 16 35 22 L35 31 L31 31 Q30 22 26 14 Z" fill="#c8b0b4" fill-opacity="0.35"/>
+<path d="M2 18 Q6 20 9 31 L2 31 Z" fill="#8c7680" fill-opacity="0.3"/>
+<rect x="2.5" y="2.5" width="32" height="28" fill="none" stroke="url(#fr)" stroke-width="1"/>
+</svg>
