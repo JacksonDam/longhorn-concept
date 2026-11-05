@@ -6,7 +6,10 @@ export const FPS = 30000 / 1001 // the reference video's frame rate
 export const frameTime = (n) => ((n - 1) * 1001) / 30000 // 1-based video frame -> seconds
 
 const params = new URLSearchParams(location.search)
-export const CAPTURE = params.has('capture')
+// ?bench: capture mode whose clock steps one video frame per animation frame, as fast as the
+// browser renders (tools/bench.mjs measures the frame intervals). Same rendering path as capture.
+export const BENCH = params.has('bench')
+export const CAPTURE = params.has('capture') || BENCH
 
 let virtualT = 0
 let origin = performance.now()
@@ -27,11 +30,39 @@ function tick() {
   for (const fn of subs) fn(t)
 }
 
+let bench = null // { frames: [n...], i, out: [[n, dt]], last, resolve }
+let damage = null
 function loop() {
-  if (!CAPTURE) tick()
+  if (bench) {
+    const now = performance.now()
+    if (bench.i > 0) bench.out.push([bench.frames[bench.i - 1], now - bench.last])
+    bench.last = now
+    if (bench.i < bench.frames.length) {
+      virtualT = frameTime(bench.frames[bench.i++])
+      // a 1 px change every frame, so the browser never idles down to the display rate
+      damage.style.background = bench.i % 2 ? '#010101' : '#020202'
+      tick()
+    } else {
+      const done = bench
+      bench = null
+      done.resolve(done.out)
+    }
+  } else if (!CAPTURE) tick()
   requestAnimationFrame(loop)
 }
 requestAnimationFrame(loop)
+
+// ?bench: render `frames` back to back; resolves to [[frame, ms until the next frame], ...]
+export function runBench(frames) {
+  if (!damage) {
+    damage = document.createElement('div')
+    damage.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;z-index:99999;pointer-events:none'
+    document.body.appendChild(damage)
+  }
+  return new Promise((resolve) => {
+    bench = { frames, i: 0, out: [], last: performance.now(), resolve }
+  })
+}
 
 // capture / debugging hooks
 export function seek(t) {
