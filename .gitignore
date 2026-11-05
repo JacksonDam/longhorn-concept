@@ -7,3 +7,4 @@ dist
 /ref
 /assets-src
 /out
+__pycache__
