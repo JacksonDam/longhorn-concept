@@ -8,7 +8,7 @@ import * as I from '../../os/icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
-import { TWEET, TWEET_COVER } from './albums.js'
+import { TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
 import { FPS, CAPTURE } from '../../core/clock.js'
 import { ease } from '../../core/anim.js'
@@ -140,13 +140,14 @@ const btnLabel = (a, b) => [
 ]
 
 const BTN = [
-  { icon: <I.SpeakerIcon />, box: [395, 222, 30, 36], label: btnLabel('Play', 'Music'), lx: 383, cx: 405 },
-  { icon: <I.DiscIcon />, box: [466, 224, 32, 32], label: btnLabel('Burn', 'CD'), lx: 463, cx: 482 },
-  { icon: <I.ShareIcon />, box: [540, 225, 40, 30], label: btnLabel('Share', 'Music'), lx: 532, cx: 560 },
+  { icon: <I.SpeakerIcon />, box: [395, 222, 30, 36], label: btnLabel('Play', 'Music'), lx: 383, cx: 405, act: 'play', hw: 70 },
+  { icon: <I.DiscIcon />, box: [466, 224, 32, 32], label: btnLabel('Burn', 'CD'), lx: 463, cx: 482, act: 'burn', hw: 50 },
+  { icon: <I.ShareIcon />, box: [540, 225, 40, 30], label: btnLabel('Share', 'Music'), lx: 532, cx: 560, act: 'share', hw: 76 },
 ]
 
 // each button pops in: fades up while shrinking from a slightly larger size
-export function Buttons({ rel, op = 1 }) {
+// actions: { play, burn, share } click handlers (live window only)
+export function Buttons({ rel, op = 1, actions }) {
   const LAYER = useLayer()
   return BTN.map((b, i) => {
     const s0 = HEADER.buttons[i]
@@ -168,14 +169,25 @@ export function Buttons({ rel, op = 1 }) {
       >
         <div style={abs(...b.box)}>{b.icon}</div>
         <Txt x={b.lx} y={276} size={11.5} parts={b.label} />
+        {actions && op >= 1 && k >= 1 && (
+          <div
+            data-hit={'music.' + b.act}
+            style={abs(b.lx - 4, b.box[1] - 4, b.hw, 62)}
+            onClick={(e) => {
+              e.stopPropagation()
+              actions[b.act]?.()
+            }}
+          />
+        )}
       </div>
     )
   })
 }
 
-export const Preview = memo(function Preview() {
+export const Preview = memo(function Preview({ onClick }) {
   return (
     <>
+      {onClick && <div data-hit="music.preview" style={abs(706, 128, 58, 16)} onClick={onClick} />}
       <Txt x={710} y={140} size={11} w={400} c="#8aa6d2">
         preview
       </Txt>
@@ -241,28 +253,48 @@ function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, s
   )
 }
 
-// "Tweet  Southern Hummingbird" and the track list (track 3 highlighted, track 4's number blue)
+// the album page's title ("Tweet  Southern Hummingbird" in the video) and track list (the
+// selected track highlighted; the playing track's number blue - the video's track 4)
 const LIST = { x: 429, sx: 496, y: 151.5, nx: 431, tx: 450, ty: 174.5, dy: 15 }
-// sel: highlighted track index (the video: 2 = "Smoking Cigarettes"); hover: hovered index or -1
-const TrackListBody = memo(function TrackListBody({ sel = 2, hover = -1 }) {
+const listDy = (n) => (n > 10 ? 150 / (n - 1) : LIST.dy)
+// sel: highlighted track index; hover: hovered index or -1; playing: index whose number is blue
+const TrackListBody = memo(function TrackListBody({ album, sel = -1, hover = -1, playing = -1 }) {
+  const dy = listDy(album.tracks.length)
+  const isTweet = album.artist === 'Tweet'
   return (
     <>
-      <Txt x={LIST.x} y={LIST.y} size={20} f={HEAVY} sx={1} c="#d01a1c">
-        Tweet
-      </Txt>
-      <Txt x={LIST.sx} y={LIST.y} size={20} f={HEAVY} sx={1} c="#6c6a69">
-        Southern Hummingbird
-      </Txt>
-      {TWEET.tracks.map((name, i) => {
+      {isTweet ? (
+        <>
+          <Txt x={LIST.x} y={LIST.y} size={20} f={HEAVY} sx={1} c="#d01a1c">
+            Tweet
+          </Txt>
+          <Txt x={LIST.sx} y={LIST.y} size={20} f={HEAVY} sx={1} c="#6c6a69">
+            Southern Hummingbird
+          </Txt>
+        </>
+      ) : (
+        <Txt
+          x={LIST.x}
+          y={LIST.y}
+          size={album.artist.length + album.title.length > 30 ? 16 : 20}
+          f={HEAVY}
+          sx={1}
+          parts={[
+            [album.artist, { c: '#d01a1c' }],
+            ['  ' + album.title, { c: '#6c6a69' }],
+          ]}
+        />
+      )}
+      {album.tracks.map((tr, i) => {
         const hi = i === sel || i === hover
-        const y = LIST.ty + i * LIST.dy
+        const y = LIST.ty + i * dy
         return (
           <div key={i}>
-            <Txt x={LIST.nx} y={y} size={11} f={HEAVY} sx={1} c={hi || i === 3 ? '#2a9ff0' : '#8e8e8e'}>
+            <Txt x={LIST.nx} y={y} size={11} f={HEAVY} sx={1} c={hi || i === playing ? '#2a9ff0' : '#8e8e8e'}>
               {String(i + 1)}
             </Txt>
             <Txt x={LIST.tx} y={y} size={11} f={HEAVY} sx={1} c={hi ? '#2a9ff0' : '#8e8e8e'}>
-              {name}
+              {tr.title}
             </Txt>
           </div>
         )
@@ -271,30 +303,35 @@ const TrackListBody = memo(function TrackListBody({ sel = 2, hover = -1 }) {
   )
 })
 
-// invisible hit rows for hover / click on the tracks
-const TrackHits = memo(function TrackHits() {
-  return TWEET.tracks.map((_, i) => (
+// invisible hit rows for hover / click on the tracks (a click selects and plays the track)
+const TrackHits = memo(function TrackHits({ album }) {
+  const dy = listDy(album.tracks.length)
+  return album.tracks.map((_, i) => (
     <div
       key={i}
       data-track={i}
       onPointerEnter={() => emit('hover', { id: 'music.track.' + i, on: true })}
       onPointerLeave={() => emit('hover', { id: 'music.track.' + i, on: false })}
-      onClick={() => emit('music.track', { n: i })}
-      style={abs(LIST.nx - 4, LIST.ty - 11 + i * LIST.dy, 300, LIST.dy)}
+      onClick={(e) => {
+        e.stopPropagation()
+        emit('music.track', { n: i, album: album.key })
+        emit('media.play', { playlist: album.tracks.map((tr) => ({ title: `${album.artist} - ${tr.title}`, duration: tr.duration })), track: i })
+      }}
+      style={abs(LIST.nx - 4, LIST.ty - 11 + i * dy, 300, dy)}
     />
   ))
 })
 
 // slides in from the right with a horizontal multi-sample blur
-function TrackList({ hrel, sel, hover }) {
-  if (hrel < 13) return null
+function TrackList({ album, hrel, sel, hover, playing, out = 1 }) {
+  if (!album || hrel < 13) return null
   const [, op] = LIST_IN(hrel)
   if (hrel >= 20) {
     return (
-      <>
-        <TrackListBody sel={sel} hover={hover} />
-        <TrackHits />
-      </>
+      <div style={{ position: 'absolute', left: 0, top: 0, opacity: out }}>
+        <TrackListBody album={album} sel={sel} hover={hover} playing={playing} />
+        {out === 1 && <TrackHits album={album} />}
+      </div>
     )
   }
   const n = 10
@@ -304,55 +341,79 @@ function TrackList({ hrel, sel, hover }) {
     const [dx, o] = LIST_IN(h)
     layers.push(
       <div key={k} style={{ position: 'absolute', left: dx, top: 0, opacity: o / n, mixBlendMode: 'plus-lighter' }}>
-        <TrackListBody sel={sel} />
+        <TrackListBody album={album} sel={sel} playing={playing} />
       </div>,
     )
   }
   return <div style={{ position: 'absolute', left: 0, top: 0, isolation: 'isolate', opacity: op > 0 ? 1 : 0 }}>{layers}</div>
 }
 
-// t: this copy's time; openT: music.open; pageT: start of the album page transition (or null)
-// slabT: time for the slabs (real-time blur copies all pass the frame time, so the slab renders
-// once per frame and the copies share it)
-// slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs; real-time
-// playback draws them on their own layer above the window copies)
-export function Header({ t, openT, pageT, copy = false, track = 2, trackHover = -1, slabT = t, slabs = 'all', cache = false, skip = false }) {
-  const rel = toRel(t, openT)
-  const hrel = pageT == null ? -1e9 : toRel(t, pageT)
-  const fadeOut = 1 - smoothRamp(hrel, 1.5, 8.5)
-  const devPose = (tt) => {
-    const p = devicePoseRel(toRel(tt, openT))
-    if (pageT == null) return p
-    const h = toRel(tt, pageT)
-    const s = spinOut(h)
-    return { ...p, ry: p.ry + s.ry, z: p.z + s.z, opacity: 1 - ramp(h, 4, 5) }
+const albumSlabs = new Map()
+function albumSlabFor(album) {
+  let s = albumSlabs.get(album.key)
+  if (!s) {
+    s = { ...albumSlab, map: album.artist === 'Tweet' ? TWEET_COVER : album.url }
+    albumSlabs.set(album.key, s)
   }
-  const albPose = (tt) => {
-    const h = toRel(tt, pageT)
+  return s
+}
+
+// t: this copy's time; openT: the window's open reference time.
+// page: { album (library record | null = the device), t (start of its transition), prev (the page
+// before: album | null), prevSince (when that page started) } or null (never left the device).
+// slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
+// window's overlay layer). track / trackHover / playing: the page's track list state.
+export function Header({ t, openT, page, copy = false, track = -1, trackHover = -1, playing = -1, slabT = t, slabs = 'all', cache = false, skip = false, actions }) {
+  const rel = toRel(t, openT)
+  const hrel = page == null ? -1e9 : toRel(t, page.t)
+  const toDevice = page != null && page.album == null
+  const fromDevice = page != null && page.prev == null
+  // the device header (title, buttons, swoosh): fades out leaving the device, back in returning
+  const headerOp = page == null ? 1 : toDevice ? smoothRamp(hrel, 8, 16) : fromDevice ? 1 - smoothRamp(hrel, 1.5, 8.5) : 0
+  const spinAway = (pose, tt) => {
+    const h = toRel(tt, page.t)
+    const s = spinOut(h)
+    return { ...pose, ry: pose.ry + s.ry, z: pose.z + s.z, opacity: 1 - ramp(h, 4, 5) }
+  }
+  const spinIn = (tt) => {
+    const h = toRel(tt, page.t)
     return { ...albumPoseRel(h), opacity: ramp(h, 4, 5) }
   }
   const items = []
-  if (rel > 5.5 && hrel < 5.2) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: devPose })
-  if (hrel > 3.8) items.push({ slab: albumSlab, pose: albPose })
+  const device = (tt) => devicePoseRel(toRel(tt, openT))
+  if (page == null) {
+    if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: device })
+  } else {
+    // outgoing (until it has turned away)
+    if (hrel < 5.2) {
+      if (page.prev == null) {
+        if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: (tt) => spinAway(page.prevSince == null ? device(tt) : albumPoseRel(toRel(tt, page.prevSince)), tt) })
+      } else items.push({ slab: albumSlabFor(page.prev), pose: (tt) => spinAway(albumPoseRel(toRel(tt, page.prevSince)), tt) })
+    }
+    // incoming
+    if (hrel > 3.8) items.push({ slab: page.album ? albumSlabFor(page.album) : deviceSlab(drawDevice(slabT)), pose: spinIn })
+  }
   const fast = rel < 24 || (hrel > 0 && hrel < 21)
   const slabEl =
     items.length > 0 && slabs !== 'none' ? (
       <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} />
     ) : null
   if (slabs === 'only') return slabEl
+  const prevListOp = page && page.prev ? 1 - smoothRamp(hrel, 1, 6) : 0
   return (
     <>
-      {fadeOut > 0 && rel > HEADER.swoosh[0] && (
+      {headerOp > 0 && rel > HEADER.swoosh[0] && (
         <Swoosh
-          op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[0] + 4) * fadeOut}
+          op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[0] + 4) * headerOp}
           sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
         />
       )}
       {slabEl}
-      {fadeOut > 0 && <Title rel={rel} op={fadeOut} />}
-      {fadeOut > 0 && <Buttons rel={rel} op={fadeOut} />}
-      <TrackList hrel={hrel} sel={track} hover={copy ? -1 : trackHover} />
-      <Preview />
+      {headerOp > 0 && <Title rel={rel} op={headerOp} />}
+      {headerOp > 0 && <Buttons rel={rel} op={headerOp} actions={actions} />}
+      {prevListOp > 0 && <TrackList album={page.prev} hrel={99} sel={-1} hover={-1} playing={-1} out={prevListOp} />}
+      {page && page.album && <TrackList album={page.album} hrel={hrel} sel={track} hover={copy ? -1 : trackHover} playing={playing} />}
+      <Preview onClick={actions?.preview} />
     </>
   )
 }
