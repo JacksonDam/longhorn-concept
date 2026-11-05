@@ -482,9 +482,11 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   const contentMounted = useRef(false)
   const deferContent = !contentMounted.current && !app.prewarm && win.lastAction === 'open' && toRel(t, win.openedAt) < 1 - 1e-6
   if (!deferContent) contentMounted.current = true
-  // how inactive the window looks (in eighths: at 144 Hz a cross-fade repaints the lighter shadow
-  // 8 times, not 19; the chrome wash is a compositor-only fade)
-  const inactive = Math.round((1 - look) * 8) / 8
+  // how inactive the window looks (the chrome wash and the live window's shadow are layers of
+  // their own, so the cross-fade is compositor work)
+  const inactive = Math.round((1 - look) * 64) / 64
+  const hasShadow = app.chrome !== 'none' && app.shadow !== false
+  let live0 = null // copy 0's style and rect: its shadow layer mirrors them
   // how far the window's top chrome reaches (title bar + the app's bars): the rim runs along it
   // and an inactive window's wash covers it
   const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
@@ -507,9 +509,6 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     const rr = blur && k < nEff ? m.rect(tt) : r
     const mk = m.maxK(blur && k < nEff ? tt : t)
     const radius = mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4
-    // the live layer's shadow is lighter while the window looks inactive; copies (motion blur,
-    // idle) always draw the active look
-    const shadowOp = (1 - mk) * (1 - (k === 0 ? inactive : 0) * (1 - INACTIVE_SHADOW))
     // a closed window's live layer turns into a just-opened window's (a reopen then re-renders
     // little); while closing, the live content holds the time of the close
     let ct = m.closedDone ? liveContentT(win, app, win.openedAt) : liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
@@ -523,6 +522,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       const settle = app.settle ?? DEFAULT_SETTLE
       ct = app.snapshot ? app.snapshot(win, tk, ev, settle) : Math.max(win.openedAt, ev) + settle
     }
+    if (k === 0) live0 = { style, rr, mk }
     const visible = style !== PARKED && style.opacity > 1e-3
     // the open's lighting layers: on the live layer always, on copies until the open is over
     // (unmounted one copy per frame afterwards)
@@ -542,7 +542,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
-        {app.chrome !== 'none' && app.shadow !== false && <WindowShadow w={rr.w} h={rr.h} op={shadowOp} />}
+        {k > 0 && hasShadow && <WindowShadow w={rr.w} h={rr.h} op={1 - mk} />}
         <LiveLayers.Provider value={k === 0}>
           <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} r={radius} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
@@ -559,9 +559,26 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   const wash = chromeTop > 0 && mounted > 0 && (
     <LookLayer key="look" x={r.x} y={r.y} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={mk >= 1 ? 0 : mk <= 0 ? RIM_R : Math.round(RIM_R * (1 - mk) * 4) / 4} op={atRest ? inactive : 0} />
   )
+  // the live window's shadow: a layer of its own that takes copy 0's pose and opacity (times the
+  // look: lighter while inactive), accumulated like the copies (plus-lighter), so moving, blurring
+  // and the focus cross-fade only composite it; the motion-blur copies carry their own
+  const shadow = hasShadow && live0 && (
+    <div
+      key="shadow"
+      style={{
+        position: 'absolute', left: live0.rr.x, top: live0.rr.y, width: live0.rr.w, height: live0.rr.h, pointerEvents: 'none',
+        transform: live0.style.transform, transformOrigin: live0.style.transformOrigin,
+        opacity: live0.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)), mixBlendMode: 'plus-lighter',
+        willChange: live0.style === PARKED && !keepLayers ? undefined : 'transform, opacity',
+      }}
+    >
+      <WindowShadow w={live0.rr.w} h={live0.rr.h} op={1 - live0.mk} />
+    </div>
+  )
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
       <div style={{ position: 'absolute', inset: 0, isolation: 'isolate' }}>
+        {shadow}
         {layers}
         {wash}
       </div>
