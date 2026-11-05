@@ -132,4 +132,5 @@ export default {
   chromeTop: chromeTop({ toolbar: false }),
   background: '#ffffff',
   Content: scoped(Search, { watch: ['fs'] }),
+  usesActive: true, // Content draws differently when the window isn't active
 }

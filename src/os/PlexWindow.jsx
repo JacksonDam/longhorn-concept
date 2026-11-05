@@ -157,11 +157,11 @@ const WindowBody = memo(
   // outline is rounded, the bars inside it run square to its edges and the client area is
   // clipped to its corners
   // cut: the top chrome's height (app chromeTop); its leftmost pixel column is left to the rim
-  function WindowBody({ win, app, t, w, h, active, live, ck, proxy, defer, rt = RADIUS_TOP, rb = RADIUS_BOTTOM, cut = 0 }) {
+  function WindowBody({ win, app, t, w, h, active, live, ck, defer, rt = RADIUS_TOP, rb = RADIUS_BOTTOM, cut = 0 }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
-    const Content = proxy || app.Content
+    const Content = app.Content
     return (
       <div
         style={{
@@ -189,7 +189,7 @@ const WindowBody = memo(
   },
   (a, b) =>
     (a.ck != null && a.ck === b.ck ? true : sameRelT(a, b)) &&
-    a.w === b.w && a.h === b.h && a.rt === b.rt && a.rb === b.rb && a.cut === b.cut && a.active === b.active && a.live === b.live && a.app === b.app && a.proxy === b.proxy && a.defer === b.defer && winKey(a.win) === winKey(b.win),
+    a.w === b.w && a.h === b.h && a.rt === b.rt && a.rb === b.rb && a.cut === b.cut && (a.active === b.active || !a.app.usesActive) && a.live === b.live && a.app === b.app && a.defer === b.defer && winKey(a.win) === winKey(b.win),
 )
 // content time relative to the window's open: a prewarmed ghost and the window that takes over
 // its layers render identical content at the same relative time, so nothing re-renders
@@ -469,7 +469,7 @@ function mountedCopies(win, app, t, N) {
 // a window layer that shows nothing: parked off-stage at a near-zero opacity, so Blink keeps it
 // painted (it skips opacity-0 subtrees) while the compositor draws nothing on screen
 const PARKED = { transform: 'translateX(-4000px)', opacity: 1e-4 }
-const REST = { opacity: 1e-4 }
+const REST = { opacity: 0 }
 
 // A window that shows nothing and has nothing scheduled (minimised, closed, running at login,
 // prewarmed) renders the same every frame: this key changes only when its layers would change
@@ -510,8 +510,12 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   // queue: their first restore then only composites)
   const shown =
     (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'ghost' && (win.lastAction !== 'initial' || mounted >= N)
-  const rest = shown ? REST : PARKED
-  const keepLayers = ghost || win.state === 'closed' || win.lastAction === 'open'
+  // (an opening window's layers wait parked until their turn to be rasterised before it shows,
+  // so a window whose trees were pre-built doesn't reveal them all on its open's frame)
+  const rest = shown && !m.warm ? REST : PARKED
+  // (a closed window lets its layers go once it has gone: every composited layer costs every
+  // frame, so a session that opened many windows would otherwise slow down window by window)
+  const keepLayers = ghost || win.lastAction === 'open' || (win.state === 'closed' && toRel(t, win.changedAt) < CLOSE_END + 4)
   // an opening window that has never mounted its content mounts its frame and chrome on the open
   // event's frame and the content on the next (it shows from rel 5), so the two mounts don't
   // share a frame; prewarmed and reopened windows have it mounted already
@@ -537,9 +541,10 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     } else if (k === 0 && !m.hidden) {
       const p = m.pose ? m.pose(t) : null
       style = p && p.op <= 0 ? rest : { ...(p ? poseCss(p) : null), opacity: p ? p.op : 1 }
-    } else if (m.warm && k <= Math.floor((rel + 1) * 2)) {
+    } else if (m.warm && k <= Math.floor((rel - 0.5) * N / 4)) {
       // before the open is visible: copies are rasterised in their first visible pose, all but
-      // invisible (two per frame), so the first blurred frame finds their rasters ready
+      // invisible (spread over the four frames after the open's own, N / 4 a frame), so the first
+      // blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = rest
     const rr = blur && k < nEff ? m.rect(tt) : r
@@ -547,7 +552,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     const radius = radiiAt(mk)
     // a closed window's live layer turns into a just-opened window's (a reopen then re-renders
     // little); while closing, the live content holds the time of the close
-    let ct = m.closedDone ? liveContentT(win, app, win.openedAt) : liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
+    // (a ghost's live layer shows what the window shows on its open frame, so the window that takes
+    // it over doesn't re-render then)
+    let ct = m.closedDone || ghost ? liveContentT(win, app, win.openedAt) : liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
     if (k > 0) {
       // a ghost's copies show what a window that has just opened shows, so the real window
       // takes them over without re-rendering
@@ -564,7 +571,8 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
     // (unmounted one copy per frame afterwards)
     // (mounted from the open event, two copies per frame before the window shows; unmounted one
     // copy per frame after the open)
-    const light = win.lastAction === 'open' && m.light != null && rel < 17 + k && rel >= k / 2 - 1
+    // (spread like the copies' first rasters: about N / 5 copies a frame before the window shows)
+    const light = win.lastAction === 'open' && m.light != null && rel < 17 + k && rel >= (k * 4) / N + 0.5
     layers.push(
       <div
         key={k}
@@ -574,12 +582,16 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
           // are not composited: no layer, no raster, Blink only keeps their paint; prewarmed and
           // closed windows keep their layers (a reopen then only rasterises)
           ...style, mixBlendMode: 'plus-lighter', willChange: style === PARKED && !keepLayers ? undefined : 'transform, opacity',
+          // a parked layer (closed, never shown, still mounting) skips rendering altogether: no
+          // style, layout or paint per frame, however many windows the session has opened (its
+          // tree and layout state stay; it paints when it comes back on stage)
+          contentVisibility: style === PARKED && !ghost ? 'hidden' : undefined,
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody proxy={k > 0 ? app.Proxy : undefined} defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
+          <WindowBody defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}

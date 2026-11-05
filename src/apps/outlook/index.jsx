@@ -1,7 +1,6 @@
 // Inbox - Microsoft Outlook: folders, the message list (the sidebar's mail subjects), the reading
 // pane; New / Reply / Reply to All / Forward open a compose window that "sends" into Sent Items.
 // win.open { id: 'inbox', app: 'outlook', props: { message: <subject | index> } } shows that message.
-import { TopProxy, Lines, Text, box, ImageGrid } from '../lib/proxy.jsx'
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -263,30 +262,6 @@ function Outlook({ win, t, w, h, active }) {
 
 const noPrinter = () => messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 
-// what the blur copies draw: the panes as blocks, the rows and the message as text bars
-const AppProxy = memo(function AppProxy({ w, h }) {
-  const top = appTopHeight()
-  return (
-    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      <TopProxy w={w} labels="File  Edit  View  Go  Tools  Actions  Help" />
-      {box(0, top, NAV_W, h - top - 20, { background: 'linear-gradient(90deg, rgba(225,235,250,0.6), rgba(240,246,255,0.3))', boxShadow: `inset -1px 0 0 ${C.borderLight}` })}
-      <Text x={12} y={top + 10} size={17.5} color={C.heading}>my Mail</Text>
-      <Lines x={22} y={top + 38} w={NAV_W - 70} n={4} gap={19} bar={6} />
-      <Lines x={36} y={top + 128} w={NAV_W - 80} n={6} gap={19} bar={6} />
-      <Text x={NAV_W + 10} y={top + 8} size={17.5} color={C.heading}>Inbox</Text>
-      {Array.from({ length: 9 }, (_, i) => (
-        <div key={i}>
-          <Lines x={NAV_W + 34} y={top + 55 + i * 36} w={LIST_W - 50} n={2} gap={15} bar={6} color={i < 3 ? 'rgba(44,108,196,0.35)' : 'rgba(90,100,130,0.22)'} />
-        </div>
-      ))}
-      {box(NAV_W + LIST_W + 6, top + 4, w - NAV_W - LIST_W - 10, h - top - 28, { borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.borderLight}` })}
-      <Lines x={NAV_W + LIST_W + 20} y={top + 16} w={w - NAV_W - LIST_W - 120} n={1} gap={17} bar={9} color="rgba(45,53,80,0.4)" />
-      <Lines x={NAV_W + LIST_W + 20} y={top + 40} w={w - NAV_W - LIST_W - 160} n={3} gap={14} bar={6} />
-      <Lines x={NAV_W + LIST_W + 20} y={top + 104} w={w - NAV_W - LIST_W - 50} n={5} gap={17} bar={7} />
-      {box(0, h - 20, w, 20, { background: 'linear-gradient(180deg, #e3eaf6 0, #d3dfef 100%)' })}
-    </div>
-  )
-})
 export default {
   id: 'outlook',
   title: () => 'Inbox - Microsoft Outlook',
@@ -299,5 +274,5 @@ export default {
   chromeTop: chromeTop(),
   background: '#f6f9fe',
   Content: scoped(Outlook, { watch: ['mail'] }),
-  Proxy: AppProxy,
+  usesActive: true, // Content draws differently when the window isn't active
 }

@@ -1,4 +1,4 @@
-// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus'): a demo-like event list for the apps, appended after the video's input (frames
+// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus', 'every'): a demo-like event list for the apps, appended after the video's input (frames
 // 1530+), so tools/bench.mjs and tools/capture.mjs can step and measure the apps' windows on the
 // ?capture path:  node tools/bench.mjs 1530-1960 --url "http://localhost:5304/longhorn-concept/?apps=all"
 import { onEvents, getLog, emit } from '../../core/events.js'
@@ -61,6 +61,18 @@ function script(name) {
     at(1770, 'win.close', { id: 'calc' })
     at(1790, 'win.focus', { id: 'inbox' })
   }
+  if (name === 'every') {
+    // every registered app in turn (EVERY, below): opens, settles, minimises, restores and
+    // closes, one app per 110 frames from 1540 (open f, minimise f + 40, restore f + 60, close
+    // f + 90); tools/appbench.mjs prints the cost of each phase per app
+    EVERY.forEach(([app, id, props], i) => {
+      const f = 1540 + i * 110
+      at(f, 'win.open', props ? { id, app, props } : { id, app })
+      at(f + 40, 'win.minimize', { id })
+      at(f + 60, 'win.restore', { id })
+      at(f + 90, 'win.close', { id })
+    })
+  }
   if (name === 'opens') {
     // each heavy app opens, settles and closes: frames 1540-1540+7*60
     const list = [['pictures', 'pictures'], ['outlook', 'inbox', { message: 'Hello' }], ['ie', 'ie', { url: 'www.msn.com' }], ['im', 'im:Hank', { buddy: 'Hank' }], ['word', 'doc1'], ['programs', 'programs'], ['documents', 'documents']]
@@ -72,6 +84,16 @@ function script(name) {
   }
   return ev
 }
+
+// ?apps=every: [app, window id, props] (the ids and props the shell's launchers use)
+export const EVERY = [
+  ['about', 'about'], ['acquire', 'acquire'], ['album', 'album'], ['applet', 'applet', { applet: 'network' }], ['autoplay', 'autoplay'],
+  ['burncd', 'burncd', { what: 'music' }], ['calc', 'calc'], ['charmap', 'charmap'], ['compose', 'compose:1', { mode: 'new' }], ['computer', 'computer'],
+  ['control', 'control'], ['dialog', 'dialog:x', { title: 'Windows', text: 'Windows' }], ['display', 'display'], ['documents', 'documents'], ['help', 'help'],
+  ['ie', 'ie', { url: 'www.msn.com' }], ['im', 'im:Hank', { buddy: 'Hank' }], ['notepad', 'notepad'], ['outlook', 'inbox', { message: 'Hello' }], ['paint', 'paint'],
+  ['picedit', 'picedit'], ['pictures', 'pictures'], ['playlist', 'playlist'], ['programs', 'programs'], ['run', 'run'], ['search', 'search'],
+  ['sharemusic', 'sharemusic'], ['solitaire', 'solitaire'], ['winamp', 'winamp'], ['word', 'doc1'],
+]
 
 if (NAME) {
   // App.jsx installs the demo log at start-up; add the script once that has happened

@@ -175,5 +175,6 @@ export default {
   background: '#3f78c4',
   // the time, title and visualiser move while the player plays (and the bars settle after a pause)
   Content: scoped(Winamp, { watch: ['media'], alive: (win, t) => playing(t) }),
+  usesActive: true, // Content draws differently when the window isn't active
   liveTime: (win, t, base) => (win.state === 'open' && playing(t) ? t : base),
 }

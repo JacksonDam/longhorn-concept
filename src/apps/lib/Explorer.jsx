@@ -14,7 +14,6 @@ import { scoped, wid, valueOf, hoverKeys, pt, selectionOf, ListView, ContextMenu
 import { useUITime as useT } from '../../ui/scope.jsx'
 import { getApp } from '../../os/apps.js'
 import { Ico } from './icons.jsx'
-import { Lines as ProxyLines } from './proxy.jsx'
 import { PictureArt } from './pictures.jsx'
 import { ROOT, nodeAt, pathKey, openFile, openMusic, kb, typeName, MY_DOCS, MY_PICS } from './fs.js'
 import { openWin, openUrl, messageBox } from './common.js'
@@ -499,39 +498,6 @@ function crumbMenusOf(win, t, path) {
   return path.length > 1 ? [up.length ? up : [here], sub.length ? sub : [here]] : [sub.length ? sub : [here], null]
 }
 
-// what the blur copies draw: the task pane as bars, the items as icons in their grid cells
-const ExplorerProxy = memo(function ExplorerProxy({ win, t, w, h, root, defView }) {
-  const nav = navOf(t, win, root)
-  const kids = (childrenAt(t, nav.path) || []).slice(0, 24)
-  const node = resolve(nav.path)
-  const view = valueOf(t, wid(win, 'view:' + pathKey(nav.path)), node?.special === 'pictures' ? 'thumbs' : defView)
-  const left = nav.hide ? 0 : PANE_W
-  const [cw, ch] = VIEWS[view === 'details' ? 'tiles' : view] || VIEWS.tiles
-  const cols = Math.max(1, Math.floor((w - left - 20) / cw))
-  return (
-    <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      {!nav.hide && (
-        <>
-          <ProxyLines x={34} y={24} w={130} n={1} gap={20} bar={11} color="rgba(59,124,198,0.35)" />
-          <ProxyLines x={40} y={54} w={120} n={3} gap={20} bar={7} />
-          <ProxyLines x={34} y={136} w={110} n={1} gap={20} bar={11} color="rgba(59,124,198,0.35)" />
-          <ProxyLines x={40} y={164} w={100} n={4} gap={20} bar={7} />
-        </>
-      )}
-      {kids.map((n, i) =>
-        (i % cols) * cw + left + 10 > w || 8 + Math.floor(i / cols) * ch > h - 30 ? null : (
-          <div key={n.name} style={{ position: 'absolute', left: left + 10 + (i % cols) * cw, top: 8 + Math.floor(i / cols) * ch }}>
-            <div style={{ position: 'absolute', left: 4, top: 3 }}>
-              <Ico kind={iconOf(n)} size={view === 'tiles' ? 42 : 40} />
-            </div>
-            {view === 'tiles' && <ProxyLines x={54} y={6} w={Math.min(cw - 70, n.name.length * 6)} n={2} gap={15} bar={6} />}
-          </div>
-        ),
-      )}
-    </div>
-  )
-})
-
 export function makeExplorer({ id, title, taskbar, root, view = 'tiles', position, size = { w: 720, h: 540 }, search }) {
   const app = {
     id,
@@ -555,8 +521,8 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
       ],
       pressed: () => null,
     },
+    usesActive: true, // tiles draw their selection dimmed when the window isn't active
   }
-  app.Proxy = (props) => <ExplorerProxy {...props} root={root} defView={view} />
   app.Content = scoped(
     function Explorer(props) {
       return <ExplorerBody {...props} root={root} defView={view} app={getApp(id)} />

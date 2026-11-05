@@ -47,7 +47,14 @@ export function WindowLayer() {
   const looks = activeLevels(windows, t)
   // stable DOM order (by id) with the stacking order as z-index, so focusing a window never
   // moves DOM (which would repaint its layers); the layer is one stacking context below the shell
-  const z = new Map(list.map((w, i) => [w.id, i + 1]))
+  // (the windows' own stacking numbers, os/wm.js z, not their places in the list: opening or
+  // closing a window then never restacks the others; ghosts sit at the bottom)
+  let zTop = 1
+  const z = new Map(list.map((w) => {
+    const v = w.lastAction === 'ghost' ? 1 : (w.z || 0) + 2
+    zTop = Math.max(zTop, v)
+    return [w.id, v]
+  }))
   const order = [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   // one beam, always mounted (its layers stay rasterised), driven by the latest window animation
   let beam = null
@@ -68,7 +75,7 @@ export function WindowLayer() {
         const app = getApp(w.app)
         return <PlexWindow key={w.id} win={w} app={app} t={t} active={active.has(w.id)} look={looks.get(w.id) ?? 0} z={z.get(w.id)} quiet={quietKey(w, app, t)} />
       })}
-      <div style={{ position: 'absolute', inset: 0, zIndex: list.length + 1, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', inset: 0, zIndex: zTop + 1, pointerEvents: 'none' }}>
         <Beam {...(beam || { rel: null })} />
       </div>
     </div>

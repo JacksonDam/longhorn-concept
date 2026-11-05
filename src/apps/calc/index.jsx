@@ -117,4 +117,5 @@ export default {
   chromeTop: chromeTop({ toolbar: false }),
   background: '#f6f9fe',
   Content: scoped(Calc, {}),
+  usesActive: true, // Content draws differently when the window isn't active
 }
