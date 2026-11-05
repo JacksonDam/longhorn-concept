@@ -18,7 +18,7 @@ function BurnCD({ win, t, w, h }) {
   const items = { music: 'the selected music', pictures: 'the pictures in my Pictures & Videos', dvd: 'your pictures and videos' }[what]
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
-      <div style={{ position: 'absolute', left: 20, top: 18 }}>
+      <div style={{ position: 'absolute', left: 20, top: 18 }} onPointerDown={(e) => e.button === 0 && !checking && emit('ui.value', { id: id('try'), value: tries + 1 })}>
         <MessageIcon kind="cd" size={48} />
       </div>
       <div style={{ position: 'absolute', left: 84, top: 14, fontFamily: FONT, fontSize: 19, fontWeight: 300, color: C.headingLight, whiteSpace: 'nowrap' }}>
@@ -27,7 +27,7 @@ function BurnCD({ win, t, w, h }) {
       <div style={{ position: 'absolute', left: 84, top: 44, right: 20, fontFamily: FONT, fontSize: 11.5, lineHeight: '17px', color: C.text }}>
         Insert a blank, writable {disc} into the DVD-RW Drive (D:) to burn {items}.
       </div>
-      <div style={{ position: 'absolute', left: 84, top: 92, right: 20, height: 22, borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.borderLight}`, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', fontFamily: FONT, fontSize: 11, color: checking ? '#3b7cc6' : '#a0472c' }}>
+      <div onPointerDown={(e) => e.button === 0 && !checking && emit('ui.value', { id: id('try'), value: tries + 1 })} style={{ position: 'absolute', left: 84, top: 92, right: 20, height: 22, borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.borderLight}`, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', fontFamily: FONT, fontSize: 11, color: checking ? '#3b7cc6' : '#a0472c' }}>
         {checking ? (
           <>
             <Spinner t={t} />
