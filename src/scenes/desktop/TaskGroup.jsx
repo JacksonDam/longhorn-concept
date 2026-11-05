@@ -185,7 +185,7 @@ export function TaskGroup({ t, f }) {
         <PressFlash key={b.id} t={t} b={b} />
       ))}
       <BirthFlare r={tr?.kind === 'insert' ? r : -99} x={newIdx >= 0 ? layout.buttons[newIdx].x + 46.5 : 0} />
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: groupOp > 0 ? 'auto' : 'none' }}>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', visibility: groupOp > 0 ? 'visible' : 'hidden' }}>
         <TaskHits buttons={layout.buttons} onClick={taskClick} />
       </div>
     </div>

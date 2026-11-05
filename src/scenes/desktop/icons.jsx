@@ -168,16 +168,23 @@ export const Skyline = memo(function Skyline({ x, y }) {
 
 // Media strip buttons: a glossy blue play button with a pale halo, and three small grey
 // buttons on a translucent capsule
-export function PlayButton({ x, y }) {
+export const PlayButton = memo(function PlayButton({ x, y, playing }) {
   return (
     <svg {...svg(25, 25, { left: x, top: y })}>
       <circle cx="12.5" cy="12.5" r="12" fill="#a9c8f2" fillOpacity="0.55" />
       <circle cx="12.5" cy="12.5" r="10" fill="url(#dk-play)" stroke="#2a62c4" strokeWidth="0.6" />
       <ellipse cx="11.5" cy="7.6" rx="6.2" ry="3.4" fill="#ffffff" opacity="0.22" />
-      <path d="M10.2 7.4 L16.8 12.5 L10.2 17.6 Z" fill="#e8f2ff" />
+      {playing ? (
+        <g fill="#e8f2ff">
+          <rect x="9" y="7.6" width="2.6" height="9.8" />
+          <rect x="13.6" y="7.6" width="2.6" height="9.8" />
+        </g>
+      ) : (
+        <path d="M10.2 7.4 L16.8 12.5 L10.2 17.6 Z" fill="#e8f2ff" />
+      )}
     </svg>
   )
-}
+})
 export function MediaCapsule({ x, y }) {
   return (
     <svg {...svg(64, 20, { left: x, top: y })}>

@@ -5,6 +5,7 @@ import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { focusedWindow, getWindow } from '../../os/wm.js'
 import { getApp, hasApp } from '../../os/apps.js'
+import { closePopups } from './shellState.js'
 import { asset } from '../../core/preload.js'
 import {
   IEIcon, WordIcon, MusicIcon, OutlookIcon, WinampIcon, DocumentsIcon, PicturesIcon, ComputerIcon,
@@ -80,6 +81,7 @@ export function taskClick(id) {
   const t = now()
   const w = getWindow(t, id)
   if (!w) return
+  closePopups()
   emit('tb.press', { id })
   if (w.state === 'minimized') winEvent('win.restore', id)
   else if (focusedWindow(t)?.id === id) winEvent('win.minimize', id)
@@ -101,7 +103,7 @@ export const launch = {
   email: (message) => openApp('inbox', 'outlook', message ? { message } : undefined),
   word: () => openApp('doc1', 'word'),
   winamp: () => openApp('winamp', 'winamp'),
-  control: () => openApp('control', 'control'),
+  control: (props) => openApp('control', 'control', props),
   help: () => openApp('help', 'help'),
   search: () => openApp('search', 'search'),
   run: () => openApp('run', 'run'),
