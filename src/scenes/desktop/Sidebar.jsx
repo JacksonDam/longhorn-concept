@@ -213,7 +213,8 @@ const Glass = memo(function Glass() {
 })
 
 // opacity: { panel, header, name, seattle, ... } in 0..1
-export function Sidebar({ opacity, haze = 0, onMedia }) {
+export function Sidebar({ opacity, haze = 0, onMedia, mediaHL }) {
+  const hl = mediaHL?.hover ?? 0
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <div style={{ position: 'absolute', inset: 0, opacity: opacity.panel }}>
@@ -232,6 +233,19 @@ export function Sidebar({ opacity, haze = 0, onMedia }) {
           />
         )}
       </div>
+      {hl > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 859,
+            top: 257,
+            width: 101,
+            height: 52,
+            opacity: opacity.media,
+            background: `rgba(95,172,250,${0.6 * Math.min(1, hl)})`,
+          }}
+        />
+      )}
       {TILES.map(([id, Comp]) =>
         opacity[id] > 0 ? (
           <div key={id} style={{ position: 'absolute', inset: 0, opacity: opacity[id] }}>

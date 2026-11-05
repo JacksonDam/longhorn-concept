@@ -7,7 +7,7 @@ import { asset, preload } from '../../core/preload.js'
 import { IconDefs } from './icons.jsx'
 import { Sidebar } from './Sidebar.jsx'
 import { TaskbarLayer } from './TaskbarLayer.jsx'
-import { Flyout, flyoutState, toggleFlyout, closeFlyout } from './Flyout.jsx'
+import { Flyout, flyoutState, toggleFlyout, closeFlyout, hoverLevel } from './Flyout.jsx'
 import { framesSince, ramp } from './timing.js'
 
 const IMAGES = [
@@ -63,6 +63,9 @@ export function DesktopScene({ since }) {
   const op = sidebarOpacity(f)
   const haze = Math.min(ramp(f, 515, 518), 1 - ramp(f, 519, 521)) * 0.35
   const fly = flyoutState(t)
+  // media strip hover highlight: fades in over 3.1 frames, out over 5.5 (the brighter
+  // flashes around the flyout's opening and closing are its own motion-blurred ghost)
+  const mediaHL = { hover: hoverLevel(t, 'sb.media', 3.1, 5.5) }
   return (
     <div
       style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}
@@ -73,7 +76,7 @@ export function DesktopScene({ since }) {
       <IconDefs />
       <Wallpaper />
       <MusicWindow />
-      <Sidebar opacity={op} haze={haze} onMedia={toggleFlyout} />
+      <Sidebar opacity={op} haze={haze} onMedia={toggleFlyout} mediaHL={mediaHL} />
       <TaskbarLayer t={t} f={f} />
       <Flyout t={t} />
     </div>
