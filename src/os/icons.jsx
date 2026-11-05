@@ -158,50 +158,100 @@ export const BackForward = () =>
     </>,
   )
 
+// Home: the MSN butterfly in white and blue glass (white sail wing, navy outer wing, glowing
+// ball) over a glass bowl with a lit lower rim, fitted to the median of frames 800-1348.
 export const HomeIcon = () =>
   svg(
     34,
     36,
     <>
       <defs>
-        <radialGradient id="mw-bowl" cx="0.5" cy="0.35" r="0.65">
-          <stop offset="0" stopColor="#bcd8ff" stopOpacity="0.6" />
-          <stop offset="0.7" stopColor="#5d95e6" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#dcebff" stopOpacity="0.9" />
+        <radialGradient id="hm-b" cx="0.5" cy="0.45" r="0.5">
+          <stop offset="0" stopColor="#19519f" stopOpacity="0.71" />
+          <stop offset="1" stopColor="#619ff5" stopOpacity="0.71" />
         </radialGradient>
-        <linearGradient id="mw-wing" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#d4e8ff" />
+        <radialGradient id="hm-r" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="#83b9ef" stopOpacity="0" />
+          <stop offset="0.73" stopColor="#83b9ef" stopOpacity="0" />
+          <stop offset="0.91" stopColor="#83b9ef" stopOpacity="0.72" />
+          <stop offset="1" stopColor="#83b9ef" stopOpacity="0.22" />
+        </radialGradient>
+        <linearGradient id="hm-rv" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.25" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.75" stopColor="#fff" />
         </linearGradient>
+        <mask id="hm-rm" maskContentUnits="objectBoundingBox">
+          <rect width="1" height="1" fill="url(#hm-rv)" />
+        </mask>
+        <radialGradient id="hm-sd" gradientUnits="userSpaceOnUse" cx="26.25" cy="28.71" r="7.11">
+          <stop offset="0" stopColor="#1c61b7" stopOpacity="0.86" />
+          <stop offset="1" stopColor="#1c61b7" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="hm-d" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#1074ca" />
+          <stop offset="1" stopColor="#002062" />
+        </linearGradient>
+        <linearGradient id="hm-s" x1="0.2" y1="0" x2="0.6" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="0.55" stopColor="#f0f9f8" />
+          <stop offset="1" stopColor="#8bc3ff" />
+        </linearGradient>
+        <radialGradient id="hm-c" gradientUnits="userSpaceOnUse" cx="23.38" cy="16.38" r="5.58">
+          <stop offset="0" stopColor="#d9ecff" />
+          <stop offset="0.34" stopColor="#d9ecff" />
+          <stop offset="0.56" stopColor="#8dcbff" stopOpacity="0.8" />
+          <stop offset="1" stopColor="#8dcbff" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id="hm-bc">
+          <circle cx="19.25" cy="23.81" r="11.06" />
+        </clipPath>
       </defs>
-      {/* glass bowl */}
-      <circle cx="19" cy="25" r="10" fill="url(#mw-bowl)" />
-      <ellipse cx="19" cy="19" rx="7" ry="3" fill="#fff" opacity="0.3" />
-      <path d="M10 27 A9.5 9.5 0 0 0 28 27" fill="none" stroke="#f2f8ff" strokeOpacity="0.8" strokeWidth="1.3" />
-      {/* butterfly wings */}
-      <path d="M1 7 C5 6 10 9 13 14 L12 17 C8 13 4 10 1 7 Z" fill="#1d4f9a" opacity="0.85" />
-      <path d="M11 4 C13 1 17 0 18 2 L17 18 C14 15 12 12 11 9 Z" fill="url(#mw-wing)" />
-      <path d="M13 14 L17 19 L15 20 Z" fill="#244e8c" opacity="0.7" />
-      <circle cx="24" cy="11" r="3.2" fill="#e8f3ff" />
-      <circle cx="23.3" cy="10.2" r="1.3" fill="#fff" />
+      <circle cx="19.25" cy="23.81" r="11.06" fill="url(#hm-b)" />
+      <circle clipPath="url(#hm-bc)" cx="26.25" cy="28.71" r="7.11" fill="url(#hm-sd)" />
+      <circle cx="19.25" cy="23.81" r="11.06" fill="url(#hm-r)" mask="url(#hm-rm)" />
+      <path d="M0.4 6.35 Q3.83 15.59 12.38 20.5 Q8.34 11.78 0.4 6.35 Z" fill="url(#hm-d)" />
+      <path d="M16.79 4.51 C10.4 5.51 9.4 8.2 9.9 10.2 C10.4 14.2 14.65 20.56 16.15 21.56 C17.65 17.56 18.67 12.44 18.37 9.44 C18.07 6.44 18.79 4.51 16.79 4.51 Z" fill="url(#hm-s)" />
+      <circle cx="23.38" cy="16.38" r="5.58" fill="url(#hm-c)" />
     </>,
   )
 
+// Search: a blue glass magnifier (light ring with a soft dark edge, lit lower crescent, short
+// two-tone handle down-left), fitted to the median of frames 800-1348.
 export const SearchIcon = () =>
   svg(
     50,
     26,
     <>
       <defs>
-        <radialGradient id="mw-lens" cx="0.5" cy="0.65" r="0.6">
-          <stop offset="0" stopColor="#e2f1ff" stopOpacity="0.95" />
-          <stop offset="1" stopColor="#8cbcf2" stopOpacity="0.45" />
+        <linearGradient id="se-r" x1="0.2" y1="0" x2="0.8" y2="1">
+          <stop offset="0" stopColor="#e6ffff" />
+          <stop offset="0.55" stopColor="#73bbfd" />
+          <stop offset="1" stopColor="#c6d2eb" />
+        </linearGradient>
+        <linearGradient id="se-i" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#427bd0" stopOpacity="0.97" />
+          <stop offset="1" stopColor="#70c1ff" stopOpacity="0.97" />
+        </linearGradient>
+        <radialGradient id="se-c">
+          <stop offset="0" stopColor="#dffaff" />
+          <stop offset="0.6" stopColor="#dffaff" stopOpacity="0.7" />
+          <stop offset="1" stopColor="#dffaff" stopOpacity="0" />
         </radialGradient>
+        <linearGradient id="se-h" gradientUnits="userSpaceOnUse" x1="38.07" y1="18.3" x2="34.11" y2="13.08">
+          <stop offset="0" stopColor="#74abf6" />
+          <stop offset="0.5" stopColor="#0c4d99" />
+          <stop offset="1" stopColor="#0c4d99" />
+        </linearGradient>
+        <clipPath id="se-lc">
+          <circle cx="42.41" cy="9.91" r="6.27" />
+        </clipPath>
       </defs>
-      <line x1="31" y1="14" x2="2" y2="24" stroke="#0d3d86" strokeWidth="2.6" strokeLinecap="round" />
-      <line x1="30" y1="13.3" x2="3" y2="22.6" stroke="#5a92de" strokeWidth="0.8" strokeLinecap="round" opacity="0.8" />
-      <circle cx="38.5" cy="9.5" r="8.4" fill="url(#mw-lens)" stroke="#eef6ff" strokeWidth="1.9" />
-      <ellipse cx="38.5" cy="13" rx="6" ry="3" fill="#fff" opacity="0.5" />
+      <path d="M36.09 15.69 L25.25 23.92" stroke="url(#se-h)" strokeWidth="3.27" strokeLinecap="round" />
+      <path d="M35.25 14.57 L24.4 22.8" stroke="#74abf6" strokeOpacity="0.58" strokeWidth="0.9" strokeLinecap="round" />
+      <circle cx="42.41" cy="9.91" r="8.34" fill="none" stroke="#2067a5" strokeOpacity="0.75" strokeWidth="1.06" />
+      <circle cx="42.41" cy="9.91" r="7.81" fill="url(#se-r)" />
+      <circle cx="42.41" cy="9.91" r="6.27" fill="url(#se-i)" />
+      <ellipse clipPath="url(#se-lc)" cx="42.41" cy="14.42" rx="6.27" ry="2.97" fill="url(#se-c)" />
     </>,
   )
 
@@ -302,26 +352,33 @@ export const NotesIcon = () =>
     </>,
   )
 
+// Favorites: a pale blue glass star (bright body, rim lit at the top and blue below, soft
+// inner glow), fitted to the median of frames 800-1348.
 export const StarIcon = () =>
   svg(
     30,
     30,
     <>
       <defs>
-        <linearGradient id="mw-star" x1="0.2" y1="0" x2="0.8" y2="1">
-          <stop offset="0" stopColor="#f2f8ff" />
-          <stop offset="0.5" stopColor="#b8d6fb" />
-          <stop offset="1" stopColor="#7fb0ee" />
+        <radialGradient id="st-b" gradientUnits="userSpaceOnUse" cx="15.26" cy="18.92" r="14.69">
+          <stop offset="0" stopColor="#f4fffd" />
+          <stop offset="0.26" stopColor="#b7d6fe" />
+          <stop offset="1" stopColor="#84c6ff" />
+        </radialGradient>
+        <linearGradient id="st-o" gradientUnits="userSpaceOnUse" x1="0" y1="1.29" x2="0" y2="27.73">
+          <stop offset="0" stopColor="#feffff" stopOpacity="0.8" />
+          <stop offset="1" stopColor="#66caec" stopOpacity="0.8" />
         </linearGradient>
+        <radialGradient id="st-h">
+          <stop offset="0" stopColor="#f9ffff" stopOpacity="0.68" />
+          <stop offset="1" stopColor="#f9ffff" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      <path
-        d="M15 1 L18.6 11 L29 11.2 L20.6 17.6 L23.7 28 L15 21.8 L6.3 28 L9.4 17.6 L1 11.2 L11.4 11 Z"
-        fill="url(#mw-star)"
-        stroke="#e6f1ff"
-        strokeOpacity="0.7"
-        strokeWidth="0.8"
-      />
-      <path d="M15 1 L15 21.8 L6.3 28 L9.4 17.6 L1 11.2 L11.4 11 Z" fill="#fff" opacity="0.25" />
+      <path d="M14.91 2.04 Q15.19 1.29 15.47 2.04 L18.88 10.95 L28.41 11.34 Q29.2 11.38 28.59 11.88 L21.17 17.87 L23.73 27.06 Q23.95 27.82 23.28 27.39 L15.29 22.19 L7.35 27.47 Q6.68 27.91 6.89 27.14 L9.37 17.93 L1.89 12.01 Q1.27 11.51 2.06 11.47 L11.59 10.98 Z" fill="url(#st-b)" stroke="url(#st-o)" strokeWidth="0.69" strokeLinejoin="round" />
+      <clipPath id="st-sc">
+        <path d="M14.91 2.04 Q15.19 1.29 15.47 2.04 L18.88 10.95 L28.41 11.34 Q29.2 11.38 28.59 11.88 L21.17 17.87 L23.73 27.06 Q23.95 27.82 23.28 27.39 L15.29 22.19 L7.35 27.47 Q6.68 27.91 6.89 27.14 L9.37 17.93 L1.89 12.01 Q1.27 11.51 2.06 11.47 L11.59 10.98 Z" />
+      </clipPath>
+      <ellipse clipPath="url(#st-sc)" cx="14.26" cy="11.98" rx="6.85" ry="5.14" fill="url(#st-h)" />
     </>,
   )
 
