@@ -13,7 +13,7 @@ import { userInfo, wallpaper } from '../../os/session.js'
 import { mediaState } from '../../os/media.js'
 import { IconDefs } from './icons.jsx'
 import { Sidebar, PANEL } from './Sidebar.jsx'
-import { SidebarHits, SidebarLive } from './SidebarHits.jsx'
+import { SidebarHits, SidebarLive, mailState } from './SidebarHits.jsx'
 import { TaskbarLayer } from './TaskbarLayer.jsx'
 import { Flyout, flyoutState, closeFlyout, hoverLevel } from './Flyout.jsx'
 import { StartMenu } from './StartMenu.jsx'
@@ -139,7 +139,7 @@ export function DesktopScene({ since, user: userId }) {
       {/* the desktop surface: right-click opens the desktop menu */}
       <div style={{ position: 'absolute', inset: 0 }} onContextMenu={contextHandler('desk.ctx', DESK_MENU, () => closePopups())} />
       <WindowLayer />
-      <Sidebar opacity={op} haze={haze} mediaHL={mediaHL} user={user} media={media} slide={slide} live={<SidebarLive t={t} />} hits={SIDEBAR_HITS} />
+      <Sidebar opacity={op} haze={haze} mediaHL={mediaHL} user={user} media={media} slide={slide} mail={mailState(t, since)} live={<SidebarLive t={t} />} hits={SIDEBAR_HITS} />
       <TaskbarLayer t={t} f={f} sidebarHidden={!sb.visible} sidebarAt={sb.at} />
       <Flyout t={t} />
       <StartMenu t={t} user={user} />

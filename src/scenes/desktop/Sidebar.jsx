@@ -104,15 +104,18 @@ const SeattleTile = memo(function SeattleTile() {
   )
 })
 
-const MailTile = memo(function MailTile() {
+// mail: { sel (selected row, the video's Hotmail Service by default), read (rows opened) }
+const MAIL_DEFAULT = { sel: 1, read: [] }
+const MailTile = memo(function MailTile({ mail = MAIL_DEFAULT }) {
   return (
     <>
       <div style={text(867, 81.2, 10.5)}>Mail</div>
       {MAIL.map((m, i) => {
         const b = MAIL_Y0 + i * MAIL_DY
+        const icon = mail.read.includes(i) && m.icon !== 'open' ? 'open' : m.icon
         return (
           <div key={i}>
-            {m.selected && (
+            {mail.sel === i && (
               <div
                 style={{
                   position: 'absolute',
@@ -124,7 +127,7 @@ const MailTile = memo(function MailTile() {
                 }}
               />
             )}
-            {m.icon === 'open' ? <EnvelopeOpen x={866} y={b - 11} /> : <EnvelopeClosed x={867} y={b - 14.5} hot={m.icon === 'hot'} />}
+            {icon === 'open' ? <EnvelopeOpen x={866} y={b - 11} /> : <EnvelopeClosed x={867} y={b - 14.5} hot={icon === 'hot'} />}
             <div style={{ ...text(888, b, 9), ...clipRight }}>{m.text}</div>
           </div>
         )
@@ -240,7 +243,7 @@ const show = (o) => ({ position: 'absolute', inset: 0, opacity: o, visibility: o
 
 // opacity: { panel, header, name, seattle, ... } in 0..1; media: { title, playing, scroll };
 // slide: px the panel is pushed right (chevron), 0..102
-export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, live, hits }) {
+export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, live, hits, mail }) {
   const hl = mediaHL?.hover ?? 0
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -264,7 +267,7 @@ export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, li
         {live}
         {TILES.map(([id, Comp]) => (
           <div key={id} style={show(opacity[id])}>
-            <Comp user={user} />
+            <Comp user={user} mail={mail} />
           </div>
         ))}
         <div style={show(opacity.media)}>
