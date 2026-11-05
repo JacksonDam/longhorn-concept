@@ -7,7 +7,8 @@ import { USERS } from './state.js'
 
 export const pic = (id) => asset(`img/login/users/${id}.webp`)
 export const duo = (id) => asset(`img/login/users/${id}-duo.webp`)
-preload(USERS.flatMap((u) => [pic(u.id), duo(u.id)]))
+export const washed = (id) => asset(`img/login/users/${id}-hover.webp`) // the hover colour look
+preload(USERS.flatMap((u) => [washed(u.id), duo(u.id)]))
 
 const S = TILE.size
 const imgStyle = { position: 'absolute', left: 0, top: 0, width: S, height: S, borderRadius: 4, display: 'block' }
@@ -25,7 +26,7 @@ export const TileFace = memo(function TileFace({ id, color, glass }) {
         }}
       />
       <img src={duo(id)} alt="" draggable={false} style={imgStyle} />
-      {color > 0 && <img src={pic(id)} alt="" draggable={false} style={{ ...imgStyle, opacity: color }} />}
+      {color > 0 && <img src={washed(id)} alt="" draggable={false} style={{ ...imgStyle, opacity: color }} />}
       {/* glass frame: white rim + a vertical sheen near the right edge */}
       <div
         style={{
