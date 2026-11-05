@@ -451,7 +451,10 @@ function PlexWindowImpl({ win, app, t, active, z }) {
   // invisible, so their tiles stay rasterised and the next minimise / restore / move only
   // composites (rasterising ten window copies on the first frame of a restore costs 60 ms);
   // never-shown and closed windows park them off-stage (painted, not rasterised)
-  const shown = (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'initial' && win.lastAction !== 'ghost'
+  // (windows running at login count as shown once their copies have mounted in the background
+  // queue: their first restore then only composites)
+  const shown =
+    (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'ghost' && (win.lastAction !== 'initial' || mounted >= N)
   const rest = shown ? REST : PARKED
   const layers = []
   for (let k = 0; k < mounted; k++) {
