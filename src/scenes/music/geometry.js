@@ -1,6 +1,6 @@
 // Measured layout of the my Music window (reference frame 800, settled).
 // Stage px; the window's own layout is authored in window-local px (stage - WIN.x/y).
-export const WIN = { x: 45, y: 23, w: 777, h: 653, r: 8 }
+export const WIN = { x: 45, y: 23, w: 777, h: 654, r: 8 }
 
 // stage -> window-local helpers for authoring
 export const lx = (x) => x - WIN.x
