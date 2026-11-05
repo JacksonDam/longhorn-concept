@@ -1,38 +1,68 @@
-// Placeholder: login screen (framework smoke test until the real scene lands).
-import { useTime } from '../../core/time.jsx'
-import { MotionBlur } from '../../core/MotionBlur.jsx'
-import { Slab3D } from '../../gl/Slab3D.jsx'
+// Login screen (video frames 1-522): aurora background, Windows/VAIO logos, the bottom bar with
+// Shut Down, five user tiles and the clock; selecting a user flies their tile out as a glass slab
+// beside the password panel; submit plays the element-wise exit over the desktop.
+import { useEffect } from 'react'
+import { useTime, useEvents } from '../../core/time.jsx'
+import { emit } from '../../core/events.js'
+import { CAPTURE } from '../../core/clock.js'
+import { Aurora } from './Aurora.jsx'
+import { Logo } from './Logo.jsx'
+import { BarBand, ShutDown, Clock, clockText } from './Bar.jsx'
+import { TileRow } from './TileRow.jsx'
+import { currentSelection, submitEvent, passwordLength } from './state.js'
+import { LOGIN_EXIT, layerOpacity } from './exit.js'
 
-export const LOGIN_EXIT = 1.2 // seconds the login layer stays after login.submit
+export { LOGIN_EXIT }
+
+const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
+
+function useKeys() {
+  useEffect(() => {
+    if (CAPTURE) return
+    const onKey = (e) => {
+      const t = performance.now() // only used to detect auto-repeat floods; visuals use the clock
+      void t
+      const sel = currentSelection(Infinity)
+      if (submitEvent(Infinity)) return
+      if (e.key === 'Escape') {
+        if (sel.id) emit('login.deselect')
+        return
+      }
+      if (!sel.id) return
+      const len = passwordLength(Infinity)
+      if (e.key === 'Enter') emit('login.submit')
+      else if (e.key === 'Backspace') emit('login.pw', { len: Math.max(0, len - 1) })
+      else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey) emit('login.pw', { len: Math.min(len + 1, 24) })
+      else return
+      e.preventDefault()
+    }
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [])
+}
 
 export function LoginScene() {
   const t = useTime()
-  const k = (t % 2) / 2
+  useEvents()
+  useKeys()
+  const submit = submitEvent(t)
+  const k = submit ? t - submit.t : null
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,#0a1fb0,#3d8ff0)' }}>
-      <MotionBlur
-        t={t}
-        moving
-        samples={8}
-        shutter={1 / 30}
-        style={{ left: 0, top: 0, width: 960, height: 720 }}
-        pose={(tt) => ({ transform: `translate(${100 + ((tt % 2) / 2) * 700}px, 100px)` })}
-      >
-        <div style={{ width: 80, height: 80, background: '#fff', borderRadius: 8 }} />
-      </MotionBlur>
-      <Slab3D
-        width={960}
-        height={720}
-        moving
-        samples={8}
-        shutter={1 / 30}
-        items={[
-          {
-            slab: { w: 90, h: 90, d: 18, tint: [0.9, 0.6, 0.3] },
-            pose: (tt) => ({ x: 300 + k * 300, y: 400, ry: tt * 6, rx: 0.2 }),
-          },
-        ]}
-      />
+    <div
+      style={{ position: 'absolute', inset: 0, overflow: 'hidden', opacity: k == null ? 1 : layerOpacity(k) }}
+      onPointerDown={(e) => {
+        if (CAPTURE || submit) return
+        if (e.target === e.currentTarget || e.target.tagName === 'CANVAS') {
+          if (currentSelection(Infinity).id) emit('login.deselect')
+        }
+      }}
+    >
+      <Aurora />
+      <BarBand />
+      <Logo t={t} submitT={submit ? submit.t : null} />
+      <ShutDown />
+      <TileRow t={t} />
+      <Clock text={clockText(DEMO)} />
     </div>
   )
 }

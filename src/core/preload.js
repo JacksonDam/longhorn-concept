@@ -12,6 +12,12 @@ export function preload(urls) {
   }
 }
 
+// register any other async asset (fetched data, decoded atlases) the first frame depends on
+let extra = 0
+export function waitFor(promise) {
+  pending.set('promise:' + extra++, Promise.resolve(promise).catch(() => {}))
+}
+
 export function preloaded() {
   return Promise.all(pending.values())
 }
