@@ -52,11 +52,16 @@ function CharMap({ win, t, w, h }) {
         <Grid font={font} sel={sel} />
       </div>
       <div onPointerDown={(e) => e.button === 0 && add()} style={{ position: 'absolute', left: 13 + COLS * 19 + 8, top: 40, width: w - (13 + COLS * 19 + 8) - 12, height: 64, borderRadius: 4, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, textAlign: 'center', lineHeight: '64px', fontFamily: `'${font}'`, fontSize: 40, color: '#1d3557' }}>{String.fromCharCode(sel)}</div>
-      <div style={{ position: 'absolute', left: 13 + COLS * 19 + 8, top: 110, fontFamily: FONT, fontSize: 10, color: '#8b91a6', whiteSpace: 'nowrap' }}>U+{sel.toString(16).toUpperCase().padStart(4, '0')}</div>
+      <div onPointerDown={(e) => e.button === 0 && add()} style={{ position: 'absolute', left: 13 + COLS * 19 + 8, top: 110, fontFamily: FONT, fontSize: 10, color: '#8b91a6', whiteSpace: 'nowrap' }}>U+{sel.toString(16).toUpperCase().padStart(4, '0')}</div>
       <div style={{ position: 'absolute', left: 12, top: h - 62, fontFamily: FONT, fontSize: 11, color: C.text }} onPointerDown={(e) => e.button === 0 && focusField(id('copy'))}>Characters to copy:</div>
       <TextField id={id('copy')} x={120} y={h - 65} w={w - 290} h={20} />
       <Button id={id('select')} label="Select" x={w - 162} y={h - 66} w={72} h={23} onClick={add} />
-      <Button id={id('copyb')} label="Copy" x={w - 84} y={h - 66} w={72} h={23} onClick={() => navigator.clipboard?.writeText(textOf(now(), id('copy'))).catch(() => {})} />
+      <Button id={id('copyb')} label="Copy" x={w - 84} y={h - 66} w={72} h={23} onClick={() => {
+        const tx = textOf(now(), id('copy')) || String.fromCharCode(valueOf(now(), id('sel'), 65))
+        navigator.clipboard?.writeText(tx).catch(() => {})
+        emit('ui.value', { id: id('copied'), value: tx })
+      }} />
+      {valueOf(t, id('copied'), null) != null && <div style={{ position: 'absolute', left: 12, top: h - 32, fontFamily: FONT, fontSize: 10.5, color: '#2c6cc4' }}>Copied to the Clipboard: {valueOf(t, id('copied'), '')}</div>}
       <Button id={id('close')} label="Close" x={w - 84} y={h - 36} w={72} h={23} onClick={() => closeWin(win.id)} />
     </div>
   )

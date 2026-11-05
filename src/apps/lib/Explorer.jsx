@@ -214,7 +214,7 @@ const Details = memo(function Details({ node, y, preview }) {
   if (!node) return null
   const line = { fontFamily: FONT, fontSize: 10.5, lineHeight: '15px', color: C.textDark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: PANE_W - 26 }
   return (
-    <div style={{ position: 'absolute', left: 14, top: y }}>
+    <div style={{ position: 'absolute', left: 14, top: y }} onPointerDown={(e) => e.button === 0 && props(node)}>
       {preview && node.kind === 'picture' && (
         <div style={{ marginBottom: 6, boxShadow: '0 0 0 1px #c5d3e8, 0 3px 6px rgba(40,70,120,0.2)', width: 120, height: 90 }}>
           <PictureArt id={node.pic} w={120} h={90} />
@@ -448,7 +448,9 @@ function ExplorerBody({ win, t, w, h, active, root, defView, app }) {
       )}
       <div style={{ position: 'absolute', left: 0, top: h - statusH, width: w, height: statusH, background: 'linear-gradient(180deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.18) 2px, rgba(255,255,255,0.05) 19px)' }} />
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - statusH, height: statusH, lineHeight: `${statusH}px`, textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>
-        {selKeys.length ? `${selKeys.length} object${selKeys.length > 1 ? 's' : ''} selected` : `${kids.length} object${kids.length === 1 ? '' : 's'}`}
+        <span onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'items') + ':sel', value: { keys: selKeys.length ? [] : kids.map((n) => n.name), anchor: null } })}>
+          {selKeys.length ? `${selKeys.length} object${selKeys.length > 1 ? 's' : ''} selected` : `${kids.length} object${kids.length === 1 ? '' : 's'}`}
+        </span>
       </div>
       <ContextMenu id={ctxId} items={() => (selectionOf(now(), wid(win, 'items')).length ? ctxItem : ctxBg)} />
     </div>
