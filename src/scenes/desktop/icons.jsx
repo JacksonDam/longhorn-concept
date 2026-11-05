@@ -58,8 +58,8 @@ export const IconDefs = memo(function IconDefs() {
           <stop offset="1" stopColor="#3b3f58" />
         </linearGradient>
         <radialGradient id="dk-chev" cx="0.5" cy="0.4" r="0.6">
-          <stop offset="0" stopColor="#eef0f4" />
-          <stop offset="1" stopColor="#c9ced8" />
+          <stop offset="0" stopColor="#d9dde4" />
+          <stop offset="1" stopColor="#aab1bd" />
         </radialGradient>
       </defs>
     </svg>
@@ -274,7 +274,7 @@ export function Chevron({ x, y }) {
   return (
     <svg {...svg(15, 15, { left: x, top: y })}>
       <circle cx="7.5" cy="7.5" r="7" fill="url(#dk-chev)" />
-      <path d="M3.9 6 L7.5 9.6 L11.1 6" fill="none" stroke="#33415c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.9 6 L7.5 9.6 L11.1 6" fill="none" stroke="#56607a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
