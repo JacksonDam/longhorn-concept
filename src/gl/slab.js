@@ -95,15 +95,32 @@ const frag = /* glsl */ `
   uniform float uBandWidth;
   uniform float uRim;        // fresnel rim brightness
   uniform float uBrightness;
+  // optional picture grading + glass look (defaults keep the plain look)
+  uniform float uSat;        // picture saturation (1 = as is)
+  uniform float uContrast;   // picture contrast about 0.5
+  uniform vec3 uLift;        // added after grading (0..1)
+  uniform float uVignette;   // darkening of the face towards its rounded border (refraction)
+  uniform vec3 uVigColor;
+  uniform float uBandGain;   // extra brightness of the softbox band on the face only
+  uniform vec3 uFaceBand;    // explicit light band on the face: u centre, width, intensity
+  uniform float uFlipBack;   // 1: the back face reads the picture the right way round; 0: see-through glass (mirrored)
   void main() {
     vec3 nL = normalize(vNormalL);
     float front = smoothstep(0.55, 0.95, nL.z);
     float back = smoothstep(0.55, 0.95, -nL.z);
     vec2 uv = vUv;
-    if (back > 0.5) uv.x = 1.0 - uv.x;
+    if (back > 0.5 && uFlipBack > 0.5) uv.x = 1.0 - uv.x;
     vec3 pic = uHasMap > 0.5 ? texture2D(uMap, clamp(uv, 0.002, 0.998)).rgb : uTint;
+    float luma = dot(pic, vec3(0.299, 0.587, 0.114));
+    pic = vec3(luma) + (pic - vec3(luma)) * uSat;
+    pic = (pic - 0.5) * uContrast + 0.5 + uLift;
     vec3 side = mix(uEdgeColor, pic * 0.55 + uEdgeColor * 0.25, uEdgeMix);
-    vec3 col = mix(side, pic, max(front, back)) * uBrightness;
+    float faceMask = max(front, back);
+    // the bevel refracts the picture darker towards the face border
+    vec2 e = abs(vUv * 2.0 - 1.0);
+    float border = smoothstep(0.78, 1.0, max(e.x, e.y));
+    pic = mix(pic, uVigColor, uVignette * border);
+    vec3 col = mix(side, pic, faceMask) * uBrightness;
 
     // environment: a vertical softbox reflected in the glossy surface
     vec3 n = normalize(vNormalV);
@@ -111,7 +128,11 @@ const frag = /* glsl */ `
     vec3 r = reflect(-v, n);
     float band = exp(-pow((r.x - uBandPos) / max(uBandWidth, 1e-3), 2.0)) * smoothstep(-0.9, 0.2, r.y);
     float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-    col += uSpec * band * vec3(1.0);
+    col += uSpec * band * (1.0 + uBandGain * faceMask) * vec3(1.0);
+    if (uFaceBand.z > 0.0) {
+      float fu = (vUv.x - uFaceBand.x) / max(uFaceBand.y, 1e-3);
+      col += uFaceBand.z * exp(-fu * fu) * faceMask * vec3(1.0, 0.97, 0.95);
+    }
     col += uRim * fres * vec3(0.85, 0.92, 1.0);
     gl_FragColor = vec4(col * uOpacity, uOpacity);
   }
@@ -136,6 +157,14 @@ function makeMaterial() {
       uBandWidth: { value: 0.18 },
       uRim: { value: 0.6 },
       uBrightness: { value: 1 },
+      uSat: { value: 1 },
+      uContrast: { value: 1 },
+      uLift: { value: new THREE.Vector3(0, 0, 0) },
+      uVignette: { value: 0 },
+      uVigColor: { value: new THREE.Color(0.05, 0.06, 0.12) },
+      uBandGain: { value: 0 },
+      uFaceBand: { value: new THREE.Vector3(0.5, 0.2, 0) },
+      uFlipBack: { value: 1 },
     },
   })
 }
@@ -215,8 +244,10 @@ function setupCamera(cam, cw, ch, P, ox, oy) {
   cam.updateMatrixWorld(true)
 }
 
-// slab: { w, h, d, radius, map (url), tint, edgeColor, edgeMix, spec, bandPos, bandWidth, rim, brightness }
-// pose: { x, y, z, rx, ry, rz, s, sx, sy, opacity } in canvas px / radians
+// slab: { w, h, d, radius, map (url), tint, edgeColor, edgeMix, spec, bandPos, bandWidth, rim, brightness,
+//         sat, contrast, lift: [r,g,b], vignette, vigColor: [r,g,b], bandGain, faceBand, seeThrough }
+//         (the last eight optional; seeThrough shows the picture mirrored on the back face, like glass)
+// pose: { x, y, z, rx, ry, rz, s, sx, sy, opacity, band, brightness, faceBand: {u, w, a} } (px / radians)
 function applySlab(obj, slab, pose) {
   const { mesh, material: m } = obj
   const w = slab.w, h = slab.h, d = slab.d ?? Math.min(w, h) * 0.2
@@ -234,7 +265,18 @@ function applySlab(obj, slab, pose) {
   u.uBandPos.value = (slab.bandPos ?? -0.35) + (pose.band ?? 0)
   u.uBandWidth.value = slab.bandWidth ?? 0.18
   u.uRim.value = slab.rim ?? 0.6
-  u.uBrightness.value = slab.brightness ?? 1
+  u.uBrightness.value = (slab.brightness ?? 1) * (pose.brightness ?? 1)
+  u.uSat.value = slab.sat ?? 1
+  u.uContrast.value = slab.contrast ?? 1
+  if (slab.lift) u.uLift.value.set(...slab.lift)
+  else u.uLift.value.set(0, 0, 0)
+  u.uVignette.value = slab.vignette ?? 0
+  if (slab.vigColor) u.uVigColor.value.setRGB(...slab.vigColor)
+  u.uBandGain.value = slab.bandGain ?? 0
+  u.uFlipBack.value = slab.seeThrough ? 0 : 1
+  const fb = pose.faceBand ?? slab.faceBand
+  if (fb) u.uFaceBand.value.set(fb.u ?? 0.5, fb.w ?? 0.2, fb.a ?? 0)
+  else u.uFaceBand.value.set(0.5, 0.2, 0)
   u.uOpacity.value = pose.opacity ?? 1
   mesh.position.set(pose.x ?? 0, -(pose.y ?? 0), pose.z ?? 0)
   mesh.rotation.set(-(pose.rx ?? 0), pose.ry ?? 0, -(pose.rz ?? 0), 'YXZ')
