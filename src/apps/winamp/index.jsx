@@ -71,6 +71,7 @@ function Winamp({ win, t, w, h, active }) {
   const tr = m.track
   const vol = valueOf(t, id('vol'), 0.8)
   const remain = valueOf(t, id('remain'), false)
+  const scroll = valueOf(t, id('scroll'), true)
   const viz = valueOf(t, id('viz'), 0) // bars, thin bars, off
   const showList = valueOf(t, id('list'), true)
   const top = appTopHeight()
@@ -108,16 +109,18 @@ function Winamp({ win, t, w, h, active }) {
       <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('remain'), value: !remain })} style={{ position: 'absolute', left: 24, top: top + 16, fontFamily: HEAVY, fontSize: 30, color: '#9fdcff', letterSpacing: 1, textShadow: '0 0 6px rgba(80,170,255,0.6)' }}>
         {remain ? '-' + formatTime(tr.duration - m.position) : formatTime(m.position)}
       </div>
-      <div style={{ position: 'absolute', left: 26, top: top + 56, fontFamily: FONT, fontSize: 10, color: '#7fa8e0' }}>{m.playing ? '▶ playing' : m.position > 0 ? '❙❙ paused' : '■ stopped'}</div>
-      <Marquee x={124} y={top + 16} w={w - 150} text={`${m.index + 1}. ${tr.display || tr.title} (${formatTime(tr.duration)})`} t={t} playing={m.playing} />
-      <div style={{ position: 'absolute', left: 124, top: top + 34, fontFamily: FONT, fontSize: 9.5, color: '#7fa8e0', whiteSpace: 'nowrap' }}>128 kbps  44 kHz  stereo</div>
+      <div onPointerDown={(e) => e.button === 0 && emit(m.playing ? 'media.pause' : 'media.play')} style={{ position: 'absolute', left: 26, top: top + 56, fontFamily: FONT, fontSize: 10, color: '#7fa8e0' }}>{m.playing ? '▶ playing' : m.position > 0 ? '❙❙ paused' : '■ stopped'}</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('scroll'), value: !scroll })}>
+        <Marquee x={124} y={top + 16} w={w - 150} text={`${m.index + 1}. ${tr.display || tr.title} (${formatTime(tr.duration)})`} t={t} playing={m.playing && scroll} />
+      </div>
+      <div onPointerDown={(e) => e.button === 0 && messageBox({ title: 'File Info', icon: 'info', text: `${tr.display || tr.title}\nLength: ${formatTime(tr.duration)}\nWindows Media Audio, 128 kbps, 44 kHz, stereo` })} style={{ position: 'absolute', left: 124, top: top + 34, fontFamily: FONT, fontSize: 9.5, color: '#7fa8e0', whiteSpace: 'nowrap' }}>128 kbps  44 kHz  stereo</div>
       <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('viz'), value: (viz + 1) % 3 })}>
         {viz < 2 && <Viz x={124} y={top + 50} w={w - 150} h={40} pos={m.position} playing={m.playing} t={t} pausedAt={pausedAt} peaks={viz === 1} />}
         {viz === 2 && <div style={{ position: 'absolute', left: 124, top: top + 50, width: w - 150, height: 40 }} />}
       </div>
-      <div style={{ position: 'absolute', left: 14, top: top + 104, fontFamily: FONT, fontSize: 10, color: '#cfe6ff' }}>{formatTime(m.position)}</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('media.seek', { pos: 0 })} style={{ position: 'absolute', left: 14, top: top + 104, fontFamily: FONT, fontSize: 10, color: '#cfe6ff' }}>{formatTime(m.position)}</div>
       <Slider id={id('seek')} x={50} y={top + 104} w={w - 110} variant="chrome" value={m.position / tr.duration} onChange={(v) => emit('media.seek', { pos: v * tr.duration })} />
-      <div style={{ position: 'absolute', right: 14, top: top + 104, fontFamily: FONT, fontSize: 10, color: '#cfe6ff' }}>{formatTime(tr.duration)}</div>
+      <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('remain'), value: !remain })} style={{ position: 'absolute', right: 14, top: top + 104, fontFamily: FONT, fontSize: 10, color: '#cfe6ff' }}>{formatTime(tr.duration)}</div>
       {ctl('prev', 'prev', 'Previous', () => emit('media.prev'), 14)}
       {ctl('play', 'play', 'Play', () => emit('media.play'), 52, m.playing)}
       {ctl('pause', 'pause', 'Pause', () => emit('media.pause'), 90, !m.playing && m.position > 0)}
@@ -125,7 +128,9 @@ function Winamp({ win, t, w, h, active }) {
       {ctl('next', 'next', 'Next', () => emit('media.next'), 166)}
       {ctl('eject', 'eject', 'Open my Music', () => openMusic(), 212)}
       <div style={{ position: 'absolute', left: w - 140, top: top + 135 }}>
-        <Ico kind="volume" size={18} />
+        <span onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('vol'), value: vol > 0 ? 0 : 0.8 })}>
+          <Ico kind="volume" size={18} />
+        </span>
       </div>
       <Slider id={id('vol')} x={w - 116} y={top + 137} w={100} variant="chrome" def={0.8} />
       <Tooltip forId={id('vol')} text={`Volume ${Math.round(vol * 100)}%`} />
