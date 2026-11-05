@@ -157,7 +157,21 @@ async function runScenario(name) {
     let changed = 0
     for (let i = 0; i < m.length; i++) if (m[i] && !self[i]) changed++
     const live = evs.length > 0 || changed > 40
-    results.push({ ...tg, live, evs, changed })
+    const errs = events.filter((e) => e.method === 'Runtime.exceptionThrown').splice(0)
+    for (const e of errs) events.splice(events.indexOf(e), 1)
+    const error = errs.length ? (errs[0].params.exceptionDetails.exception?.description ?? errs[0].params.exceptionDetails.text) : null
+    results.push({ ...tg, live: live && !error, evs, changed, error })
+    if (error) {
+      console.log(`  ERROR after clicking ${JSON.stringify(tg.text)} at ${Math.round(tg.x)},${Math.round(tg.y)}:\n    ${error.split('\n').slice(0, 6).join('\n    ')}`)
+      // the page may be broken: rebuild the scenario from scratch
+      await fresh()
+      for (const s of steps) {
+        if (typeof s === 'number') await sleep(s)
+        else await evaluate(`window.__lh.emit(${JSON.stringify(s[0])}, ${JSON.stringify(s[1])})`)
+      }
+      await evaluate('window.__auditSnap = window.__lh.log().slice()')
+      continue
+    }
     // restore the scenario
     await evaluate('window.__lh.setLog(window.__auditSnap)')
     await mouse('mouseMoved', 959, 1)

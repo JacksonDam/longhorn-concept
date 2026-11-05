@@ -34,6 +34,12 @@ export const DEFAULT_PLAYLIST = [
 ].map(([title, d, display]) => ({ title, duration: mmss(d), display: display || title }))
 export const DEFAULT_INDEX = 1
 
+function normTrack(tr) {
+  const duration = typeof tr.duration === 'string' ? mmss(tr.duration) : +tr.duration || 240
+  const title = String(tr.title ?? '')
+  return { ...tr, title, duration, display: tr.display || title }
+}
+
 export const formatTime = (s) => {
   s = Math.max(0, Math.floor(s))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -76,7 +82,8 @@ function reduce(events, t) {
     s.changedAt = e.t
     switch (e.type) {
       case 'media.play': {
-        let playlist = Array.isArray(e.playlist) && e.playlist.length ? e.playlist : s.playlist
+        // tracks from apps may carry only { title, duration }: normalise once here
+        let playlist = Array.isArray(e.playlist) && e.playlist.length ? e.playlist.map(normTrack) : s.playlist
         let index = s.index
         if (typeof e.track === 'number') index = Math.max(0, Math.min(playlist.length - 1, e.track))
         else if (e.track && typeof e.track === 'object') {

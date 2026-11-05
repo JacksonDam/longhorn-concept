@@ -12,6 +12,7 @@
 // that change every frame (the open's lighting, the app's Overlay such as my Music's 3D slabs)
 // sit outside the memoised content.
 import { memo, useRef } from 'react'
+import { ErrorBoundary } from './ErrorBoundary.jsx'
 import { emit, getLog, getVersion } from '../core/events.js'
 import { FPS, now } from '../core/clock.js'
 import { toStage } from '../core/Stage.jsx'
@@ -163,7 +164,9 @@ const WindowBody = memo(
       >
         {!bare && (explorer ? <ExplorerChrome win={win} app={app} w={w} t={t} /> : <PlainTitleBg w={w} />)}
         <div style={{ position: 'absolute', left: 0, top: topH, width: w, height: h - topH, overflow: bare ? 'visible' : 'hidden' }}>
-          <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
+          <ErrorBoundary name={app.title ? app.title(win.props || {}) : app.id}>
+            <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
+          </ErrorBoundary>
         </div>
         {!bare && <Title w={w} title={app.title ? app.title(win.props || {}) : app.id} TitleContent={app.TitleContent} active={active} props={win.props} />}
         {!bare && (

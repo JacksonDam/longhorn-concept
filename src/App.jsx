@@ -9,6 +9,8 @@ import { preloaded } from './core/preload.js'
 import { texturesReady } from './gl/slab.js'
 import { LoginScene, LOGIN_EXIT } from './scenes/login/LoginScene.jsx'
 import { DesktopScene } from './scenes/desktop/DesktopScene.jsx'
+import { ErrorBoundary } from './os/ErrorBoundary.jsx'
+import { getVersion } from './core/events.js'
 import { OffScreen, Black, blackLevel } from './scenes/session/PowerScreens.jsx'
 import { screen } from './os/session.js'
 import { emit } from './core/events.js'
@@ -41,7 +43,9 @@ function Scenes() {
       {/* the desktop stays mounted (pre-mounted under the login screen from the first frame, so a
           login doesn't mount it on the submit frame); between sessions it waits with since =
           Infinity (nothing of the shell shows) and its state is scoped to the session start */}
-      <DesktopScene since={desk ? desk.t0 : Infinity} user={desk ? desk.user : null} />
+      <ErrorBoundary name="Windows Explorer" resetKey={getVersion()}>
+        <DesktopScene since={desk ? desk.t0 : Infinity} user={desk ? desk.user : null} />
+      </ErrorBoundary>
       <LoginScene visible={loginVisible} />
       {cur.name === 'off' ? (
         <OffScreen t0={cur.t0} t={t} hover={hover} />
