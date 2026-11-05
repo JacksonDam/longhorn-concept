@@ -4,9 +4,9 @@ import { memo } from 'react'
 import { CAPTURE, FPS } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { clamp, ease } from '../../core/anim.js'
-import { Tooltip, pt } from '../../ui/index.js'
+import { Tooltip, ContextMenu, pt } from '../../ui/index.js'
 import { Bar, StartFlag, StartLabel, Clock, ShutDot, ClockChevron, EarlyBarTint } from './Taskbar.jsx'
-import { TaskGroup } from './TaskGroup.jsx'
+import { TaskGroup, taskMenuItems } from './TaskGroup.jsx'
 import { ramp } from './timing.js'
 import { hover, popupState, togglePopup, toggleSidebar } from './shellState.js'
 import { closeFlyout } from './Flyout.jsx'
@@ -115,6 +115,7 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
       <div style={{ position: 'absolute', left: 880, top: 702, width: 56, height: 16, borderRadius: 3, opacity: Math.max(hover(t, 'tb.clock'), popupState(t, 'calendar').open ? 1 : 0) * 0.35, background: 'rgba(170,210,255,0.6)' }} />
       <div style={{ position: 'absolute', inset: 0, visibility: start > 0 ? 'visible' : 'hidden' }}>{HITS_EL}</div>
       <Tooltip forId="tb.clock" text={dateText(calendarDate())} />
+      <ContextMenu id="tb.ctx" items={taskMenuItems} />
     </div>
   )
 }

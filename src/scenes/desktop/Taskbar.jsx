@@ -66,15 +66,17 @@ export const TaskButton = memo(function TaskButton({ b, label, Icon }) {
 })
 
 // The buttons' hit areas (one static layer at the final layout, outside the blur copies)
-export const TaskHits = memo(function TaskHits({ buttons, onClick }) {
+export const TaskHits = memo(function TaskHits({ buttons, onClick, onContext }) {
   return buttons.map((b) => (
     <div
       key={b.id}
       style={{ position: 'absolute', left: b.x, top: 699, width: b.w, height: 21, pointerEvents: 'auto' }}
       onPointerDown={(e) => {
+        if (e.button !== 0) return
         e.stopPropagation()
         onClick(b.id)
       }}
+      onContextMenu={(e) => onContext?.(b.id, e)}
       onPointerEnter={() => emit('hover', { id: 'tb.' + b.id, on: true })}
       onPointerLeave={() => emit('hover', { id: 'tb.' + b.id, on: false })}
     />

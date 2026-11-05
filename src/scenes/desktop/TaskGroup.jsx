@@ -10,7 +10,11 @@ import { ease, clamp, track } from '../../core/anim.js'
 import { Blur } from './Blur.jsx'
 import { GroupBg, TaskButton, TaskHits } from './Taskbar.jsx'
 import { taskbarState, INSERT_DELAY, REMOVE_FRAMES } from './taskbarModel.js'
-import { taskLabel, TaskIcon, taskClick } from './appInfo.jsx'
+import { taskLabel, TaskIcon, taskClick, winEvent } from './appInfo.jsx'
+import { now } from '../../core/clock.js'
+import { getWindow } from '../../os/wm.js'
+import { openMenu, menuState, placePopup, pt } from '../../ui/index.js'
+import { closePopups } from './shellState.js'
 import { hoverLevel } from './Flyout.jsx'
 import { SUBMIT_FRAME } from './timing.js'
 
@@ -195,7 +199,7 @@ export function TaskGroup({ t, f }) {
       ))}
       <BirthFlare r={tr?.kind === 'insert' ? r : -99} x={newIdx >= 0 ? layout.buttons[newIdx].x + 46.5 : 0} />
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', visibility: groupOp > 0 ? 'visible' : 'hidden' }}>
-        <TaskHits buttons={layout.buttons} onClick={taskClick} />
+        <TaskHits buttons={layout.buttons} onClick={taskClick} onContext={taskContext} />
       </div>
     </div>
   )
@@ -203,3 +207,29 @@ export function TaskGroup({ t, f }) {
 
 const GROUP_BG = <GroupBg x0={0} x1={100} />
 export { INSERT_DELAY }
+
+// right-click on a task button: Restore / Minimize / Maximize / Close (UI kit ContextMenu
+// 'tb.ctx', rendered by TaskbarLayer), anchored above the taskbar
+export function taskMenuItems() {
+  const st = menuState(now(), 'tb.ctx')
+  const id = st?.win
+  const w = id ? getWindow(now(), id) : null
+  if (!w) return []
+  const min = w.state === 'minimized'
+  return [
+    { label: 'Restore', disabled: !min && !w.maximized, onClick: () => (min ? winEvent('win.restore', id) : winEvent('win.unmaximize', id)) },
+    { label: 'Minimize', disabled: min, onClick: () => winEvent('win.minimize', id) },
+    { label: 'Maximize', disabled: w.maximized && !min, onClick: () => (min && winEvent('win.restore', id), winEvent('win.maximize', id)) },
+    '-',
+    { label: 'Close', bold: true, onClick: () => winEvent('win.close', id) },
+  ]
+}
+function taskContext(id, e) {
+  e.preventDefault()
+  e.stopPropagation()
+  closePopups()
+  const p = pt(e)
+  const items = [{ label: 'Restore' }, { label: 'Minimize' }, { label: 'Maximize' }, '-', { label: 'Close' }]
+  const q = placePopup(items, p.x, p.y, { bottom: 696, above: 698 })
+  openMenu('tb.ctx', true, { ...q, win: id })
+}
