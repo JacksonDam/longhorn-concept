@@ -376,9 +376,11 @@ async function play(cdp, runName) {
 }
 
 // ------------------------------------------------------------------ trace analysis
-const CATS = [
-  'devtools.timeline', 'disabled-by-default-devtools.timeline.frame', 'v8.execute', 'v8', 'cc', 'blink.user_timing', 'loading',
-  'gpu', 'disabled-by-default-v8.compile', 'disabled-by-default-v8.cpu_profiler', 'disabled-by-default-v8.gc',
+// (no 'gpu' / 'cc' / 'viz' by default: at the paced display's native frame rate they write
+// ~200 MB/s; TRACE_CATS=... overrides. 'gpu.dawn' shows the GPU pipeline compiles.)
+const CATS = process.env.TRACE_CATS ? process.env.TRACE_CATS.split(',') : [
+  'devtools.timeline', 'disabled-by-default-devtools.timeline.frame', 'v8.execute', 'v8', 'blink.user_timing', 'loading',
+  'gpu.dawn', 'disabled-by-default-v8.compile', 'disabled-by-default-v8.cpu_profiler', 'disabled-by-default-v8.gc',
 ]
 
 var smc = null // source map consumer of the bundle (for --trace JS attribution)
@@ -520,6 +522,14 @@ async function analyseTrace(file, page, runName) {
     return s
   }
   const main = byThread.get(mainKey) || []
+  // GPU pipeline compiles (Graphite on Dawn / Metal: one per new kind of draw, on worker threads;
+  // the GPU process waits for them before it can draw the frame that needs them)
+  const pipes = []
+  for (const list of byThread.values()) for (const e of list) if (e.name === 'CreatePipelineAsyncEvent::InitializeImpl') pipes.push(e)
+  const pipesIn = (a, b) => {
+    const sel = pipes.filter((e) => e.ts + e.dur > a && e.ts + e.dur <= b)
+    return `${sel.length} (${(sel.reduce((s, e) => s + e.dur, 0) / 1000).toFixed(0)} ms)`
+  }
   const others = [...byThread].filter(([k]) => k !== mainKey).map(([k, list]) => ({ k, name: threads.get(k) || k, list }))
   const gpuMain = others.filter((o) => o.name === 'CrGpuMain' || o.name === 'VizCompositorThread' || /CompositorTileWorker|Compositor$|ThreadPoolForeg/.test(o.name))
   const lines = []
@@ -537,6 +547,7 @@ async function analyseTrace(file, page, runName) {
     lines.push(`\n[${phaseOf(end - dt)}] frame ending ${(end / 1000).toFixed(3)} s: ${dt.toFixed(1)} ms`)
     const top = sumIn(main, a, b).filter(([k]) => k !== 'RunTask' && k !== 'ThreadControllerImpl::RunTask').slice(0, 8)
     lines.push('  main: ' + top.map(([k, v]) => `${k} ${ms(v)}`).join(' | '))
+    if (pipes.length) lines.push('  GPU pipelines compiled: ' + pipesIn(a - 300000, b))
     const js = new Map()
     for (const [ts, l, d] of samples) if (ts >= a && ts < b) js.set(l, (js.get(l) || 0) + d)
     const jt = [...js].sort((p, q) => q[1] - p[1]).filter(([k]) => k !== '(idle)').slice(0, 6)
@@ -557,14 +568,14 @@ async function analyseTrace(file, page, runName) {
     /^Layout|IntersectionObserver/.test(n) ? 'layout' :
     /Paint|Layerize|Commit|CompositeLayers|UpdateLayer|Raster/.test(n) ? 'paint' :
     /FunctionCall|EvaluateScript|v8\.|V8\.|EventDispatch|TimerFire|FireAnimationFrame|RunMicrotasks|evaluateModule|callFunction/.test(n) ? 'script' : 'other'
-  lines.push('\nmain thread by phase (ms): script / compile / gc / style / layout / paint / decode / other; GPU main busy')
+  lines.push('\nmain thread by phase (ms): script / compile / gc / style / layout / paint / decode / other; GPU main busy; GPU pipelines compiled')
   const marks = [['load', 0], ...(page.visibleAt != null ? [['intro', page.visibleAt]] : []), ...page.marks]
   const gpu = others.find((o) => o.name === 'CrGpuMain')
   for (let i = 0; i < marks.length - 1; i++) {
     const a = toUs(marks[i][1]), b = toUs(marks[i + 1][1])
     const c = { script: 0, compile: 0, gc: 0, style: 0, layout: 0, paint: 0, decode: 0, other: 0 }
     for (const [k, v] of sumIn(main, a, b, (e) => e.name)) if (!/RunTask/.test(k)) c[cat(k)] += v
-    lines.push(`  ${marks[i][0].padEnd(24)} ${Object.values(c).map((v) => ms(v).padStart(7)).join(' ')}   gpu ${gpu ? ms(busyIn(gpu.list, a, b)) : '-'}`)
+    lines.push(`  ${marks[i][0].padEnd(24)} ${Object.values(c).map((v) => ms(v).padStart(7)).join(' ')}   gpu ${gpu ? ms(busyIn(gpu.list, a, b)) : '-'}   pipelines ${pipesIn(a, b)}`)
   }
   return lines.join('\n')
 }

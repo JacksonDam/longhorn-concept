@@ -119,7 +119,8 @@ function rasterize(svg) {
     const c = document.createElement('canvas')
     c.width = 320
     c.height = 240
-    c.getContext('2d').drawImage(img, 0, 0, 320, 240)
+    // a CPU canvas: toBlob then encodes without a GPU readback (a blocking round trip per photo)
+    c.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, 320, 240)
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92))
     const url = URL.createObjectURL(blob)
     const im2 = new Image()
