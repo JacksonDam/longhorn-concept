@@ -16,10 +16,23 @@ import { ease } from '../../core/anim.js'
 const SC = { x: 175, y: 118, w: 230, h: 240 }
 const DEV = { cx: 101, cy: 93, w: 136, h: 136, d: 26 }
 
-export const Swoosh = memo(function Swoosh({ op = 1 }) {
+// sc: growth (the swoosh sweeps out from beside the device as it appears)
+export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
   // svg coords = window-local - (0, 123)
   return (
-    <svg width="777" height="260" style={{ position: 'absolute', left: 0, top: 123, overflow: 'visible', opacity: op }}>
+    <svg
+      width="777"
+      height="260"
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 123,
+        overflow: 'visible',
+        opacity: op,
+        transform: sc !== 1 ? `scale(${sc})` : undefined,
+        transformOrigin: '305px 104px',
+      }}
+    >
       <defs>
         <radialGradient id="mw-ring" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.52">
           <stop offset="0.45" stopColor="#f2fdff" stopOpacity="0" />
@@ -30,8 +43,8 @@ export const Swoosh = memo(function Swoosh({ op = 1 }) {
           <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="mw-ringmask-g" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
-          <stop offset="0.72" stopColor="#fff" stopOpacity="1" />
+          <stop offset="0.54" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.7" stopColor="#fff" stopOpacity="1" />
         </linearGradient>
         <mask id="mw-ringmask" maskUnits="userSpaceOnUse" x="0" y="-50" width="777" height="360">
           <rect x="0" y="-50" width="777" height="360" fill="url(#mw-ringmask-g)" />
@@ -288,7 +301,12 @@ export function Header({ t, openT, pageT }) {
   const fast = rel < 24 || (hrel > 0 && hrel < 21)
   return (
     <>
-      {fadeOut > 0 && <Swoosh op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[1]) * fadeOut} />}
+      {fadeOut > 0 && rel > HEADER.swoosh[0] && (
+        <Swoosh
+          op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[0] + 4) * fadeOut}
+          sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
+        />
+      )}
       {items.length > 0 && <Slabs t={t} items={items} samples={fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} />}
       {fadeOut > 0 && <Title rel={rel} op={fadeOut} />}
       {fadeOut > 0 && <Buttons rel={rel} op={fadeOut} />}

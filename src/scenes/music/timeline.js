@@ -151,7 +151,7 @@ export const smoothRamp = (rel, a, b) => {
   return k * k * (3 - 2 * k)
 }
 export const HEADER = {
-  swoosh: [9.5, 15],
+  swoosh: [10.5, 24], // fades in and sweeps out to full size
   enjoy: [8.5, 12],
   windows: [16, 22.5], // fade + slide in from the left
   my: [23.5, 27],
