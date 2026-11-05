@@ -316,7 +316,7 @@ export function Flyout({ t }) {
   const moving = visible && (s.open ? df < OPEN_END + 0.5 : df < CLOSE_END + 0.5)
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, overflow: 'hidden', pointerEvents: 'none' }}>
-      <Blur t={df} box={BOX} n={24} shutter={1} phase={-0.5} pose={pose} moving={moving} hidden={!visible} live={<RowHighlightsLayer t={t} />} front={FRONT}>
+      <Blur t={df} box={BOX} n={12} shutter={1} phase={-0.5} pose={pose} moving={moving} hidden={!visible} live={<RowHighlightsLayer t={t} />} front={FRONT}>
         {BACK}
       </Blur>
       <div style={{ position: 'absolute', inset: 0, visibility: s.open && df >= OPEN_END ? 'visible' : 'hidden' }}>{HIT_AREAS}</div>
