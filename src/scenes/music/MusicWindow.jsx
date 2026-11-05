@@ -88,6 +88,7 @@ function WindowContent({ t, st, vs, copy = false, slabT, slabs = 'all' }) {
     >
       <Chrome />
       <BodyBg />
+      <OpenLight rel={rel} part="body" />
       <Header t={t} openT={st.openedAt} pageT={pageT} copy={copy} track={vs.track} trackHover={vs.trackHover} slabT={slabT ?? t} slabs={slabs} />
       <EnjoyGroup op={smoothRamp(rel, HEADER.enjoy[0], HEADER.enjoy[1])} />
       <TaskPane />
@@ -95,7 +96,7 @@ function WindowContent({ t, st, vs, copy = false, slabT, slabs = 'all' }) {
       <AlbumGrid t={t} hover={vs.hover} sel={vs.sel && t >= vs.sel.t ? vs.sel : null} />
       <Scrollbar />
       <StatusBar />
-      <OpenLight rel={rel} />
+      <OpenLight rel={rel} part="top" />
     </div>
     <Frame />
     </>
@@ -126,31 +127,34 @@ const Frame = memo(function Frame() {
   )
 })
 
-function OpenLight({ rel }) {
+// the open's lighting (timeline.OPEN_LIGHT): `part` 'body' draws the body shade under the
+// content, 'top' the toolbar light and shade over the chrome rows. Real time uses fixed
+// gradients faded by opacity on their own layers, kept mounted (no repaint per frame).
+const TOP_H = 122
+const lightBg = (k) => `linear-gradient(90deg, rgb(${75 * k},${75 * k},${75 * k}) 0px, rgb(${75 * k},${75 * k},${75 * k}) 155px, rgb(0,0,0) 315px)`
+const topShadeBg = (a) => `linear-gradient(90deg, rgba(10,25,60,0) 355px, rgba(10,25,60,${a}) 455px, rgba(10,25,60,${a}) 777px)`
+const bodyShadeBg = (a) => `linear-gradient(90deg, rgba(60,90,140,0) 355px, rgba(60,90,140,${a}) 530px, rgba(60,90,140,${a}) 777px)`
+function OpenLight({ rel, part }) {
   const l = openLight(rel)
+  const [k, ab, at] = l && rel >= 4 ? l : [0, 0, 0]
+  const base = { position: 'absolute', left: 0, width: WIN.w, pointerEvents: 'none' }
   if (!CAPTURE) {
-    // (stays mounted at opacity 0 afterwards: removing a full-window layer forces a repaint)
-    const [a, d] = l && rel >= 4 ? l : [0, 0]
-    // real time: fixed gradients faded by opacity on their own layers (no repaint per frame)
-    const base = { position: 'absolute', inset: 0, pointerEvents: 'none', willChange: 'opacity' }
+    const lay = { ...base, willChange: 'opacity' }
+    if (part === 'body') return <div style={{ ...lay, top: TOP_H, height: WIN.h - TOP_H, opacity: ab / 0.6, background: bodyShadeBg(0.6) }} />
     return (
       <>
-        <div style={{ ...base, opacity: a / 0.55, background: 'linear-gradient(90deg, rgba(255,255,255,0.55) 0px, rgba(255,255,255,0.55) 300px, rgba(255,255,255,0) 405px)' }} />
-        <div style={{ ...base, opacity: d / 0.45, background: 'linear-gradient(90deg, rgba(10,25,60,0) 405px, rgba(10,25,60,0.45) 505px, rgba(10,25,60,0.45) 777px)' }} />
+        <div style={{ ...lay, top: 0, height: TOP_H, opacity: Math.min(1, k / 1.1), mixBlendMode: 'plus-lighter', background: lightBg(1.1) }} />
+        <div style={{ ...lay, top: 0, height: TOP_H, opacity: at / 0.5, background: topShadeBg(0.5) }} />
       </>
     )
   }
   if (!l || rel < 4) return null
-  const [a, d] = l
+  if (part === 'body') return <div style={{ ...base, top: TOP_H, height: WIN.h - TOP_H, background: bodyShadeBg(ab) }} />
   return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        background: `linear-gradient(90deg, rgba(255,255,255,${a}) 0px, rgba(255,255,255,${a}) 300px, rgba(255,255,255,0) 405px, rgba(10,25,60,0) 380px, rgba(10,25,60,${d}) 505px, rgba(10,25,60,${d}) 777px)`,
-      }}
-    />
+    <>
+      <div style={{ ...base, top: 0, height: TOP_H, mixBlendMode: 'plus-lighter', background: lightBg(k) }} />
+      <div style={{ ...base, top: 0, height: TOP_H, background: topShadeBg(at) }} />
+    </>
   )
 }
 

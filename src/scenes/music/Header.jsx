@@ -201,6 +201,7 @@ const deviceSlab = (canvas) => ({
   edgeMix: 0.35,
   spec: 0.35,
   rim: 0.6,
+  sat: 0.75,
   backFlip: false,
 })
 const albumSlab = {
