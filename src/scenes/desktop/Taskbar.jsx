@@ -3,6 +3,7 @@
 import { memo } from 'react'
 import { asset } from '../../core/preload.js'
 import { emit } from '../../core/events.js'
+import { pt } from '../../ui/index.js'
 import { Chevron } from './icons.jsx'
 
 export const BAR_TOP = 699
@@ -77,7 +78,7 @@ export const TaskHits = memo(function TaskHits({ buttons, onClick, onContext }) 
         onClick(b.id)
       }}
       onContextMenu={(e) => onContext?.(b.id, e)}
-      onPointerEnter={() => emit('hover', { id: 'tb.' + b.id, on: true })}
+      onPointerEnter={(e) => emit('hover', { id: 'tb.' + b.id, on: true, ...pt(e) })}
       onPointerLeave={() => emit('hover', { id: 'tb.' + b.id, on: false })}
     />
   ))

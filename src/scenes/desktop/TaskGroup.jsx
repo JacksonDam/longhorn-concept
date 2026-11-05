@@ -13,7 +13,7 @@ import { taskbarState, INSERT_DELAY, REMOVE_FRAMES } from './taskbarModel.js'
 import { taskLabel, TaskIcon, taskClick, winEvent } from './appInfo.jsx'
 import { now } from '../../core/clock.js'
 import { getWindow } from '../../os/wm.js'
-import { openMenu, menuState, placePopup, pt } from '../../ui/index.js'
+import { openMenu, menuState, placePopup, pt, Tooltip } from '../../ui/index.js'
 import { closePopups } from './shellState.js'
 import { hoverLevel } from './Flyout.jsx'
 import { SUBMIT_FRAME } from './timing.js'
@@ -201,6 +201,11 @@ export function TaskGroup({ t, f }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', visibility: groupOp > 0 ? 'visible' : 'hidden' }}>
         <TaskHits buttons={layout.buttons} onClick={taskClick} onContext={taskContext} />
       </div>
+      {/* the full label of each button (its text is cut off with a fade) */}
+      {layout.buttons.map((b) => {
+        const w = byId.get(b.id)
+        return w ? <Tooltip key={b.id} forId={'tb.' + b.id} text={taskLabel(w)} /> : null
+      })}
     </div>
   )
 }
