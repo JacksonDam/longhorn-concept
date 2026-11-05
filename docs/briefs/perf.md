@@ -13,6 +13,12 @@ draws exactly what `?capture` draws for the same time.
   and keep it within +0.3 of before per segment (better is fine). Say which frames you checked.
 
 ## Measuring
+- **Bench the production build**, not the dev server: dev React (jsxDEV, prop validation,
+  render logging) costs 2-4x more per frame and hides the real numbers. In your worktree:
+  `npx vite build && npx vite preview --port <your dev port + 100> --strictPort` (re-run the build
+  after changes; preview serves dist/ fresh), then pass that URL to bench/profile.
+- `node tools/profile.mjs 800-900 --url <base>` prints per-frame JS / style+layout+paint time and
+  the top functions by self time on the bench path.
 - `node tools/bench.mjs [frames] --url http://localhost:<port>/longhorn-concept/` steps the
   capture path one video frame per animation frame with vsync off at 1440x1080 and prints
   per-segment p50/p95/max frame cost and the frames over 6.94 ms. Use all frames of your segments
