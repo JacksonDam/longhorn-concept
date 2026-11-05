@@ -82,6 +82,7 @@ window.__lh = {
   seek,
   seekFrame: (n) => seek(((n - 1) * 1001) / 30000),
   log: getLog,
+  setLog, // tools/audit.mjs restores a scenario by restoring its event log
   emit, // debugging: drive the OS by hand, e.g. __lh.emit('session.logoff')
   now,
   bench: runBench,
