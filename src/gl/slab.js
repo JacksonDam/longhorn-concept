@@ -50,6 +50,23 @@ export function loadTexture(url) {
   }
   return tex
 }
+// optional: a live 2D canvas as the picture (slab.canvas); bump slab.canvasVersion after redrawing it
+const canvasTex = new WeakMap()
+function canvasTexture(canvas, version = 0) {
+  let tex = canvasTex.get(canvas)
+  if (!tex) {
+    tex = new THREE.CanvasTexture(canvas)
+    tex.colorSpace = THREE.NoColorSpace
+    tex.anisotropy = 8
+    tex.minFilter = THREE.LinearMipmapLinearFilter
+    tex.userData.version = version
+    canvasTex.set(canvas, tex)
+  } else if (tex.userData.version !== version) {
+    tex.userData.version = version
+    tex.needsUpdate = true
+  }
+  return tex
+}
 export const textureReady = (url) => !url || !!texCache.get(url)?.userData.ready
 export function texturesReady() {
   return new Promise((resolve) => {
@@ -229,6 +246,11 @@ export class SlabScene {
     }
     this.objects.forEach((o, i) => (o.mesh.visible = i < n))
   }
+  // optional: free the materials when the owner unmounts (geometries and targets are shared)
+  dispose() {
+    for (const o of this.objects) o.material.dispose()
+    this.objects = []
+  }
 }
 
 // Camera for a canvas of css size (cw x ch) whose 1 world unit = 1 stage px at z = 0,
@@ -245,8 +267,9 @@ function setupCamera(cam, cw, ch, P, ox, oy) {
 }
 
 // slab: { w, h, d, radius, map (url), tint, edgeColor, edgeMix, spec, bandPos, bandWidth, rim, brightness,
-//         sat, contrast, lift: [r,g,b], vignette, vigColor: [r,g,b], bandGain, faceBand, seeThrough }
-//         (the last eight optional; seeThrough shows the picture mirrored on the back face, like glass)
+//         sat, contrast, lift: [r,g,b], vignette, vigColor: [r,g,b], bandGain, faceBand, seeThrough,
+//         canvas + canvasVersion (live 2D canvas picture), backFlip }
+//         (all optional; seeThrough or backFlip: false shows the picture mirrored on the back face, like glass)
 // pose: { x, y, z, rx, ry, rz, s, sx, sy, opacity, band, brightness, faceBand: {u, w, a} } (px / radians)
 function applySlab(obj, slab, pose) {
   const { mesh, material: m } = obj
@@ -255,7 +278,7 @@ function applySlab(obj, slab, pose) {
   mesh.geometry = geometry(w, h, d, r)
   const u = m.uniforms
   u.uSize.value.set(w, h, d)
-  const tex = loadTexture(slab.map)
+  const tex = slab.canvas ? canvasTexture(slab.canvas, slab.canvasVersion) : loadTexture(slab.map)
   u.uMap.value = tex
   u.uHasMap.value = tex ? 1 : 0
   if (slab.tint) u.uTint.value.setRGB(...slab.tint)
@@ -273,7 +296,7 @@ function applySlab(obj, slab, pose) {
   u.uVignette.value = slab.vignette ?? 0
   if (slab.vigColor) u.uVigColor.value.setRGB(...slab.vigColor)
   u.uBandGain.value = slab.bandGain ?? 0
-  u.uFlipBack.value = slab.seeThrough ? 0 : 1
+  u.uFlipBack.value = slab.seeThrough || slab.backFlip === false ? 0 : 1
   const fb = pose.faceBand ?? slab.faceBand
   if (fb) u.uFaceBand.value.set(fb.u ?? 0.5, fb.w ?? 0.2, fb.a ?? 0)
   else u.uFaceBand.value.set(0.5, 0.2, 0)
