@@ -133,11 +133,9 @@ export function ScrollView({ id, x, y, w, h, contentH, children, bar = true, sty
   const [measured, setMeasured] = useState(0)
   useLayoutEffect(() => {
     if (contentH != null || !inner.current) return
-    const el = inner.current
-    const m = () => setMeasured(el.offsetHeight)
-    m()
-    const ro = new ResizeObserver(m)
-    ro.observe(el)
+    // the observer reports the size once at start and on every change, without forcing layout
+    const ro = new ResizeObserver((es) => setMeasured(Math.round(es[es.length - 1].borderBoxSize?.[0]?.blockSize ?? es[es.length - 1].contentRect.height)))
+    ro.observe(inner.current)
     return () => ro.disconnect()
   }, [contentH])
   const ch = contentH ?? measured

@@ -11,22 +11,6 @@ const G = {
   grey: ['#ffffff', '#c9d3e2', '#7d8aa3'],
   yellow: ['#fff6c4', '#f8d24a', '#c08b00'],
 }
-function Defs({ id, c }) {
-  const [hi, mid, lo] = G[c]
-  return (
-    <defs>
-      <radialGradient id={id} cx="0.35" cy="0.3" r="0.85">
-        <stop offset="0" stopColor={hi} />
-        <stop offset="0.55" stopColor={mid} />
-        <stop offset="1" stopColor={lo} />
-      </radialGradient>
-      <linearGradient id={id + 'l'} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor={hi} />
-        <stop offset="1" stopColor={mid} />
-      </linearGradient>
-    </defs>
-  )
-}
 const gloss = <ellipse cx="12" cy="6.5" rx="7.5" ry="3.6" fill="#fff" opacity="0.45" />
 
 // light toolbar glyphs (on the blue chrome)
@@ -497,25 +481,31 @@ const big = {
   ),
 }
 
-// shared gradients (rendered once per Ico; duplicate ids are identical, so any copy resolves)
-const SharedDefs = memo(function SharedDefs() {
-  return (
-    <>
-      <Defs id="ig-blue" c="blue" />
-      <Defs id="ig-red" c="red" />
-      <Defs id="ig-green" c="green" />
-      <Defs id="ig-yellow" c="yellow" />
-      <Defs id="ig-grey" c="grey" />
-    </>
-  )
-})
+// The shared gradients live once in the document (a 0 x 0 svg in <body>), not in every icon:
+// url(#ig-...) references resolve document-wide.
+function injectDefs() {
+  if (typeof document === 'undefined' || document.getElementById('ig-defs')) return
+  const grad = (id, [hi, mid, lo]) =>
+    `<radialGradient id="${id}" cx="0.35" cy="0.3" r="0.85"><stop offset="0" stop-color="${hi}"/><stop offset="0.55" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></radialGradient>` +
+    `<linearGradient id="${id}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${hi}"/><stop offset="1" stop-color="${mid}"/></linearGradient>`
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('id', 'ig-defs')
+  svg.setAttribute('width', '0')
+  svg.setAttribute('height', '0')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:hidden'
+  svg.innerHTML = `<defs>${Object.entries({ 'ig-blue': G.blue, 'ig-red': G.red, 'ig-green': G.green, 'ig-yellow': G.yellow, 'ig-grey': G.grey })
+    .map(([id, c]) => grad(id, c))
+    .join('')}</defs>`
+  document.body.appendChild(svg)
+}
+injectDefs()
 
 export const Ico = memo(function Ico({ kind, size = 20, style }) {
   const isBig = kind in big
   const vb = isBig ? 32 : 24
   return (
     <svg width={size} height={size} viewBox={`0 0 ${vb} ${vb}`} style={{ display: 'block', overflow: 'visible', ...style }}>
-      <SharedDefs />
       {isBig ? big[kind] : glyphs[kind] || null}
     </svg>
   )

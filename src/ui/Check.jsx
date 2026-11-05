@@ -10,25 +10,22 @@ import { valueOf, hoverLevel, isPressed, isHover } from './state.js'
 import { pressHandlers } from './Button.jsx'
 import { C, FONT } from './theme.js'
 
+// the box gradients, once per document
+if (typeof document !== 'undefined' && !document.getElementById('ui-chk-defs')) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('id', 'ui-chk-defs')
+  svg.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:hidden'
+  svg.innerHTML =
+    '<defs><linearGradient id="ui-chk-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dfe8f5"/><stop offset="1" stop-color="#ffffff"/></linearGradient>' +
+    '<linearGradient id="ui-chk-hot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bfe0ff"/><stop offset="1" stop-color="#f2f9ff"/></linearGradient>' +
+    '<radialGradient id="ui-radio-dot" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#bfe4ff"/><stop offset="0.55" stop-color="#3f8ae6"/><stop offset="1" stop-color="#1a4fae"/></radialGradient></defs>'
+  document.body.appendChild(svg)
+}
+
 const Box = memo(function Box({ radio, on, k, p, disabled }) {
   const r = radio ? 7 : 3
   return (
     <svg width="13" height="13" viewBox="0 0 13 13" style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}>
-      <defs>
-        <linearGradient id="ui-chk-bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#dfe8f5" />
-          <stop offset="1" stopColor="#ffffff" />
-        </linearGradient>
-        <linearGradient id="ui-chk-hot" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#bfe0ff" />
-          <stop offset="1" stopColor="#f2f9ff" />
-        </linearGradient>
-        <radialGradient id="ui-radio-dot" cx="0.4" cy="0.35" r="0.7">
-          <stop offset="0" stopColor="#bfe4ff" />
-          <stop offset="0.55" stopColor="#3f8ae6" />
-          <stop offset="1" stopColor="#1a4fae" />
-        </radialGradient>
-      </defs>
       <rect x="0.5" y="0.5" width="12" height="12" rx={r - 0.5} fill={disabled ? '#f1f3f7' : p ? '#c9ddf6' : 'url(#ui-chk-bg)'} stroke={disabled ? '#c3cad6' : '#6f8fbf'} strokeWidth="1" />
       {k > 0 && !disabled && <rect x="1.5" y="1.5" width="10" height="10" rx={r - 1.5} fill="url(#ui-chk-hot)" opacity={k} />}
       {on &&

@@ -286,5 +286,5 @@ export default {
   explorer: false,
   background: '#f6f9fe',
   Content: scoped(Applet, { watch: ['cpl'], alive: (win) => ticking(win) }),
-  liveTime: (win, t, base) => (ticking(win) ? t : base),
+  liveTime: (win, t, base) => (win.state === 'open' && ticking(win) ? t : base),
 }

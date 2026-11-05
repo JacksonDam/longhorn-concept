@@ -4,11 +4,11 @@
 // from them. The formatting bar works on the selection (or the next typed text), File > Save
 // logs 'word.save' and clears the modified mark; closing with changes asks to save.
 //   win.open { id: 'doc1', app: 'word' } / { id: 'word:<file>', app: 'word', props: { file } }
-import { memo, useEffect, useLayoutEffect, useRef } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { scoped, wid, valueOf, lastOf, find, useLive, focusAt, setFocus, ScrollView, DropMenu, dropBelow, ToolButton, Tooltip, C, FONT } from '../../ui/index.js'
-import { BLINK } from '../../ui/TextField.jsx'
+import { CaretBlink } from '../../ui/TextField.jsx'
 import { AppTop, appTopHeight, StatusBar } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
@@ -33,7 +33,7 @@ const spanStyle = (r) => ({
   textDecoration: r.u ? 'underline' : 'none',
   color: r.color,
 })
-const Caret = ({ h }) => <span style={{ display: 'inline-block', width: 0, height: h, marginRight: -1, borderLeft: '1px solid #000', verticalAlign: 'text-bottom' }} />
+const Caret = ({ h }) => <span style={{ display: 'inline-block', width: 0, height: h, marginRight: -1, borderLeft: '1px solid var(--lh-caret, transparent)', verticalAlign: 'text-bottom' }} />
 
 const PageText = memo(function PageText({ doc, a, b, focused, caret }) {
   const lo = Math.min(a, b)
@@ -131,8 +131,8 @@ function Word({ win, t, w, h }) {
   const sel = valueOf(t, id('sel'), { a: 0, b: 0 })
   const fe = focusAt(t)
   const focused = !!fe && fe.field === docId
-  const since = t - Math.max(focused ? fe.t : 0, de ? de.t : 0, lastOf(t, 'ui.value', id('sel'))?.t ?? 0)
-  const caret = focused && sel.a === sel.b && Math.floor(since / BLINK) % 2 === 0
+  const since = Math.max(focused ? fe.t : 0, de ? de.t : 0, lastOf(t, 'ui.value', id('sel'))?.t ?? 0)
+  const caret = focused && sel.a === sel.b
   const saveE = lastSave(t, win)
   const dirty = !!de && (!saveE || de.t > saveE.t)
   const lo = Math.min(sel.a, sel.b)
@@ -294,9 +294,16 @@ function Word({ win, t, w, h }) {
     { key: 'help', label: 'Help', items: [{ label: 'Microsoft Word Help', shortcut: 'F1', onClick: () => openWin('help', 'help', { topic: 'word' }) }, '-', { label: 'About Microsoft Word', onClick: () => messageBox({ title: 'About Microsoft Word', icon: 'info', text: 'Microsoft® Office Word 2003\nPart of Microsoft Office Professional Edition 2003\nCopyright © 1983-2003 Microsoft Corporation.' }) }] },
   ]
   const top = appTopHeight({ row2: 24 })
+  // the textarea re-renders only when its box moves; its handlers come through a ref
+  const handlers = useRef(null)
+  handlers.current = { onInput, syncSel, docId, toggle, save, insertText }
   const rulerOn = valueOf(t, id('ruler'), true)
   const pageTop = top + (rulerOn ? 20 : 0)
   const sbH = 20
+  const taCss = useMemo(
+    () => ({ left: (w - PAGE_W) / 2 + MARGIN, top: pageTop + 14 + MARGIN, width: PAGE_W - 2 * MARGIN, height: 40, fontFamily: "'Times New Roman', serif", fontSize: 12 * PX, lineHeight: 1.25, whiteSpace: 'pre-wrap', pointerEvents: 'none', opacity: 0 }),
+    [w, pageTop],
+  )
   const fmtBtn = (k, icon, tip, on, fn, x) => (
     <span key={k}>
       <ToolButton id={id('f.' + k)} x={x} y={top - 26} w={24} h={22} icon={<Ico kind={icon} size={16} />} iconSize={16} active={on} onClick={fn} />
@@ -366,42 +373,11 @@ function Word({ win, t, w, h }) {
             }}
           >
             <PageText doc={doc} a={sel.a} b={sel.b} focused={focused} caret={caret} />
+            {live && caret && <CaretBlink el={pageRef} since={since} />}
           </div>
         </div>
       </ScrollView>
-      {live && (
-        <textarea
-          ref={ta}
-          className="lh-input"
-          spellCheck={false}
-          style={{ left: (w - PAGE_W) / 2 + MARGIN, top: pageTop + 14 + MARGIN, width: PAGE_W - 2 * MARGIN, height: 40, fontFamily: "'Times New Roman', serif", fontSize: 12 * PX, lineHeight: 1.25, whiteSpace: 'pre-wrap', pointerEvents: 'none', opacity: 0 }}
-          onInput={(e) => onInput(e.currentTarget)}
-          onSelect={(e) => syncSel(e.currentTarget)}
-          onFocus={() => setFocus(docId)}
-          onBlur={() => {
-            const f = focusAt(now())
-            if (f && f.field === docId) emit('ui.focus', { id: 'kbd', field: null })
-          }}
-          onKeyDown={(e) => {
-            e.stopPropagation()
-            const mod = e.ctrlKey || e.metaKey
-            if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
-              e.preventDefault()
-              toggle(e.key.toLowerCase())
-            } else if (mod && e.key.toLowerCase() === 's') {
-              e.preventDefault()
-              save()
-            } else if (e.key === 'Tab') {
-              e.preventDefault()
-              insertText('\t')
-            }
-          }}
-          onKeyUp={(e) => {
-            e.stopPropagation()
-            syncSel(e.currentTarget)
-          }}
-        />
-      )}
+      {live && <PageInput taRef={ta} handlers={handlers} css={taCss} />}
       <StatusBar
         y={h - sbH}
         w={w}
@@ -419,6 +395,43 @@ function Word({ win, t, w, h }) {
     </div>
   )
 }
+
+const PageInput = memo(function PageInput({ taRef, handlers, css }) {
+  const h = () => handlers.current
+  return (
+    <textarea
+      ref={taRef}
+      className="lh-input"
+      spellCheck={false}
+      style={css}
+      onInput={(e) => h().onInput(e.currentTarget)}
+      onSelect={(e) => h().syncSel(e.currentTarget)}
+      onFocus={() => setFocus(h().docId)}
+      onBlur={() => {
+        const f = focusAt(now())
+        if (f && f.field === h().docId) emit('ui.focus', { id: 'kbd', field: null })
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        const mod = e.ctrlKey || e.metaKey
+        if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
+          e.preventDefault()
+          h().toggle(e.key.toLowerCase())
+        } else if (mod && e.key.toLowerCase() === 's') {
+          e.preventDefault()
+          h().save()
+        } else if (e.key === 'Tab') {
+          e.preventDefault()
+          h().insertText('\t')
+        }
+      }}
+      onKeyUp={(e) => {
+        e.stopPropagation()
+        h().syncSel(e.currentTarget)
+      }}
+    />
+  )
+})
 
 const Ruler = memo(function Ruler({ y, w }) {
   const x0 = (w - PAGE_W) / 2
@@ -460,5 +473,5 @@ export default {
   minSize: { w: 600, h: 360 },
   explorer: false,
   background: '#9fb1cc',
-  Content: scoped(Word, {}),
+  Content: scoped(Word, { watch: ['word'] }),
 }

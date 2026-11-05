@@ -6,10 +6,11 @@
 //   <TextField id x y w h placeholder def multiline variant="light" | "chrome" | "bare" onEnter onChange />
 //   (def: the text before anything is typed)
 //   textOf(t, id), setText(id, text), focusField(id)
-import { memo, useEffect, useLayoutEffect, useRef } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { emit } from '../core/events.js'
 import { now } from '../core/clock.js'
 import { useUITime as useTime, useLive } from './scope.jsx'
+import { useTime as useClock } from '../core/time.jsx'
 import { valueOf, focusAt, setFocus, lastOf } from './state.js'
 import { C, FONT } from './theme.js'
 import './ui.css'
@@ -51,7 +52,7 @@ const Segs = memo(function Segs({ text, a, b, focused, caret, selColor, color, p
   if (!text) {
     return (
       <>
-        {caret && <Caret color={color} />}
+        {caret && <Caret />}
         {placeholder && !focused && <span style={{ color: phColor }}>{placeholder}</span>}
         {'​'}
       </>
@@ -63,7 +64,7 @@ const Segs = memo(function Segs({ text, a, b, focused, caret, selColor, color, p
     return (
       <>
         {text.slice(0, lo)}
-        {caret && <Caret color={color} />}
+        {caret && <Caret />}
         {text.slice(lo)}
         {text.endsWith('\n') ? '​' : null}
       </>
@@ -79,8 +80,20 @@ const Segs = memo(function Segs({ text, a, b, focused, caret, selColor, color, p
   )
 })
 
-function Caret({ color }) {
-  return <span style={{ display: 'inline-block', width: 0, height: '1.15em', marginRight: -1, borderLeft: `1px solid ${color}`, verticalAlign: '-0.2em' }} />
+function Caret() {
+  return <span style={{ display: 'inline-block', width: 0, height: '1.15em', marginRight: -1, borderLeft: '1px solid var(--lh-caret, transparent)', verticalAlign: '-0.2em' }} />
+}
+
+// The caret blinks (0.53 s on / off from `since`) without re-rendering the field: this tiny
+// component alone follows the clock while the field has the keyboard and sets --lh-caret on `el`.
+export function CaretBlink({ el, since, color = '#000' }) {
+  const t = useClock()
+  const on = Math.floor(Math.max(0, t - since) / BLINK) % 2 === 0
+  useLayoutEffect(() => {
+    el.current?.style.setProperty('--lh-caret', on ? color : 'transparent')
+  })
+  useLayoutEffect(() => () => el.current?.style.setProperty('--lh-caret', 'transparent'), [el])
+  return null
 }
 
 export function TextField({
@@ -115,10 +128,11 @@ export function TextField({
   const st = valueOf(t, id, def ? { text: def, a: def.length, b: def.length, sx: 0, sy: 0 } : EMPTY)
   const fe = focusAt(t)
   const focused = !!fe && fe.field === id
-  // caret: on for 0.53 s after each edit / move / focus, then blinks
-  const since = t - Math.max(fe && focused ? fe.t : 0, lastChangeT(t, id))
-  const caret = focused && !readOnly && st.a === st.b && Math.floor(since / BLINK) % 2 === 0
+  // caret: on for 0.53 s after each edit / move / focus, then blinks (CaretBlink)
+  const since = Math.max(fe && focused ? fe.t : 0, lastChangeT(t, id))
+  const caret = focused && !readOnly && st.a === st.b
   const ref = useRef(null)
+  const box = useRef(null)
   const lh = lineHeight ?? (multiline ? Math.round(size * 1.4) : h)
   const textStyle = {
     fontFamily,
@@ -166,8 +180,14 @@ export function TextField({
   }
   const Tag = multiline ? 'textarea' : 'input'
   const look = (boxLook[variant] || boxLook.light)(focused)
+  // the real element re-renders only when its look changes (React rewrites an input's name
+  // attribute on every update); its handlers read the latest closures through a ref
+  const handlers = useRef(null)
+  handlers.current = { sync, id, onKeyDown, onEnter, multiline }
+  const inputCss = useMemo(() => ({ ...textStyle, left: 0, top: 0, width: w, height: h }), [fontFamily, fontWeight, size, lh, pad, multiline, w, h])
   return (
     <div
+      ref={box}
       style={{
         position: x == null ? 'relative' : 'absolute',
         left: x,
@@ -195,41 +215,8 @@ export function TextField({
           <Segs text={st.text} a={st.a} b={st.b} focused={focused} caret={caret} selColor={C.textSel} color={color} placeholder={placeholder} phColor={phColor} />
         </div>
       </div>
-      {live && <Tag
-        ref={ref}
-        className="lh-input"
-        spellCheck={false}
-        autoComplete="off"
-        readOnly={readOnly}
-        disabled={disabled}
-        maxLength={maxLength}
-        style={{ ...textStyle, left: 0, top: 0, width: w, height: h }}
-        onInput={(e) => sync(e.currentTarget)}
-        onSelect={(e) => sync(e.currentTarget)}
-        onScroll={(e) => sync(e.currentTarget)}
-        onPointerUp={(e) => sync(e.currentTarget)}
-        onFocus={(e) => {
-          setFocus(id)
-          sync(e.currentTarget)
-        }}
-        onBlur={() => {
-          const f = focusAt(now())
-          if (f && f.field === id) emit('ui.focus', { id: 'kbd', field: null })
-        }}
-        onKeyDown={(e) => {
-          e.stopPropagation()
-          onKeyDown?.(e)
-          if (e.defaultPrevented) return
-          if (e.key === 'Enter' && onEnter && (!multiline || !e.shiftKey)) {
-            e.preventDefault()
-            onEnter(e.currentTarget.value)
-          }
-        }}
-        onKeyUp={(e) => {
-          e.stopPropagation()
-          sync(e.currentTarget)
-        }}
-      />}
+      {live && caret && <CaretBlink el={box} since={since} color={color} />}
+      {live && <RealInput Tag={Tag} inputRef={ref} handlers={handlers} readOnly={readOnly} disabled={disabled} maxLength={maxLength} css={inputCss} />}
     </div>
   )
 }
@@ -239,3 +226,45 @@ function lastChangeT(t, id) {
   const e = lastOf(t, 'ui.value', id)
   return e ? e.t : 0
 }
+
+const RealInput = memo(function RealInput({ Tag, inputRef, handlers, readOnly, disabled, maxLength, css }) {
+  const h = () => handlers.current
+  return (
+    <Tag
+      ref={inputRef}
+      className="lh-input"
+      spellCheck={false}
+      autoComplete="off"
+      readOnly={readOnly}
+      disabled={disabled}
+      maxLength={maxLength}
+      style={css}
+      onInput={(e) => h().sync(e.currentTarget)}
+      onSelect={(e) => h().sync(e.currentTarget)}
+      onScroll={(e) => h().sync(e.currentTarget)}
+      onPointerUp={(e) => h().sync(e.currentTarget)}
+      onFocus={(e) => {
+        setFocus(h().id)
+        h().sync(e.currentTarget)
+      }}
+      onBlur={() => {
+        const f = focusAt(now())
+        if (f && f.field === h().id) emit('ui.focus', { id: 'kbd', field: null })
+      }}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        const { onKeyDown, onEnter, multiline } = h()
+        onKeyDown?.(e)
+        if (e.defaultPrevented) return
+        if (e.key === 'Enter' && onEnter && (!multiline || !e.shiftKey)) {
+          e.preventDefault()
+          onEnter(e.currentTarget.value)
+        }
+      }}
+      onKeyUp={(e) => {
+        e.stopPropagation()
+        h().sync(e.currentTarget)
+      }}
+    />
+  )
+})

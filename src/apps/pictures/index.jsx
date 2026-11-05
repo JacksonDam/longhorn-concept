@@ -26,47 +26,47 @@ const set = (win, n, value) => emit('ui.value', { id: wid(win, n), value })
 // ---- header ------------------------------------------------------------------------------------
 // the my Music header's soft swoosh behind the title (own copy: window-local px, svg y = local - 123)
 const Swoosh = memo(function Swoosh() {
+  // soft glows as radial gradients (cheap to paint in every blur copy) and the ring
+  const glow = (x, y, w, h, c, o = 1) => (
+    <div style={{ position: 'absolute', left: x - w, top: y - h, width: w * 2, height: h * 2, opacity: o, background: `radial-gradient(closest-side, ${c} 0, ${c}00 100%)` }} />
+  )
   return (
-    <svg width="777" height="260" style={{ position: 'absolute', left: 0, top: 123, overflow: 'visible', pointerEvents: 'none' }}>
-      <defs>
-        <radialGradient id="pv-ring" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.52">
-          <stop offset="0.45" stopColor="#f2fdff" stopOpacity="0" />
-          <stop offset="0.66" stopColor="#d4f9ff" stopOpacity="0.75" />
-          <stop offset="0.8" stopColor="#a9eaff" stopOpacity="0.95" />
-          <stop offset="0.92" stopColor="#6ea8ef" stopOpacity="1" />
-          <stop offset="0.97" stopColor="#c4dbfa" stopOpacity="0.8" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="pv-ringmask-g" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0.54" stopColor="#fff" stopOpacity="0" />
-          <stop offset="0.7" stopColor="#fff" stopOpacity="1" />
-        </linearGradient>
-        <mask id="pv-ringmask" maskUnits="userSpaceOnUse" x="0" y="-50" width="777" height="360">
-          <rect x="0" y="-50" width="777" height="360" fill="url(#pv-ringmask-g)" />
-        </mask>
-        <filter id="pv-b5" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="5" />
-        </filter>
-        <filter id="pv-b12" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="12" />
-        </filter>
-      </defs>
-      <ellipse cx="430" cy="27" rx="95" ry="26" fill="#efe4ec" filter="url(#pv-b12)" />
-      <ellipse cx="485" cy="107" rx="115" ry="42" fill="#fde0e0" filter="url(#pv-b12)" />
-      <g mask="url(#pv-ringmask)">
-        <ellipse cx="541" cy="101" rx="136" ry="80" fill="url(#pv-ring)" transform="rotate(-8 541 101)" />
-      </g>
-      <ellipse cx="390" cy="105" rx="115" ry="9" fill="#f0a39a" filter="url(#pv-b5)" opacity="0.85" />
-    </svg>
+    <div style={{ position: 'absolute', left: 0, top: 123, width: 777, height: 260, pointerEvents: 'none' }}>
+      {glow(430, 27, 120, 44, '#efe4ec')}
+      {glow(485, 107, 140, 62, '#fde0e0')}
+      <svg width="777" height="260" style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}>
+        <defs>
+          <radialGradient id="pv-ring" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.52">
+            <stop offset="0.45" stopColor="#f2fdff" stopOpacity="0" />
+            <stop offset="0.66" stopColor="#d4f9ff" stopOpacity="0.75" />
+            <stop offset="0.8" stopColor="#a9eaff" stopOpacity="0.95" />
+            <stop offset="0.92" stopColor="#6ea8ef" stopOpacity="1" />
+            <stop offset="0.97" stopColor="#c4dbfa" stopOpacity="0.8" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="pv-ringfade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" />
+            <stop offset="0.25" stopColor="#fff" stopOpacity="1" />
+          </linearGradient>
+          <mask id="pv-ringmask" maskUnits="userSpaceOnUse" x="380" y="-30" width="397" height="300">
+            <rect x="380" y="-30" width="397" height="300" fill="url(#pv-ringfade)" />
+          </mask>
+        </defs>
+        <g mask="url(#pv-ringmask)">
+          <ellipse cx="541" cy="101" rx="136" ry="80" fill="url(#pv-ring)" transform="rotate(-8 541 101)" />
+        </g>
+      </svg>
+      {glow(390, 105, 125, 14, '#f0a39a', 0.85)}
+    </div>
   )
 })
-const FRAME_PHOTO = photoUrl('mountain', 31)
+photoUrl('mountain', 31) // start rasterising the header photo at load
 
 const Frame = memo(function Frame() {
   const face = (
     <div style={{ position: 'absolute', inset: 0, borderRadius: 6, background: 'linear-gradient(135deg, #f7fbff 0, #c9d5e6 40%, #eef3fa 60%, #a9b8cc 100%)', boxShadow: 'inset 0 0 0 1px #8796ad, 0 0 0 1px rgba(255,255,255,0.6)' }}>
       <div style={{ position: 'absolute', left: 9, top: 9, right: 9, bottom: 9, boxShadow: 'inset 0 0 0 1px #7d8aa3' }}>
-        <img src={FRAME_PHOTO} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img src={photoUrl('mountain', 31)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(125deg, rgba(255,255,255,0.45) 0, rgba(255,255,255,0) 40%)' }} />
       </div>
     </div>
@@ -644,5 +644,5 @@ export default {
     pressed: () => 'preview',
   },
   Content: scoped(Pictures, { watch: ['pics'], alive: (win, t) => videoPlaying(win, t) }),
-  liveTime: (win, t, base) => (videoPlaying(win, t) ? t : base),
+  liveTime: (win, t, base) => (win.state === 'open' && videoPlaying(win, t) ? t : base),
 }

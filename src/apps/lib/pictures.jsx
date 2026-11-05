@@ -2,7 +2,7 @@
 // docs/SUBSTITUTIONS.md). Each photo is an SVG built once as a data URL, so thumbnails are plain
 // cached <img> elements (cheap in every motion-blur copy of a window).
 import { memo } from 'react'
-import { preload } from '../../core/preload.js'
+import { preload, waitFor } from '../../core/preload.js'
 
 const rnd = (seed) => {
   let s = (seed * 2654435761) >>> 0 || 1
@@ -95,15 +95,39 @@ function sceneSvg(scene, seed) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="${vx.toFixed(1)} ${vy.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}" preserveAspectRatio="xMidYMid slice">${o.join('')}</svg>`
 }
 
-const urls = new Map()
+// Each photo is drawn once as SVG, then rasterised to a JPEG blob (a bitmap is far cheaper to
+// paint than an SVG image in every blur copy of a window). Until that has happened (at load; the
+// capture tool waits for it) the SVG itself is used.
+const urls = new Map() // key -> svg data url
+const bitmaps = new Map() // svg data url -> blob url
 export function photoUrl(scene, seed) {
   const k = scene + ':' + seed
   let u = urls.get(k)
   if (!u) {
     u = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sceneSvg(scene, seed))
     urls.set(k, u)
+    rasterize(u)
   }
-  return u
+  return bitmaps.get(u) || u
+}
+function rasterize(svg) {
+  if (typeof document === 'undefined') return
+  const job = (async () => {
+    const img = new Image()
+    img.src = svg
+    await img.decode()
+    const c = document.createElement('canvas')
+    c.width = 320
+    c.height = 240
+    c.getContext('2d').drawImage(img, 0, 0, 320, 240)
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92))
+    const url = URL.createObjectURL(blob)
+    const im2 = new Image()
+    im2.src = url
+    await im2.decode()
+    bitmaps.set(svg, url)
+  })()
+  waitFor(job)
 }
 
 // ---- the library ------------------------------------------------------------------------------
@@ -146,7 +170,9 @@ export const GROUPS = GROUP_DEFS.map((g) => {
       kind: video ? 'video' : 'picture',
       scene: g.scene,
       seed,
-      url: photoUrl(g.scene, seed),
+      get url() {
+        return photoUrl(g.scene, seed)
+      },
       keywords: g.keywords,
       comment: COMMENTS[g.id],
       location: g.location,
@@ -159,9 +185,9 @@ export const GROUPS = GROUP_DEFS.map((g) => {
   return { ...g, title, photos }
 })
 export const PHOTOS = GROUPS.flatMap((g) => g.photos)
+PHOTOS.forEach((p) => p.url) // rasterise every photo at load
 export const photoById = (id) => PHOTOS.find((p) => p.id === id) || null
 export const TAGS = ['Family', 'Parties', 'Weekend trips', 'Hiking', 'Garden', 'Vacation', 'Outdoors']
-preload(PHOTOS.slice(0, 40).map((p) => p.url))
 
 // ---- my Documents' picture files (fs.js) ----------------------------------------------------
 export const PICTURES = [
@@ -179,7 +205,7 @@ export const pictureUrl = (id) => {
   const p = picById(id)
   return p.url || photoUrl(p.scene, p.seed)
 }
-preload(PICTURES.map((p) => pictureUrl(p.id)))
+PICTURES.forEach((p) => pictureUrl(p.id))
 
 export const PictureArt = memo(function PictureArt({ id, w = 160, h = 120, style }) {
   return <img src={pictureUrl(id)} alt="" draggable={false} width={w} height={h} style={{ display: 'block', width: w, height: h, objectFit: 'cover', ...style }} />

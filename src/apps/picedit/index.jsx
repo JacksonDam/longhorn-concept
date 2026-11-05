@@ -155,5 +155,5 @@ export default {
   explorer: false,
   background: '#f6f9fe',
   Content: scoped(PicEdit, { watch: ['pics'], alive: (win, t) => voicePlaying(win, t) }),
-  liveTime: (win, t, base) => (voicePlaying(win, t) ? t : base),
+  liveTime: (win, t, base) => (win.state === 'open' && voicePlaying(win, t) ? t : base),
 }

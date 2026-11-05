@@ -38,14 +38,14 @@ export const useLive = () => useContext(UICtx)?.live ?? true
 // while a continuous visual plays (a playing track, a slide show). Gating applies only when an
 // options object is passed (scoped(C, {})).
 export function scoped(Inner, opts) {
-  const { watch = [], settle = 1.2, alive } = opts || {}
+  const { watch = [], settle = 0.8, alive } = opts || {}
   const gate = !!opts // opt-in: without options the content follows the window's time as is
-  const M = memo(Inner)
+  const M = memo(Inner, sameProps)
   function Scoped(props) {
     const live = props.live ?? true
     const { win, t } = props
     let tt = t
-    if (gate && win && !(alive && alive(win, t))) {
+    if (gate && win && !(alive && win.state === 'open' && alive(win, t))) {
       const le = Math.max(win.openedAt, lastRelevant(t, win.id, watch))
       if (t - le > settle) tt = le + settle
     }
@@ -60,6 +60,18 @@ export function scoped(Inner, opts) {
   }
   Scoped.displayName = 'Scoped(' + (Inner.displayName || Inner.name || 'Content') + ')'
   return Scoped
+}
+
+const winSame = (a, b) =>
+  a === b ||
+  (!!a && !!b && a.id === b.id && a.openedAt === b.openedAt && a.state === b.state && a.maximized === b.maximized && a.x === b.x && a.y === b.y && a.lastAction === b.lastAction && a.changedAt === b.changedAt && JSON.stringify(a.props) === JSON.stringify(b.props))
+function sameProps(a, b) {
+  for (const k in a) if (k !== 'win' && a[k] !== b[k]) return false
+  for (const k in b) if (!(k in a)) return false
+  // a motion-blur copy catches up with window changes when its own snapshot time moves on
+  // (PlexWindow staggers those by copy), so a change never re-renders every copy in one frame
+  if (b.live === false && a.live === false) return true
+  return winSame(a.win, b.win)
 }
 
 // ---- staggered mounting of windows nobody has seen yet ----------------------------------------

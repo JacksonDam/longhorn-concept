@@ -70,5 +70,5 @@ export default {
   explorer: false,
   background: '#f6f9fe',
   Content: scoped(BurnCD, { alive: (win, t) => checking(win, t) }),
-  liveTime: (win, t, base) => (checking(win, t) ? t : base),
+  liveTime: (win, t, base) => (win.state === 'open' && checking(win, t) ? t : base),
 }
