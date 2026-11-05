@@ -18,8 +18,8 @@ function Heading({ y, a, b }) {
 export const BodyBg = memo(function BodyBg() {
   return (
     <div
-      style={abs(0, 123, 777, 530, {
-        background: 'linear-gradient(180deg, #ffffff 0, #ffffff 190px, #f3f7fe 270px, #e3eaf7 410px, #cfdcef 490px, #cad7eb 530px)',
+      style={abs(0, 123, 777, 531, {
+        background: 'linear-gradient(180deg, #ffffff 0, #ffffff 190px, #f3f7fe 270px, #e3eaf7 410px, #cfdcef 490px, #cad7eb 531px)',
       })}
     />
   )

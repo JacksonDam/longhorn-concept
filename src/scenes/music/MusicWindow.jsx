@@ -82,9 +82,8 @@ function WindowContent({ t, st, vs, copy = false, slabT }) {
         height: WIN.h,
         borderRadius: WIN.r,
         overflow: 'hidden',
-        background: '#fff',
-        // the content starts 3 px down and 1 px in; the frame below draws the rim around it
-        clipPath: `inset(3px 1px 0px 1px round ${WIN.r}px ${WIN.r}px 0 0)`,
+        // the content starts 3 px down (the toolbar 1 px in); the frame below draws the rim
+        clipPath: `inset(3px 0px 0px 0px round ${WIN.r}px ${WIN.r}px 0 0)`,
       }}
     >
       <Chrome />
@@ -103,24 +102,27 @@ function WindowContent({ t, st, vs, copy = false, slabT }) {
   )
 }
 
-// window rim (f800): a 2 px light top edge and 2 px dark translucent sides outside the content
+// window rim (f800): a 2 px light top edge, and 2 px dark translucent sides along the toolbar
+const rim = 'rgba(90,108,150,0.5)'
 const Frame = memo(function Frame() {
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: -1,
-        top: 1,
-        width: WIN.w + 3,
-        height: WIN.h - 1,
-        boxSizing: 'border-box',
-        borderStyle: 'solid',
-        borderWidth: '2px 2px 0 2px',
-        borderColor: 'rgba(185,215,255,0.65) rgba(90,108,150,0.5) transparent rgba(90,108,150,0.5)',
-        borderRadius: `${WIN.r + 1}px ${WIN.r + 1}px 0 0`,
-        pointerEvents: 'none',
-      }}
-    />
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          left: -1,
+          top: 1,
+          width: WIN.w + 3,
+          height: 72,
+          boxSizing: 'border-box',
+          borderStyle: 'solid',
+          borderWidth: '2px 2px 0 2px',
+          borderColor: `rgba(185,215,255,0.65) ${rim} transparent ${rim}`,
+          borderRadius: `${WIN.r + 1}px ${WIN.r + 1}px 0 0`,
+          pointerEvents: 'none',
+        }}
+      />
+    </>
   )
 })
 

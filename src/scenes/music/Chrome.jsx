@@ -29,9 +29,9 @@ export const Chrome = memo(function Chrome() {
   return (
     <>
       {/* glass toolbar (title bar + favourites row) */}
-      <div style={abs(0, 0, 777, 75, { background: toolbarBg })} />
+      <div style={abs(1, 0, 776, 75, { background: toolbarBg })} />
       <div
-        style={abs(0, 0, 777, 75, {
+        style={abs(1, 0, 776, 75, {
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 64px, rgba(255,255,255,0.06) 68px, rgba(255,255,255,0.1) 70px, rgba(0,0,0,0) 72px)',
         })}
