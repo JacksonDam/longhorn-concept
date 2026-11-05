@@ -3,29 +3,34 @@
 //
 // Fitted to the reference video (tools/login/fit_aurora.py, export_aurora.py):
 // - coarse colour field: a uniform cubic B-spline grid (35x27 control points, 30 px spacing),
-//   keyframed every 4 video frames (public/img/login/aurora-coarse.png).
+//   keyframed every 8 video frames (public/img/login/aurora-coarse.webp).
 // - ribbons: up to NS glowing curves; each is a centreline y = Y(x) and a per-channel amplitude
 //   A(x) (cubic B-splines over x, KX control points) with a gaussian cross-section of width s,
-//   keyframed every 4 frames (public/img/login/aurora-ribbons.png).
+//   keyframed every 4 frames (public/img/login/aurora-ribbons.webp).
 // Each frame, JS interpolates the keys (Catmull-Rom), evaluates every ribbon's curves at RCOLS
 // columns into a small float texture, and the shader sums the gaussians analytically per pixel.
 //
 // Time: the video's background is a loop of 395 frames (frames 436.. repeat 41..), with an
 // extra swell of light (frames ~140-435) that we keep inside the loop. auroraFrame(t) maps
-// clock time to that loop: frames 1..435 once, then 41..435 forever.
+// clock time to that loop: frames 1..505 once, then 110..505 forever. The seam sits in a calm
+// stretch (video frames 489-505 = 94-110), where the last XFADE frames crossfade into the
+// frames before LOOP_A so the wrap is invisible.
 import { asset, waitFor } from '../../core/preload.js'
 
 export const NX = 35
 export const NY = 27
-export const KEY_STEP = 4
-export const LOOP_A = 41
-export const LOOP_B = 435
+export const KEY_STEP = 4 // ribbon keys
+const COARSE_STEP = 8 // coarse keys
+export const LOOP_A = 110
+export const LOOP_B = 505
 
 const KX = 8
 const BX0 = -60
 const BSX = (1020 - BX0) / (KX - 3)
 const PER = 4 * KX + 1 // per slot: KX centreline, 3*KX amplitudes, sigma
 const RCOLS = 512
+const XFADE = 16 // frames: the end of the loop crossfades into the frames just before LOOP_A
+const MAXR = 128
 
 export function auroraFrame(t) {
   const f = (t * 30000) / 1001 + 1
@@ -55,8 +60,8 @@ let ribbonKeys = null // [Float32Array(NS*PER)] decoded values
 let NS = 0
 
 export const keysReady = Promise.all([
-  loadPixels(asset('img/login/aurora-coarse.png')),
-  loadPixels(asset('img/login/aurora-ribbons.png')),
+  loadPixels(asset('img/login/aurora-coarse.webp')),
+  loadPixels(asset('img/login/aurora-ribbons.webp')),
 ]).then(([c, r]) => {
   if (c) {
     const K = c.h / NY
@@ -85,7 +90,7 @@ export const keysReady = Promise.all([
         acc[v] = (acc[v] + ((r.d[p] << 8) | r.d[p + 1])) & 0xffff
         const q = acc[v] >= 32768 ? acc[v] - 65536 : acc[v]
         const o = v % PER
-        a[v] = o < KX ? q / 10 : o < 4 * KX ? q / 20 : q / 100
+        a[v] = o < KX ? q / 4 : o < 4 * KX ? q / 4 : q / 20
       }
       ribbonKeys.push(a)
     }
@@ -95,8 +100,8 @@ export const keysReady = Promise.all([
 waitFor(keysReady)
 
 // Catmull-Rom across keyframes at aurora frame a into `out`
-function interpKeys(keys, a, out) {
-  const u = (a - 1) / KEY_STEP
+function interpKeys(keys, a, out, step = KEY_STEP) {
+  const u = (a - 1) / step
   const i1 = Math.max(0, Math.min(keys.length - 1, Math.floor(u)))
   const f = Math.max(0, Math.min(1, u - i1))
   const k = (i) => keys[Math.max(0, Math.min(keys.length - 1, i))]
@@ -125,26 +130,24 @@ for (let c = 0; c < RCOLS; c++) {
 }
 
 let grid = null
+let grid2 = null
 let rib = null
-let ribTex = null // Float32Array RCOLS x (2*NS) x RGBA
-let ribActive = []
+let ribTex = null // Float32Array RCOLS x (2*MAXR) x RGBA
 
-function ribbonsAt(a) {
-  if (!ribbonKeys) return 0
+// evaluate the ribbons of aurora frame a, amplitudes scaled by w, into rows from `row`
+function ribbonsAt(a, w, row) {
+  if (!ribbonKeys || w <= 0) return row
   if (!rib) {
     rib = new Float32Array(NS * PER)
-    ribTex = new Float32Array(RCOLS * 2 * NS * 4)
+    ribTex = new Float32Array(RCOLS * 2 * MAXR * 4)
   }
   interpKeys(ribbonKeys, a, rib)
-  ribActive = []
-  for (let s = 0; s < NS; s++) {
+  for (let s = 0; s < NS && row < MAXR; s++) {
     const o = s * PER
     let amax = 0
     for (let q = KX; q < 4 * KX; q++) amax = Math.max(amax, Math.abs(rib[o + q]))
-    if (amax < 0.5) continue
+    if (amax * w < 0.5) continue
     const sig = Math.max(0.8, rib[o + 4 * KX])
-    const row = ribActive.length
-    ribActive.push(s)
     const inv = 1 / (2 * sig * sig)
     const r0 = row * 2 * RCOLS * 4
     const r1 = r0 + RCOLS * 4
@@ -163,13 +166,14 @@ function ribbonsAt(a) {
       ribTex[r0 + c * 4 + 1] = 1 / Math.sqrt(1 + dy * dy)
       ribTex[r0 + c * 4 + 2] = inv
       ribTex[r0 + c * 4 + 3] = 0
-      ribTex[r1 + c * 4] = ar / 255
-      ribTex[r1 + c * 4 + 1] = ag / 255
-      ribTex[r1 + c * 4 + 2] = ab / 255
+      ribTex[r1 + c * 4] = (w * ar) / 255
+      ribTex[r1 + c * 4 + 1] = (w * ag) / 255
+      ribTex[r1 + c * 4 + 2] = (w * ab) / 255
       ribTex[r1 + c * 4 + 3] = 0
     }
+    row++
   }
-  return ribActive.length
+  return row
 }
 
 // ------------------------------------------------------------------ shader
@@ -215,7 +219,7 @@ void main() {
   vec3 col = coarse(p);
   float h = float(2 * uCount);
   float u = (p.x / 960.0 * ${RCOLS - 1}.0 + 0.5) / ${RCOLS}.0;
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < ${MAXR}; i++) {
     if (i >= uCount) break;
     vec4 c = texture(uRib, vec2(u, (float(2 * i) + 0.5) / h));
     float d = (p.y - c.x) * c.y;
@@ -277,9 +281,20 @@ export class AuroraRenderer {
       canvas.height = h
     }
     const a = auroraFrame(t)
-    if (coarseKeys && !grid) grid = new Float32Array(NX * NY * 3)
-    const g = coarseKeys ? interpKeys(coarseKeys, a, grid) : null
-    const n = ribbonsAt(a)
+    // loop seam: over the last XFADE frames blend into the frames just before LOOP_A
+    const xw = t > 1 ? Math.max(0, Math.min(1, (a - (LOOP_B - XFADE)) / XFADE)) : 0
+    const xs = xw * xw * (3 - 2 * xw)
+    if (coarseKeys && !grid) {
+      grid = new Float32Array(NX * NY * 3)
+      grid2 = new Float32Array(NX * NY * 3)
+    }
+    const g = coarseKeys ? interpKeys(coarseKeys, a, grid, COARSE_STEP) : null
+    if (g && xs > 0) {
+      interpKeys(coarseKeys, a - (LOOP_B - LOOP_A), grid2, COARSE_STEP)
+      for (let q = 0; q < g.length; q++) g[q] += (grid2[q] - g[q]) * xs
+    }
+    let n = ribbonsAt(a, 1 - xs, 0)
+    n = ribbonsAt(a - (LOOP_B - LOOP_A), xs, n)
     gl.viewport(0, 0, w, h)
     gl.useProgram(this.prog)
     gl.activeTexture(gl.TEXTURE0)

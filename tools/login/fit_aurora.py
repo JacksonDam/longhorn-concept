@@ -16,7 +16,7 @@ outdir = args[0]
 os.makedirs(outdir, exist_ok=True)
 ROUNDS = int(args[args.index('--rounds') + 1]) if '--rounds' in args else 2
 STEP = 4
-KEYS = list(range(1, 442, STEP))
+KEYS = list(range(1, 510, STEP))  # video frames 1..509 (the loop wraps 505 -> 110)
 if '--keys' in args:
     a, b = map(int, args[args.index('--keys') + 1].split('-'))
     KEYS = [k for k in KEYS if a <= k <= b]
