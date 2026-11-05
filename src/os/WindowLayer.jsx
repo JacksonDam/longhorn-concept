@@ -3,7 +3,7 @@
 import { useTime, useEvents } from '../core/time.jsx'
 import { windows, focusedWindow, sessionStart } from './wm.js'
 import { getApp, listApps } from './apps.js'
-import { PlexWindow, MOUNT_EVERY } from './PlexWindow.jsx'
+import { PlexWindow, MOUNT_EVERY, quietKey } from './PlexWindow.jsx'
 import { FPS } from '../core/clock.js'
 import { emit } from '../core/events.js'
 
@@ -46,9 +46,10 @@ export function WindowLayer() {
   const order = [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return (
     <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>
-      {order.map((w) => (
-        <PlexWindow key={w.id} win={w} app={getApp(w.app)} t={t} active={focus?.id === w.id} z={z.get(w.id)} />
-      ))}
+      {order.map((w) => {
+        const app = getApp(w.app)
+        return <PlexWindow key={w.id} win={w} app={app} t={t} active={focus?.id === w.id} z={z.get(w.id)} quiet={quietKey(w, app, t)} />
+      })}
     </div>
   )
 }

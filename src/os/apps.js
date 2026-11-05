@@ -17,6 +17,7 @@
 //                                        // (motion-blur copies show the settled content), default 1
 //     Overlay: ({ win, t }) =>           // live layer drawn once above the blur copies (3D slabs)
 //     liveTime: (win, t, base) => time   // see os/PlexWindow liveContentT (long app animations)
+//     copyKey: (win, t) => string        // the copies' visual state at t: equal keys skip re-rendering
 //     relevant: (e, win) => bool         // events (besides its ui-kit ids and '<app>.*') that change
 //                                        // the content, so it animates `settle` s after them
 //   }

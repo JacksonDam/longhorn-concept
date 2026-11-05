@@ -147,7 +147,8 @@ const Title = memo(function Title({ w, title, TitleContent, active, props }) {
 // ---------------------------------------------------------------- one window rendering
 // the frame + app content at time t (copies pass a snapshot time)
 const WindowBody = memo(
-  function WindowBody({ win, app, t, w, h, active, live }) {
+  // ck: optional content key (app.copyKey): copies with an unchanged key don't re-render
+  function WindowBody({ win, app, t, w, h, active, live, ck }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
@@ -165,15 +166,27 @@ const WindowBody = memo(
           <Content win={win} t={t} active={active} live={live} w={w} h={h - topH} />
         </div>
         {!bare && <Title w={w} title={app.title ? app.title(win.props || {}) : app.id} TitleContent={app.TitleContent} active={active} props={win.props} />}
+        {!bare && (
+          <div style={abs(w - 54, 7, 43, 10, { pointerEvents: 'none' })}>
+            <WinButtonsIcon />
+          </div>
+        )}
       </div>
     )
   },
-  (a, b) => sameRelT(a, b) && a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && winKey(a.win) === winKey(b.win),
+  (a, b) =>
+    (a.ck != null && a.ck === b.ck ? true : sameRelT(a, b)) &&
+    a.w === b.w && a.h === b.h && a.active === b.active && a.live === b.live && a.app === b.app && winKey(a.win) === winKey(b.win),
 )
 // content time relative to the window's open: a prewarmed ghost and the window that takes over
 // its layers render identical content at the same relative time, so nothing re-renders
 const sameRelT = (a, b) => Math.abs(a.t - a.win.openedAt - (b.t - b.win.openedAt)) < 1e-9
-const winKey = (w) => `${w.id}|${w.state === 'closed' || w.lastAction === 'ghost' ? 'open' : w.state}|${w.maximized}|${JSON.stringify(w.props)}`
+const propsKey = new WeakMap()
+const winKey = (w) => {
+  let pk = propsKey.get(w.props)
+  if (pk == null) propsKey.set(w.props, (pk = JSON.stringify(w.props)))
+  return `${w.id}|${w.state === 'closed' || w.lastAction === 'ghost' ? 'open' : w.state}|${w.maximized}|${pk}`
+}
 
 // title-bar controls and drag handle (live layer only)
 function TitleControls({ win, w, topH, active }) {
@@ -222,9 +235,6 @@ function TitleControls({ win, w, topH, active }) {
         onPointerCancel={onUp}
         onDoubleClick={() => emit(win.maximized ? 'win.unmaximize' : 'win.maximize', { id })}
       />
-      <div style={abs(w - 54, 7, 43, 10, { pointerEvents: 'none' })}>
-        <WinButtonsIcon />
-      </div>
       {btn(w - 58, 'win.minimize')}
       {btn(w - 41, win.maximized ? 'win.unmaximize' : 'win.maximize')}
       {btn(w - 25, 'win.close')}
@@ -301,7 +311,7 @@ const OverlayLayer = memo(
   },
   (a, b) => sameRelT(a, b) && a.skip === b.skip && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
 )
-const STAGGER = 2 // frames between copy snapshot updates
+const STAGGER = 4 // frames between copy snapshot updates (copy k updates 4k frames after a change)
 // times of the events that concern a window's content (sorted), cached per log version:
 // its ui-kit ids (`${id}@${openedAt}/...`), events of its app ('<app>.*', hovers on '<app>.*'),
 // and anything app.relevant(e, win) accepts
@@ -368,7 +378,24 @@ function mountedCopies(win, app, t, N) {
 // painted (it skips opacity-0 subtrees) while the compositor draws nothing on screen
 const PARKED = { transform: 'translateX(-4000px)', opacity: 1e-4 }
 
-export function PlexWindow({ win, app, t, active, z }) {
+// A window that shows nothing and has nothing scheduled (minimised, closed, running at login,
+// prewarmed) renders the same every frame: this key changes only when its layers would change
+// (mounting progress, its own events and the staggered copy updates after them), so WindowLayer
+// can skip re-rendering it. null = the window is visible or animating.
+export function quietKey(win, app, t) {
+  const done =
+    win.lastAction === 'ghost' ||
+    win.lastAction === 'initial' ||
+    (win.lastAction === 'minimize' && toRel(t, win.changedAt) > MIN_END + 1) ||
+    (win.state === 'closed' && toRel(t, win.changedAt) > CLOSE_END + 4)
+  if (!done) return null
+  const N = app.copies ?? 8
+  const ev = lastEventT(win, app, t)
+  const bucket = Math.min(N + 1, Math.floor(toRel(t, ev) / STAGGER))
+  return `${win.lastAction}|${win.state}|${win.changedAt}|${mountedCopies(win, app, t, N)}|${ev}|${bucket}|${winKey(win)}`
+}
+
+function PlexWindowImpl({ win, app, t, active, z }) {
   const m = motion(win, app, t) || { ...GHOST_MOTION, rect: () => normalRect(win, app) }
   const N = app.copies ?? 8
   const mounted = mountedCopies(win, app, t, N)
@@ -420,12 +447,12 @@ export function PlexWindow({ win, app, t, active, z }) {
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} />
+          <WindowBody win={win} app={app} t={ct} w={rr.w} h={rr.h} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={Math.min(72, topH || 72)} /> : null}
-        {k === 0 && win.state === 'open' && <TitleControls win={{ ...win, rect: r }} w={rr.w} topH={topH} active={active} />}
+        {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} topH={topH} active={active} />}
       </div>,
     )
   }
@@ -436,3 +463,9 @@ export function PlexWindow({ win, app, t, active, z }) {
     </div>
   )
 }
+
+// re-renders every frame unless the window is quiet (see quietKey) and nothing else changed
+export const PlexWindow = memo(PlexWindowImpl, (a, b) => {
+  if (a.quiet == null || b.quiet == null || a.quiet !== b.quiet) return false
+  return a.app === b.app && a.active === b.active && a.z === b.z
+})
