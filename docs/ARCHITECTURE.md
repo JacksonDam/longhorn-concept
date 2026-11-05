@@ -92,7 +92,7 @@ boot fade uses) at opacity 0.999 while the OS:
 
 A browser's first boot of a build rehearses everything (~2 s on the M4, more on a slower or
 brand-new machine); later boots (localStorage `longhorn.boot` = bundle URL + user agent) rehearse
-the video's path only. An 8 s deadline ends the boot whatever is left; that part then happens on
+the video's path only. A 10 s deadline ends the boot whatever is left; that part then happens on
 first use. `?rehearse=all|video|none` overrides the level, `?boottrace` records each rehearsed
 state, `__lh.bootStats` has the timings, `__lh.booted` says whether the clock runs.
 Rules: one-off work (a new asset kind, a new scripted interaction, a new app) belongs in the boot:

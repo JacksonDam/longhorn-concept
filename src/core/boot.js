@@ -32,7 +32,7 @@ import { texturesReady } from '../gl/slab.js'
 import { rehearsal } from './rehearsal.js'
 import { PHOTOS, CAMERA_PHOTOS } from '../apps/lib/pictures.jsx'
 
-const LIMIT = 8000 // ms from the boot's start
+const LIMIT = 10000 // ms from the boot's start
 const params = new URLSearchParams(location.search)
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(performance.now())))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -110,16 +110,18 @@ async function rehearse(lvl, deadline) {
     }
     await nextFrame()
     if (aborted) return false
-    const g0 = performance.now()
-    gpuFence()
-    const wait = Math.round(performance.now() - g0)
     seek(frameTime(f))
     bootStats.frames++
-    // ?boottrace: [video frame, performance.now() when it was set, ms the fence before it waited]
-    if (bootStats.trace) bootStats.trace.push([f, Math.round(performance.now()), wait])
+    const ts = performance.now()
+    // a frame later the state has reached the compositor; the fence then waits while the GPU
+    // is still busy with it (fencing right away returned before the frame got there, and on a
+    // brand-new machine the album flip's states were dropped)
+    await nextFrame()
+    const g0 = performance.now()
+    gpuFence()
+    // ?boottrace: [video frame, performance.now() when it was set, ms the fence after it waited]
+    if (bootStats.trace) bootStats.trace.push([f, Math.round(ts), Math.round(performance.now() - g0)])
   }
-  await nextFrame()
-  gpuFence()
   if (part >= 0) bootStats[parts[part].name] = Math.round(performance.now() - t)
   return true
 }
