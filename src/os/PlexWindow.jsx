@@ -36,7 +36,7 @@ const toRel = (t, t0) => (t - t0) * FPS
 export function normalRect(win, app) {
   const s = app.size || { w: 420, h: 300 }
   const p = app.position || { x: 120, y: 80 }
-  return { x: win.x ?? p.x, y: win.y ?? p.y, w: s.w, h: s.h }
+  return { x: win.x ?? p.x, y: win.y ?? p.y, w: win.w ?? s.w, h: win.h ?? s.h }
 }
 
 // sub-frame window position while dragging: interpolate the 'win.move' events of this window
@@ -185,12 +185,15 @@ const propsKey = new WeakMap()
 const winKey = (w) => {
   let pk = propsKey.get(w.props)
   if (pk == null) propsKey.set(w.props, (pk = JSON.stringify(w.props)))
-  return `${w.id}|${w.state === 'closed' || w.lastAction === 'ghost' ? 'open' : w.state}|${w.maximized}|${pk}`
+  // the content's inputs from the window record (not its state: minimising or closing a window
+  // changes its layers' poses, never what it draws)
+  return `${w.id}|${w.w}|${w.h}|${pk}`
 }
 
 // title-bar controls and drag handle (live layer only)
-function TitleControls({ win, w, topH, active }) {
+function TitleControls({ win, w, topH, active, h, app }) {
   const drag = useRef(null)
+  const size = useRef(null)
   const id = win.id
   const onDown = (e) => {
     if (e.button !== 0) return
@@ -224,8 +227,38 @@ function TitleControls({ win, w, topH, active }) {
       }}
     />
   )
+  const minS = app.minSize || { w: 320, h: 200 }
+  const onSizeDown = (e) => {
+    if (e.button !== 0 || win.maximized) return
+    e.stopPropagation()
+    const p = toStage(e.clientX, e.clientY)
+    size.current = { sx: p.x, sy: p.y, w0: win.rect.w, h0: win.rect.h }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onSizeMove = (e) => {
+    const d = size.current
+    if (!d) return
+    const p = toStage(e.clientX, e.clientY)
+    const nw = Math.round(Math.max(minS.w, Math.min(WORK.w - win.rect.x, d.w0 + p.x - d.sx)))
+    const nh = Math.round(Math.max(minS.h, Math.min(WORK.h - win.rect.y, d.h0 + p.y - d.sy)))
+    if (nw !== d.lw || nh !== d.lh) {
+      d.lw = nw
+      d.lh = nh
+      emit('win.resize', { id, w: nw, h: nh })
+    }
+  }
   return (
     <>
+      {app.resizable !== false && (
+        <div
+          data-hit="win.resize"
+          style={abs(w - 18, h - 18, 18, 18, { cursor: 'nwse-resize' })}
+          onPointerDown={onSizeDown}
+          onPointerMove={onSizeMove}
+          onPointerUp={() => (size.current = null)}
+          onPointerCancel={() => (size.current = null)}
+        />
+      )}
       <div
         data-hit="win.drag"
         style={abs(0, 0, w - 60, 21)}
@@ -265,7 +298,7 @@ function motion(win, app, t) {
   if (win.lastAction === 'ghost') return { ...base, hidden: true }
   if (win.state === 'closed') {
     const crel = toRel(t, win.changedAt)
-    if (crel >= CLOSE_END + 3) return { ...base, hidden: true, frozen: win.changedAt }
+    if (crel >= CLOSE_END + 3) return { ...base, hidden: true, closedDone: true }
     return {
       ...base, frozen: win.changedAt, n: 10, shutter: 0.8, hidden: crel >= CLOSE_END,
       pose: (tt) => closePose(toRel(tt, win.changedAt)),
@@ -377,6 +410,7 @@ function mountedCopies(win, app, t, N) {
 // a window layer that shows nothing: parked off-stage at a near-zero opacity, so Blink keeps it
 // painted (it skips opacity-0 subtrees) while the compositor draws nothing on screen
 const PARKED = { transform: 'translateX(-4000px)', opacity: 1e-4 }
+const REST = { opacity: 1e-4 }
 
 // A window that shows nothing and has nothing scheduled (minimised, closed, running at login,
 // prewarmed) renders the same every frame: this key changes only when its layers would change
@@ -408,6 +442,12 @@ function PlexWindowImpl({ win, app, t, active, z }) {
   const openRel = (tt) => toRel(tt, win.openedAt + OPEN_DELAY / FPS)
   const rel = openRel(t)
   const ghost = win.lastAction === 'ghost'
+  // where idle layers wait: a window that has been shown keeps them on its rect, all but
+  // invisible, so their tiles stay rasterised and the next minimise / restore / move only
+  // composites (rasterising ten window copies on the first frame of a restore costs 60 ms);
+  // never-shown and closed windows park them off-stage (painted, not rasterised)
+  const shown = (win.state === 'open' || win.state === 'minimized') && win.lastAction !== 'initial' && win.lastAction !== 'ghost'
+  const rest = shown ? REST : PARKED
   const layers = []
   for (let k = 0; k < mounted; k++) {
     let style
@@ -418,16 +458,20 @@ function PlexWindowImpl({ win, app, t, active, z }) {
       style = { ...poseCss(p), opacity: Math.max(0, p.op) / nEff }
     } else if (k === 0 && !m.hidden) {
       const p = m.pose ? m.pose(t) : null
-      style = p && p.op <= 0 ? PARKED : { ...(p ? poseCss(p) : null), opacity: p ? p.op : 1 }
+      style = p && p.op <= 0 ? rest : { ...(p ? poseCss(p) : null), opacity: p ? p.op : 1 }
     } else if (m.warm && k <= Math.floor((rel + 1) * 2)) {
       // before the open is visible: copies are rasterised in their first visible pose, all but
       // invisible (two per frame), so the first blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
-    } else style = PARKED
+    } else style = rest
     const rr = blur && k < nEff ? m.rect(tt) : r
     let ct = m.frozen != null ? live : liveContentT(win, app, t)
     if (k > 0 && m.frozen == null) {
-      const tk = t - (k * STAGGER) / FPS
+      // a ghost's copies show what a window that has just opened shows, so the real window
+      // takes them over without re-rendering
+      // (a closed window's copies turn into a fresh window's, one every STAGGER frames)
+      const fresh = ghost || (m.closedDone && toRel(t, win.changedAt) > CLOSE_END + 3 + k * STAGGER)
+      const tk = fresh ? win.openedAt : t - (k * STAGGER) / FPS
       const ev = lastEventT(win, app, tk)
       const settle = app.settle ?? DEFAULT_SETTLE
       ct = app.snapshot ? app.snapshot(win, tk, ev, settle) : Math.max(win.openedAt, ev) + settle
@@ -435,7 +479,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
     const visible = style !== PARKED && style.opacity > 1e-3
     // the open's lighting layers: on the live layer always, on copies until the open is over
     // (unmounted one copy per frame afterwards)
-    const light = k === 0 || ghost || (win.lastAction === 'open' && rel < 17 + k)
+    const light = k === 0 || ghost || m.closedDone || (win.lastAction === 'open' && rel < 17 + k)
     layers.push(
       <div
         key={k}
@@ -452,7 +496,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={Math.min(72, topH || 72)} /> : null}
-        {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} topH={topH} active={active} />}
+        {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
       </div>,
     )
   }
