@@ -148,5 +148,8 @@ export async function boot(startLog) {
   await nextFrame()
   await nextFrame()
   bootStats.total = Math.round(performance.now() - t0)
+  // the page's boot screen gives way to the session's black (t = 0 of the start log: fully black
+  // for the real OS, whose login then fades in; ?demo cuts to the video's first frame)
+  document.getElementById('lh-boot')?.remove()
   startClock()
 }

@@ -2,12 +2,16 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { STATIC_CSS, STATIC_HTML } from './src/scenes/session/bootScreen.js'
 
 // `virtual:boot-assets`: every file under public/img (paths relative to public/), so the boot
 // (src/core/boot.js) fetches and decodes all of them before the OS's clock starts.
-// The built index.html also preloads the font files (they otherwise load only when text first
-// uses them, after the bundle has run) and marks the entry script data-cfasync="false": the live
-// site's CDN (Cloudflare) runs Rocket Loader, which rewrites module scripts and runs them late.
+// index.html gets the Longhorn boot screen inlined (scenes/session/bootScreen.js: markup and CSS
+// animation, on screen from the first paint, before the bundle has loaded; core/boot.js removes
+// it when the clock starts). The built index.html also preloads the font files (they otherwise
+// load only when text first uses them, after the bundle has run) and marks the entry script
+// data-cfasync="false": the live site's CDN (Cloudflare) runs Rocket Loader, which rewrites
+// module scripts and runs them late.
 function boot() {
   const ID = 'virtual:boot-assets'
   const RID = '\0' + ID
@@ -33,6 +37,7 @@ function boot() {
       order: 'post',
       handler(html, ctx) {
         html = html.replace(/<script type="module"/g, '<script type="module" data-cfasync="false"')
+        html = html.replace('</head>', `  <style>${STATIC_CSS}</style>\n  </head>`).replace('<body>', `<body>\n    ${STATIC_HTML}`)
         if (!ctx.bundle) return html
         const fonts = Object.keys(ctx.bundle).filter((f) => /\.woff2?$/.test(f))
         const links = fonts.map((f) => `<link rel="preload" as="font" type="font/${f.endsWith('2') ? 'woff2' : 'woff'}" crossorigin href="${base}${f}">`)

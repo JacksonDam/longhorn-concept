@@ -7,7 +7,7 @@
 // Further runs relaunch Chrome on the same profile (warm HTTP / GPU / code caches).
 //
 // usage: node tools/coldstart.mjs [--url https://127.0.0.1:5311/longhorn-concept/] [--runs cold,warm,warm]
-//          [--cpu 4] [--net 20,40] [--flow all|login|apps] [--rounds 2] [--hz 144] [--trace] [--trace-secs n] [--keep-trace]
+//          [--cpu 4] [--net 20,40] [--flow all|login|apps|boot] [--rounds 2] [--hz 144] [--trace] [--trace-secs n] [--keep-trace]
 //          [--shots] [--out out/coldstart/<label>] [--label name]
 //        node tools/coldstart.mjs --compare a.json b.json [c.json...]   (side-by-side phase table)
 //        node tools/coldstart.mjs --analyse <run-trace.json> <run-page.json> [--map bundle.js.map --bundle-url url]
@@ -338,7 +338,7 @@ async function play(cdp, runName) {
   }
   if (!(await evaluate('!!(window.__cs && window.__cs.visibleAt != null)').catch(() => false))) throw new Error('the login screen never showed')
   rect = await evaluate(`(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.x, y: b.y, s: b.width / 960 } })()`)
-  await sleep(3000) // the login screen as it first shows (phase 'intro')
+  await sleep(flow === 'boot' ? 1000 : 3000) // the login screen as it first shows (phase 'intro')
   await shot('intro')
   if (flow === 'all' || flow === 'login') {
     await step('hover', () => move(563, 634), 700)

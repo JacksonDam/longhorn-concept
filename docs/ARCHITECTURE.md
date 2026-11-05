@@ -71,6 +71,9 @@ under it, the Refresh dim.
 The video's sequence is replayed by `?demo` / `?capture`; outside it the app is a small usable
 OS in the same style. Everything still derives from (time, event log).
 - `src/os/session.js`: screen flow (login, desktop, shutdown, off, boot), current user, wallpaper.
+  The power button's boot shows the same boot screen for one fade-in and one pass of its blocks
+  (`BOOT_SCREEN`, drawn from the clock by `PowerScreens.jsx` `BootScreen`), then the login fades in;
+  the page load's own boot (a log starting with `session.boot` at t = 0) only fades in.
   `src/scenes/session/` draws the power screens. App.jsx keeps the login and desktop scenes
   mounted (hidden) so switching between them never mounts a scene.
 - `src/os/wm.js`: window state from 'win.*' events (legacy 'music.*' aliases); the four
@@ -121,8 +124,15 @@ OS in the same style. Everything still derives from (time, event log).
 
 ## Boot (real time only)
 `core/boot.js`, started by App.jsx; `?capture` / `?bench` never boot (they wait on `__lh.ready()`).
-The clock is held and the screen is the session's black layer (App.jsx `Scenes`, the element the
-boot fade uses) at opacity 0.999 while the OS:
+What shows is the Longhorn boot screen of builds 4015-4029 (`scenes/session/bootScreen.js`, sources
+in assets-src/SOURCES.md section 10): vite.config.js inlines it into index.html, so it is on screen
+from the first paint, before the bundle has loaded, and its fade-in and progress blocks are CSS
+animations of opacity and transform only (they run on the compositor while the main thread is busy).
+It sits above the page at opacity 0.999 (an opaque layer would let the compositor skip drawing the
+warm-up under it), and the boot removes it when the clock starts: the screen is then the session's
+black at t = 0 and the login fades in (`session.boot`). App.jsx removes it at once under capture.
+Under it, the clock is held and the stage shows the session's black layer (App.jsx `Scenes`, the
+element the boot fade uses) at opacity 0.999 while the OS:
 1. loads every font face (`document.fonts`), every file under `public/img` (the list is the
    `virtual:boot-assets` module from vite.config.js, so new images are included automatically),
    the scenes' `preload()` / `waitFor()` assets and the slab textures; the login screen is mounted

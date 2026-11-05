@@ -5,7 +5,8 @@ import { memo } from 'react'
 import { clamp } from '../../core/anim.js'
 import { CAPTURE } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
-import { SHUTDOWN_HOLD, SHUTDOWN_FADE, BOOT_DUR } from '../../os/session.js'
+import { SHUTDOWN_HOLD, SHUTDOWN_FADE, BOOT_DUR, bootScreenDur } from '../../os/session.js'
+import { logoSVG, BLOCKS_SVG, FADE, INTERIOR, BLOCKS_X0, GROUP, sweepOffset } from './bootScreen.js'
 
 const fill = { position: 'absolute', left: 0, top: 0, width: 960, height: 720 }
 
@@ -13,7 +14,7 @@ const fill = { position: 'absolute', left: 0, top: 0, width: 960, height: 720 }
 export function blackLevel(screen, t) {
   const k = t - screen.t0
   if (screen.name === 'shutdown') return clamp((k - (screen.from === 'desktop' ? SHUTDOWN_HOLD : 0)) / SHUTDOWN_FADE)
-  if (screen.name === 'boot') return 1 - clamp(k / BOOT_DUR)
+  if (screen.name === 'boot') return 1 - clamp((k - bootScreenDur(screen)) / BOOT_DUR)
   if (screen.name === 'off') return 1
   return 0
 }
@@ -86,6 +87,27 @@ export function OffScreen({ t0, t, hover }) {
       >
         <PowerOrb />
       </div>
+    </div>
+  )
+}
+
+// The power button's boot screen (os/session.js: the boot's first bootScreenDur s), the same
+// artwork as the page's own while it loads (bootScreen.js), here a function of the clock: the
+// logo and bar fade in over FADE s, then the blocks step through the bar.
+const S = 1.5 // the bitmap's 640x480 -> stage px
+const LOGO = <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: logoSVG('lhr') }} />
+const BLOCKS = <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: BLOCKS_SVG }} />
+export function BootScreen({ t0, t }) {
+  const k = t - t0
+  const x = k < FADE ? null : sweepOffset(k - FADE)
+  return (
+    <div style={{ ...fill, background: '#000', pointerEvents: 'auto' }}>
+      <div style={{ ...fill, opacity: clamp(k / FADE) }}>{LOGO}</div>
+      {x != null && (
+        <div style={{ position: 'absolute', left: INTERIOR.x * S, top: INTERIOR.y * S, width: INTERIOR.w * S, height: INTERIOR.h * S, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, left: (BLOCKS_X0 - INTERIOR.x) * S, width: GROUP.w * S, height: GROUP.h * S, transform: `translateX(${x * S}px)` }}>{BLOCKS}</div>
+        </div>
+      )}
     </div>
   )
 }

@@ -59,6 +59,11 @@ pays all of that under the black screen before the clock starts; keep it that wa
   `core/rehearsal.js` (its frames: the first frames of the motion, the motion-blur copies,
   settled). Don't add work that runs after the boot on a timer or idle callback: the login
   screen animates the whole time, and a GPU compile stalls every frame until it is done.
+- The boot screen above the warm-up (index.html, `scenes/session/bootScreen.js`) stays at opacity
+  0.999 and animates only opacity and transform: an opaque cover would let the compositor cull
+  everything under it (no pipelines compiled), and anything else would stop animating while the
+  main thread is busy. Check a change to it with `--trace` and `TRACE_CATS=blink.user_timing,gpu.dawn`
+  (the GPU pipelines compiled after the boot should stay a handful of small ones).
 - Measure with `tools/coldstart.mjs` on the production build served by `tools/pages.mjs`
   (HTTP/2, gzip and the live site's cache headers; `vite preview` sends no-cache and no gzip):
   `npx vite build && node tools/pages.mjs --dir dist --port <your prod port>`, then
