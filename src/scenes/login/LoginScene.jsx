@@ -4,7 +4,7 @@
 import { useEffect } from 'react'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { emit } from '../../core/events.js'
-import { CAPTURE } from '../../core/clock.js'
+import { CAPTURE, now } from '../../core/clock.js'
 import { Aurora } from './Aurora.jsx'
 import { Logo } from './Logo.jsx'
 import { BarBand, ShutDown, Clock, clockText } from './Bar.jsx'
@@ -25,19 +25,20 @@ const REFBG = params.has('refbg')
 const NOBAR = params.has('nobar') // local fitting aid: the aurora without the bar band
 const refFrame = (t) => `${import.meta.env.BASE_URL}ref/frames/f${String(Math.round(t * (30000 / 1001)) + 1).padStart(5, '0')}.png`
 
-function useKeys() {
+function useKeys(active) {
   useEffect(() => {
-    if (CAPTURE) return
+    if (CAPTURE || !active) return
     const onKey = (e) => {
-      const sel = currentSelection(Infinity)
-      if (submitEvent(Infinity)) return
+      const t = now()
+      const sel = currentSelection(t)
+      if (submitEvent(t)) return
       if (e.key === 'Escape') {
         if (sel.id) emit('login.deselect')
         return
       }
       if (!sel.id) return
-      const len = passwordLength(Infinity)
-      if (e.key === 'Enter') emit('login.submit')
+      const len = passwordLength(t)
+      if (e.key === 'Enter') emit('login.submit', { id: sel.id })
       else if (e.key === 'Backspace') emit('login.pw', { len: Math.max(0, len - 1) })
       else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey) emit('login.pw', { len: Math.min(len + 1, 24) })
       else return
@@ -45,15 +46,39 @@ function useKeys() {
     }
     addEventListener('keydown', onKey)
     return () => removeEventListener('keydown', onKey)
-  }, [])
+  }, [active])
 }
 
-export function LoginScene() {
+const shutDown = () => {
+  if (!CAPTURE && !submitEvent(now())) emit('session.shutdown')
+}
+
+// visible: the login screen is showing (or leaving / arriving); otherwise only the aurora's
+// canvas stays mounted, paused, so the next visit starts without a GL context or shader compile.
+// enter: { t0 } when the screen arrives from the desktop or the boot screen: the login exit,
+// played backwards (layer fades in, tiles flip in, flag spins in).
+export function LoginScene({ visible = true, enter = null }) {
   const t = useTime()
   useEvents()
-  useKeys()
+  useKeys(visible)
+  if (!visible) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, visibility: 'hidden', pointerEvents: 'none' }}>
+        <Aurora paused />
+      </div>
+    )
+  }
   const submit = submitEvent(t)
-  const k = submit ? t - submit.t : null
+  // exit clock: seconds into the exit (after submit), or backwards through it while arriving
+  const exitK = (tt) => {
+    if (submit) return tt - submit.t
+    if (enter) {
+      const k = enter.t0 + LOGIN_EXIT - tt
+      return k > 0 ? k : null
+    }
+    return null
+  }
+  const k = exitK(t)
   const row = rowState(t)
   const submitT = submit ? submit.t : null
   return (
@@ -62,7 +87,7 @@ export function LoginScene() {
       onPointerDown={(e) => {
         if (CAPTURE || submit) return
         if (e.target === e.currentTarget || e.target.tagName === 'CANVAS') {
-          if (currentSelection(Infinity).id) emit('login.deselect')
+          if (currentSelection(now()).id) emit('login.deselect')
         }
       }}
     >
@@ -72,12 +97,14 @@ export function LoginScene() {
         <Aurora />
       )}
       {!REFBG && !NOBAR && <BarBand />}
-      <Logo t={t} submitT={submitT} />
+      <Logo t={t} exitK={exitK} />
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
-        <ShutDown />
+        <div style={{ pointerEvents: 'auto' }}>
+          <ShutDown onClick={shutDown} />
+        </div>
         <Clock text={clockText(DEMO)} />
       </div>
-      <TileRow t={t} row={row} submitT={submitT} />
+      <TileRow t={t} row={row} exitK={exitK} />
       <Panel t={t} row={row} submitT={submitT} />
       <Selected t={t} records={row.records} submitT={submitT} />
     </div>

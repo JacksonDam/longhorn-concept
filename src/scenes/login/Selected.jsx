@@ -7,6 +7,7 @@ import { useEffect } from 'react'
 import { clamp, F } from '../../core/anim.js'
 import { FPS } from '../../core/clock.js'
 import { pic } from './Tile.jsx'
+import { preload } from '../../core/preload.js'
 import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
 import { slabExit } from './exit.js'
@@ -66,9 +67,42 @@ function poseFor(rec, submitT) {
   }
 }
 
-// soft white halo behind the resting slab: a fixed-size glowing frame (rasterised once on its own
-// layer, pre-mounted with the slab) that is only moved, rotated and scaled per frame
+// soft white halo behind the resting slab: the glow of a 157 px rounded box (two box-shadow
+// style glows, nothing inside the box), drawn once into an image at load; per frame it is only
+// moved, rotated and scaled (a bitmap draw, no blur work, same pixels for any seek order)
 const HALO = 157
+const HM = 80 // glow margin around the box
+const haloUrl = (() => {
+  const S = 2
+  const c = document.createElement('canvas')
+  c.width = c.height = (HALO + 2 * HM) * S
+  const g = c.getContext('2d')
+  g.scale(S, S)
+  const rr = (x, y, w, h, r) => {
+    g.beginPath()
+    g.roundRect(x, y, w, h, r)
+  }
+  const glow = (blur, spread, color) => {
+    // the shape is drawn far off-canvas; only its shadow lands on the canvas
+    g.save()
+    g.shadowColor = color
+    g.shadowBlur = blur * S
+    g.shadowOffsetX = 10000 * S
+    rr(HM - spread - 10000, HM - spread, HALO + 2 * spread, HALO + 2 * spread, 18 + spread)
+    g.fillStyle = '#000'
+    g.fill()
+    g.restore()
+  }
+  glow(34, 12, 'rgba(160,195,255,0.35)')
+  glow(14, 6, 'rgba(210,228,255,0.75)')
+  // like CSS box-shadow, nothing is drawn inside the box itself
+  g.globalCompositeOperation = 'destination-out'
+  rr(HM, HM, HALO, HALO, 18)
+  g.fill()
+  return c.toDataURL('image/png')
+})()
+preload([haloUrl])
+
 function Halo({ t, rec, submitT }) {
   const k = (t - rec.t0) * FPS
   let a = clamp((k - 26) / 8)
@@ -77,19 +111,20 @@ function Halo({ t, rec, submitT }) {
   const p = slabPose(Math.max(k, 26), rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
   const w = p.size * Math.abs(Math.cos(p.ry)) + 30 * (p.size / BASE) * Math.abs(Math.sin(p.ry)) - 8
   const h = p.size - 8
+  const D = HALO + 2 * HM
   return (
-    <div
+    <img
+      src={haloUrl}
+      alt=""
+      draggable={false}
       style={{
         position: 'absolute',
         left: 0,
         top: 0,
-        width: HALO,
-        height: HALO,
-        borderRadius: 18,
-        transform: `translate(${(p.x - HALO / 2).toFixed(2)}px, ${(p.y - HALO / 2).toFixed(2)}px) rotate(${(((p.rz ?? 0) * 180) / Math.PI).toFixed(3)}deg) scale(${(w / HALO).toFixed(4)}, ${(h / HALO).toFixed(4)})`,
-        boxShadow: '0 0 14px 6px rgba(210,228,255,0.75), 0 0 34px 12px rgba(160,195,255,0.35)',
+        width: D,
+        height: D,
+        transform: `translate(${(p.x - D / 2).toFixed(2)}px, ${(p.y - D / 2).toFixed(2)}px) rotate(${(((p.rz ?? 0) * 180) / Math.PI).toFixed(3)}deg) scale(${(w / HALO).toFixed(4)}, ${(h / HALO).toFixed(4)})`,
         opacity: Math.max(0, a),
-        willChange: 'transform, opacity',
         pointerEvents: 'none',
       }}
     />
