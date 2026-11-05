@@ -10,6 +10,7 @@
 //   'win.maximize'   { id } / 'win.unmaximize' { id }
 //   'win.close'      { id }
 //   'win.move'       { id, x, y }         new top-left (stage px), emitted while dragging
+//   'win.resize'     { id, w, h }         new size (stage px), emitted while dragging the resize grip
 //   'win.props'      { id, ...props }     app-level state that should survive (e.g. url, page)
 //   'session.logoff' / 'session.shutdown' all windows go away (login scene takes over)
 // Legacy aliases (the video's demo input): 'music.open' / 'music.minimize' / 'music.restore' /
@@ -37,7 +38,8 @@ function normalise(e) {
 // window record:
 // { id, app, props, x, y (null = app default position), z, openedAt, state: 'open' | 'minimized' | 'closed',
 //   changedAt (time of the last open/minimize/restore/close), lastAction ('open' | 'minimize' | 'restore' | 'close' | 'initial'),
-//   maximized, maximizedAt, focusedAt, initial (true for RUNNING_AT_LOGIN windows never shown yet) }
+//   maximized, maximizedAt, focusedAt, initial (true for RUNNING_AT_LOGIN windows never shown yet),
+//   w, h (resized size, absent = the app's default) }
 function reduce(events) {
   const wins = new Map()
   let z = 0
@@ -137,6 +139,14 @@ function reduce(events) {
         if (w) {
           w.x = e.x
           w.y = e.y
+        }
+        break
+      }
+      case 'win.resize': {
+        const w = wins.get(e.id)
+        if (w) {
+          w.w = e.w
+          w.h = e.h
         }
         break
       }

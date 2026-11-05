@@ -36,7 +36,7 @@ const toRel = (t, t0) => (t - t0) * FPS
 export function normalRect(win, app) {
   const s = app.size || { w: 420, h: 300 }
   const p = app.position || { x: 120, y: 80 }
-  return { x: win.x ?? p.x, y: win.y ?? p.y, w: s.w, h: s.h }
+  return { x: win.x ?? p.x, y: win.y ?? p.y, w: win.w ?? s.w, h: win.h ?? s.h }
 }
 
 // sub-frame window position while dragging: interpolate the 'win.move' events of this window
@@ -185,12 +185,13 @@ const propsKey = new WeakMap()
 const winKey = (w) => {
   let pk = propsKey.get(w.props)
   if (pk == null) propsKey.set(w.props, (pk = JSON.stringify(w.props)))
-  return `${w.id}|${w.state === 'closed' || w.lastAction === 'ghost' ? 'open' : w.state}|${w.maximized}|${pk}`
+  return `${w.id}|${w.state === 'closed' || w.lastAction === 'ghost' ? 'open' : w.state}|${w.maximized}|${w.w}|${w.h}|${pk}`
 }
 
 // title-bar controls and drag handle (live layer only)
-function TitleControls({ win, w, topH, active }) {
+function TitleControls({ win, w, topH, active, h, app }) {
   const drag = useRef(null)
+  const size = useRef(null)
   const id = win.id
   const onDown = (e) => {
     if (e.button !== 0) return
@@ -224,8 +225,38 @@ function TitleControls({ win, w, topH, active }) {
       }}
     />
   )
+  const minS = app.minSize || { w: 320, h: 200 }
+  const onSizeDown = (e) => {
+    if (e.button !== 0 || win.maximized) return
+    e.stopPropagation()
+    const p = toStage(e.clientX, e.clientY)
+    size.current = { sx: p.x, sy: p.y, w0: win.rect.w, h0: win.rect.h }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onSizeMove = (e) => {
+    const d = size.current
+    if (!d) return
+    const p = toStage(e.clientX, e.clientY)
+    const nw = Math.round(Math.max(minS.w, Math.min(WORK.w - win.rect.x, d.w0 + p.x - d.sx)))
+    const nh = Math.round(Math.max(minS.h, Math.min(WORK.h - win.rect.y, d.h0 + p.y - d.sy)))
+    if (nw !== d.lw || nh !== d.lh) {
+      d.lw = nw
+      d.lh = nh
+      emit('win.resize', { id, w: nw, h: nh })
+    }
+  }
   return (
     <>
+      {app.resizable !== false && (
+        <div
+          data-hit="win.resize"
+          style={abs(w - 18, h - 18, 18, 18, { cursor: 'nwse-resize' })}
+          onPointerDown={onSizeDown}
+          onPointerMove={onSizeMove}
+          onPointerUp={() => (size.current = null)}
+          onPointerCancel={() => (size.current = null)}
+        />
+      )}
       <div
         data-hit="win.drag"
         style={abs(0, 0, w - 60, 21)}
@@ -452,7 +483,7 @@ function PlexWindowImpl({ win, app, t, active, z }) {
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={Math.min(72, topH || 72)} /> : null}
-        {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} topH={topH} active={active} />}
+        {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
       </div>,
     )
   }

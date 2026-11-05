@@ -85,6 +85,16 @@ export const PLACES = [
   '-',
   { label: 'Control Panel', onClick: open('control') },
 ]
+// the Favorites drop-down (every link opens Internet Explorer on its offline page)
+export const FAVORITES = [
+  { label: 'MSN.com', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'www.msn.com' } }) },
+  { label: 'Music on MSN', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'music.msn.com' } }) },
+  { label: 'ofoto.com', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'www.ofoto.com' } }) },
+  { label: 'Yahoo!', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'www.yahoo.com' } }) },
+  { label: 'Google', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'www.google.com' } }) },
+  '-',
+  { label: 'Windows Update', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'windowsupdate.microsoft.com' } }) },
+]
 const defaultMenus = (win) => ({
   File: [{ label: 'Close', onClick: () => emit('win.close', { id: win.id }) }],
   Edit: [{ label: 'Select All', shortcut: 'Ctrl+A', disabled: true }],
@@ -103,7 +113,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t }) {
   const commands = val(cfg.commands, win, t, DEFAULT_COMMANDS)
   const pressedV = val(cfg.pressed, win, t, 'preview')
   const pressed = new Set(Array.isArray(pressedV) ? pressedV : [pressedV])
-  const menus = val(cfg.menus, win, t, null) || defaultMenus(win)
+  const menus0 = val(cfg.menus, win, t, null) || defaultMenus(win)
+  const menus = menus0.Favorites ? menus0 : { ...menus0, Favorites: FAVORITES }
   const crumbMenus = val(cfg.crumbMenus, win, t, null) || [PLACES, PLACES]
   const menuId = (m) => wid(win, 'xmenu.' + m)
   const menu = (m) => (e) => {
