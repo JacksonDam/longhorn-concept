@@ -5,7 +5,7 @@ import { Slab3D } from '../../gl/Slab3D.jsx'
 import { loadTexture, renderSlabs, SlabScene, texturesReady } from '../../gl/slab.js'
 import { useEffect } from 'react'
 import { clamp, F } from '../../core/anim.js'
-import { FPS, CAPTURE } from '../../core/clock.js'
+import { FPS } from '../../core/clock.js'
 import { pic } from './Tile.jsx'
 import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
@@ -94,9 +94,8 @@ function Halo({ t, rec, submitT }) {
   )
 }
 
-// Real time only: draw into a canvas cropped to the slabs (sizes rounded up to 64 px so the GL
-// render targets are reused) instead of a full-stage canvas: ~8x fewer pixels per accumulation
-// sample. ?capture keeps the full-stage canvas, so captures are bit-for-bit unchanged.
+// Draw into a canvas cropped to the slabs (sizes rounded up to 64 px so the GL render targets are
+// reused) instead of a full-stage canvas: ~8x fewer pixels per accumulation sample.
 const Q = 64
 function cropBox(items, times) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
@@ -120,7 +119,7 @@ function cropBox(items, times) {
 // compile the slab shader and upload the pictures at load, so the first click doesn't stall
 let warmed = false
 function warmUp() {
-  if (warmed || CAPTURE) return
+  if (warmed) return
   warmed = true
   const c = document.createElement('canvas')
   const ctx = c.getContext('2d')
@@ -140,20 +139,17 @@ export function Selected({ t, records, submitT }) {
     return rec.back != null || (k > LAUNCH - 1 && k < 31)
   }) || (submitT != null && t - submitT < F(12))
   const mb = blur('slab')
-  let canvas = { width: 960, height: 720, items, origin: undefined, style: { left: 0, top: 0 } }
-  if (!CAPTURE) {
-    const n = moving ? mb.samples : 1
-    const times = []
-    for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + mb.shutter * ((k + 0.5) / n + mb.phase))
-    const b = cropBox(items, times)
-    if (!b) return null
-    canvas = {
-      width: b.w,
-      height: b.h,
-      origin: [480 - b.x, 360 - b.y],
-      style: { left: b.x, top: b.y },
-      items: items.map((it) => ({ slab: it.slab, pose: (tt) => { const p = it.pose(tt); return { ...p, x: p.x - b.x, y: p.y - b.y } } })),
-    }
+  const n = moving ? mb.samples : 1
+  const times = []
+  for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + mb.shutter * ((k + 0.5) / n + mb.phase))
+  const b = cropBox(items, times)
+  if (!b) return null
+  const canvas = {
+    width: b.w,
+    height: b.h,
+    origin: [480 - b.x, 360 - b.y],
+    style: { left: b.x, top: b.y },
+    items: items.map((it) => ({ slab: it.slab, pose: (tt) => { const p = it.pose(tt); return { ...p, x: p.x - b.x, y: p.y - b.y } } })),
   }
   return (
     <>

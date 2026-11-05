@@ -150,16 +150,14 @@ export function Panel({ t, row, submitT }) {
       }}
     >
       <PanelBody id={id} len={len} />
-      {!CAPTURE && (
-        <div
-          title="Go"
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            if (submitT == null) emit('login.submit')
-          }}
-          style={{ position: 'absolute', left: 688.5 - P.left - 13, top: 371 - P.top - 13, width: 26, height: 26, borderRadius: 13, cursor: 'pointer' }}
-        />
-      )}
+      <div
+        title="Go"
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          if (!CAPTURE && submitT == null) emit('login.submit', { id })
+        }}
+        style={{ position: 'absolute', left: 688.5 - P.left - 13, top: 371 - P.top - 13, width: 26, height: 26, borderRadius: 13, cursor: 'pointer' }}
+      />
     </MotionBlur>
   )
 }

@@ -1,7 +1,7 @@
 // Motion-blur settings per animation: [samples, shutter in video frames, phase], fitted against the
 // reference by grid search (tools/login/fit_blur.py). Local tuning aid: ?mb={"slab":[8,0.5,-0.5]}
 // overrides entries in captures.
-import { FPS, CAPTURE } from '../../core/clock.js'
+import { FPS } from '../../core/clock.js'
 
 const BLUR = {
   slab: [6, 0.6, -0.5], // the selected tile's flight, return and exit
@@ -21,6 +21,6 @@ export function blur(name) {
   return { samples, shutter: frames / FPS, phase }
 }
 
-// Real time only: give each blur copy its own compositing layer, so a move only changes
-// transforms (no re-raster of N copies per frame). Captures keep plain layers (unchanged output).
-export const layerHint = CAPTURE ? {} : { willChange: 'transform, opacity' }
+// Give each blur copy its own compositing layer while it moves, so a move only changes
+// transforms (no re-raster of N copies per frame).
+export const layerHint = { willChange: 'transform, opacity' }
