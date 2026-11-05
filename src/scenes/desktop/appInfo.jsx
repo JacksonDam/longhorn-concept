@@ -4,6 +4,8 @@
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { focusedWindow, getWindow } from '../../os/wm.js'
+import { getApp, hasApp } from '../../os/apps.js'
+import { asset } from '../../core/preload.js'
 import {
   IEIcon, WordIcon, MusicIcon, OutlookIcon, WinampIcon, DocumentsIcon, PicturesIcon, ComputerIcon,
   DisplayIcon, ControlIcon, HelpIcon, SearchIcon, RunIcon, BuddyIcon, DialogIcon,
@@ -28,9 +30,39 @@ const APPS = {
   dialog: { label: (p) => p.title || 'Windows', Icon: DialogIcon },
 }
 
+// the video's own buttons keep their measured labels and icons
+const VIDEO = { inbox: 'outlook', yahoo: 'ie', doc1: 'word', winamp: 'winamp', music: 'music' }
+const isVideo = (win) => VIDEO[win.id] === win.app
+
+const iconCache = new Map()
+function urlIcon(url) {
+  let C = iconCache.get(url)
+  if (!C) {
+    C = function RegistryIcon({ x, y, size = 16 }) {
+      return <img src={url} alt="" draggable={false} style={{ position: 'absolute', left: x, top: y, width: size, height: size }} />
+    }
+    iconCache.set(url, C)
+  }
+  return C
+}
+
 export const appOf = (win) => APPS[win.app] || { label: () => win.app || win.id, Icon: DialogIcon }
-export const taskLabel = (win) => appOf(win).label(win.props || {})
-export const TaskIcon = (win) => appOf(win).Icon
+export function taskLabel(win) {
+  if (!isVideo(win) && hasApp(win.app)) {
+    const a = getApp(win.app)
+    const l = a.taskbarLabel?.(win.props || {}) ?? a.title?.(win.props || {})
+    if (l) return l
+  }
+  return appOf(win).label(win.props || {})
+}
+export function TaskIcon(win) {
+  if (!isVideo(win) && hasApp(win.app)) {
+    const icon = getApp(win.app).icon
+    if (icon) return urlIcon(icon)
+  }
+  return appOf(win).Icon
+}
+void asset
 
 // open (or restore and focus) a window
 export function openApp(id, app, props) {

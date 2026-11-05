@@ -9,7 +9,7 @@ import { ease, clamp, track } from '../../core/anim.js'
 import { Blur } from './Blur.jsx'
 import { GroupBg, TaskButton, TaskHits } from './Taskbar.jsx'
 import { taskbarState, INSERT_DELAY, REMOVE_FRAMES } from './taskbarModel.js'
-import { taskLabel, TaskIcon, taskClick } from './appInfo.js'
+import { taskLabel, TaskIcon, taskClick } from './appInfo.jsx'
 import { hoverLevel } from './Flyout.jsx'
 import { SUBMIT_FRAME } from './timing.js'
 

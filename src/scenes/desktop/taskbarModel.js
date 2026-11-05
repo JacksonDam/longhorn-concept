@@ -11,8 +11,9 @@
 // the left buttons slide out to make room and the right ones likewise, with the video's
 // overshoot curves scaled to the actual distances. Removal: the gap closes over 6 frames.
 import { FPS } from '../../core/clock.js'
-import { windows, sessionStart, RUNNING_AT_LOGIN } from '../../os/wm.js'
-import { taskLabel } from './appInfo.js'
+import { windows, getWindow, sessionStart, RUNNING_AT_LOGIN } from '../../os/wm.js'
+import { setButtonLocator } from '../../os/taskbar.js'
+import { taskLabel } from './appInfo.jsx'
 
 export const INSERT_DELAY = 8 // frames after 'win.open' until the button starts to appear
 export const REMOVE_FRAMES = 6
@@ -128,3 +129,19 @@ export function taskbarState(t) {
   }
   return { order, layout, transition }
 }
+
+// Where a window's taskbar button is (or will be, while it waits to be inserted), for the
+// window system's minimise / restore / open animations (os/taskbar.js).
+export function buttonRectFor(id, t) {
+  const { order, layout } = taskbarState(t)
+  let b = layout.buttons.find((x) => x.id === id)
+  if (!b) {
+    const w = getWindow(t, id)
+    if (!w || w.state === 'closed') return null
+    const without = order.filter((x) => x.id !== id)
+    const k = Math.ceil(without.length / 2)
+    b = layoutFor([...without.slice(0, k), w, ...without.slice(k)]).buttons.find((x) => x.id === id)
+  }
+  return b ? { x: b.x, y: 698, w: b.w, h: 22 } : null
+}
+setButtonLocator(buttonRectFor)
