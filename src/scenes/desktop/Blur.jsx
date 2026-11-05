@@ -33,7 +33,8 @@ export function Blur({ t, box, n = 8, shutter = 1, phase = -0.5, pose, moving, c
           width: box.width,
           height: box.height,
           overflow: 'visible',
-          willChange: 'transform, opacity',
+          // hidden copies drop their layer (they aren't rastered while hidden anyway)
+          willChange: show ? 'transform, opacity' : 'auto',
           transform: p?.transform || 'none',
           transformOrigin: p?.transformOrigin || '0 0',
           opacity: op,
