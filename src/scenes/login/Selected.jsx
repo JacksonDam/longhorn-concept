@@ -9,6 +9,7 @@ import { pic } from './Tile.jsx'
 import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
 import { slabExit } from './exit.js'
+import { blur } from './blur.js'
 
 // warm the textures so the first click renders at once (and capture waits for them)
 for (const u of USERS) loadTexture(pic(u.id))
@@ -110,9 +111,7 @@ export function Selected({ t, records, submitT }) {
       height={720}
       items={items}
       moving={moving}
-      samples={12}
-      shutter={1 / FPS}
-      phase={-0.5}
+      {...blur('slab')}
       P={1100}
       style={{ left: 0, top: 0 }}
     />

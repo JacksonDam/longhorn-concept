@@ -67,27 +67,29 @@ export function spreadX(i, sel, k) {
 // scale of the tile-sized slab in the bar, relative to the tile (55.2 px)
 const BAR_SCALE = [[0, 1], [1.5, 1], [2, 1.1], [3, 1.22], [4, 1.18], [5, 1.07], [6, 0.97], [8, 0.97], [9, 1.03], [10, 1.1], [11, 1.14], [12, 1.2], [14, 1.21], [15.5, 1.28]]
 export const LAUNCH = 16
-// flight keys: [k, x, y, size (px), ry (deg)]
+// flight keys: [k, x, y, size (px), ry (deg), face brightness, light band u, band strength]
+// (k = frames since select; 184 = k 16). The face darkens as it turns away (186-188, 192-193)
+// and catches a white glint while it comes round (194-197).
 const FLIGHT = [
-  [15.5, null, null, 0, 0],
-  [16, 465, 622, 80, 0],
-  [17, 457, 572, 100, 0],
-  [18, 447, 497, 122, 12],
-  [19, 432, 432, 142, 58],
-  [20, 417, 367, 158, 92],
-  [21, 392, 339, 165, 126],
-  [22, 384, 340, 168, 166],
-  [23, 380, 342, 170, 196],
-  [24, 381, 344, 170, 228],
-  [25, 378, 345, 170, 262],
-  [26, 375, 345, 170, 292],
-  [27, 376, 345, 170, 320],
-  [28, 379, 346, 170, 340],
-  [29, 380, 347, 170, 352],
-  [30, 380, 347, 170, 360],
+  [15.5, null, null, 0, 0, 1, 0.3, 0],
+  [16, 465, 622, 80, 0, 1, 0.3, 0],
+  [17, 457, 572, 100, 18, 1, 0.3, 0],
+  [18, 447, 497, 122, 35, 0.72, 0.2, 0.55],
+  [19, 432, 432, 142, 60, 0.35, 0.1, 0.3],
+  [20, 417, 367, 158, 92, 0.3, 0.1, 0],
+  [21, 392, 339, 165, 126, 0.9, 0.15, 0.2],
+  [22, 384, 340, 168, 162, 1, 0.3, 0],
+  [23, 380, 342, 170, 194, 0.95, 0.3, 0],
+  [24, 381, 344, 170, 228, 0.45, 0.3, 0],
+  [25, 378, 345, 170, 262, 0.45, 0.35, 0.4],
+  [26, 375, 345, 170, 292, 1, 0.42, 1.5],
+  [27, 376, 345, 170, 320, 1, 0.27, 1.3],
+  [28, 379, 346, 170, 340, 1, 0.2, 0.7],
+  [29, 380, 347, 170, 352, 1, 0.15, 0.3],
+  [30, 380, 347, 170, 360, 1, 0.15, 0],
 ]
 const col = (j) => FLIGHT.map((r) => [r[0], r[j]])
-const FX = col(1), FY = col(2), FS = col(3), FR = col(4)
+const FX = col(1), FY = col(2), FS = col(3), FR = col(4), FB = col(5), FU = col(6), FA = col(7)
 
 export function slabPose(k, i, t, from) {
   const tileY = TILE.top + TILE.size / 2
@@ -106,6 +108,9 @@ export function slabPose(k, i, t, from) {
   let ry = cr(FR, k)
   const idle = idlePose(t, k)
   const rz = REST_RZ * clamp((k - LAUNCH) / 8)
+  // flight lighting until it lands, then the idle sway lighting
+  let light = swayLight(idle.sway)
+  if (k < 30) light = { brightness: lin(FB, k), faceBand: { u: lin(FU, k), w: 0.13, a: lin(FA, k) } }
   return {
     x: x + idle.x,
     y: y + idle.y,
@@ -113,7 +118,7 @@ export function slabPose(k, i, t, from) {
     ry: ((ry + idle.ry) * Math.PI) / 180,
     rx: (idle.rx * Math.PI) / 180,
     rz: (rz * Math.PI) / 180,
-    ...swayLight(idle.sway),
+    ...light,
     inBar: false,
   }
 }

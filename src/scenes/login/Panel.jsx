@@ -9,19 +9,23 @@ import { FPS, CAPTURE } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { userById, passwordLength } from './state.js'
 import { panelExit } from './exit.js'
+import { blur } from './blur.js'
 
 const P = { left: 505, top: 290, width: 215, height: 105 } // panel box (stage px)
 // panel x offset (px) vs frames since select (select = video frame 168)
+// measured from the streak ends: at 194 the field smears over x 0-520, at 195 over 450-750,
+// then it overshoots ~45 px and settles by 198
 const SWEEP = [
-  [25, -300],
-  [26, -175],
-  [27, -10],
-  [27.5, 55],
-  [28, 80],
-  [28.5, 60],
-  [29, 15],
-  [30, 2],
-  [31, 0],
+  [25.3, -1000],
+  [26, -420],
+  [26.5, -150],
+  [27, 8],
+  [27.5, 38],
+  [28, 45],
+  [28.5, 30],
+  [29, 12],
+  [29.5, 4],
+  [30, 0],
 ]
 function sweep(k) {
   if (k <= SWEEP[0][0]) return SWEEP[0][1]
@@ -34,7 +38,7 @@ function sweep(k) {
   }
   return 0
 }
-export const PANEL_IN = 24.5 // k when the panel starts to show
+export const PANEL_IN = 24.8 // k when the panel starts to show
 
 const text = { position: 'absolute', whiteSpace: 'nowrap', lineHeight: 1 }
 
@@ -131,12 +135,11 @@ export function Panel({ t, row, submitT }) {
     <MotionBlur
       t={t}
       moving={moving}
-      samples={32}
-      shutter={1 / FPS}
+      {...blur('panel')}
       style={{ left: P.left, top: P.top, width: P.width, height: P.height, opacity: ex.opacity }}
       pose={(tt) => {
         const kk = (tt - change.t) * FPS
-        return { transform: `translateX(${sweep(kk).toFixed(2)}px)`, opacity: clamp((kk - 25) / 1.5) }
+        return { transform: `translateX(${sweep(kk).toFixed(2)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
       }}
     >
       <PanelBody id={id} len={len} />

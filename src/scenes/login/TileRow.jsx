@@ -10,6 +10,7 @@ import { clamp, F } from '../../core/anim.js'
 import { Tile } from './Tile.jsx'
 import { USERS } from './state.js'
 import { all } from '../../core/events.js'
+import { blur } from './blur.js'
 
 // Hover look, continuous across events: every login.hover event retargets colour (0/1),
 // scale (1, 1.1 colour-only hover, 1.27 enlarged hover) and label emphasis from wherever
@@ -125,8 +126,7 @@ export function TileRow({ t, row, submitT }) {
             key={u.id}
             t={t}
             moving={st.sliding || (exit != null && exit.moving)}
-            samples={10}
-            shutter={1 / FPS}
+            {...blur(st.sliding ? 'slide' : 'tiles')}
             style={{ ...box, pointerEvents: 'none' }}
             layerStyle={{ pointerEvents: 'none' }}
             pose={pose}
