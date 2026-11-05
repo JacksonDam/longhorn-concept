@@ -553,6 +553,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
   // (an opening window's layers wait parked until their turn to be rasterised before it shows,
   // so a window whose trees were pre-built doesn't reveal them all on its open's frame)
   const rest = shown && !m.warm ? REST : PARKED
+  // (a window running at login rasterises its copies one by one as they mount, each a mount step
+  // after it, not all on the step its last copy mounts)
+  const atLogin = win.lastAction === 'initial' && win.state === 'minimized'
   // (a closed window lets its layers go once it has gone: every composited layer costs every
   // frame, so a session that opened many windows would otherwise slow down window by window)
   const keepLayers = ghost || win.lastAction === 'open' || (win.state === 'closed' && toRel(t, win.changedAt) < CLOSE_END + 4)
@@ -586,7 +589,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
       // invisible (spread over the four frames after the open's own, N / 4 a frame), so the first
       // blurred frame finds their rasters ready
       style = { ...poseCss(m.warm), opacity: 1e-4 }
-    } else style = rest
+    } else style = rest === PARKED && atLogin && k < mounted - 1 ? REST : rest
     // (an idle copy keeps the size its window settled at: see settledSize)
     const rr = blur && k < nEff ? m.rect(tt) : k > 0 ? settledSize(win, app, t, r, k) : r
     const mk = m.maxK(blur && k < nEff ? tt : t)
@@ -626,7 +629,8 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z }) {
           // a parked layer (closed, never shown, still mounting) skips rendering altogether: no
           // style, layout or paint per frame, however many windows the session has opened (its
           // tree and layout state stay; it paints when it comes back on stage)
-          contentVisibility: style === PARKED && !ghost ? 'hidden' : undefined,
+          // (not while the window opens: its copies are then on their way to being shown)
+          contentVisibility: style === PARKED && !ghost && !m.warm ? 'hidden' : undefined,
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
