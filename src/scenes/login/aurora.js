@@ -18,8 +18,9 @@
 //   every other one takes the fitted field's colour where a line through it along the field's
 //   grain enters the frame (FLOW: its colour bands rise to the right at ~0.36, the direction in
 //   which it varies least, 7-17 times less than across; structure tensor over all keys), or the
-//   colour of the frame's corner that line passes nearest. So its bands carry on in their own
-//   direction, and the light past the top left and the bottom right corners holds their colours.
+//   colour of the frame's corner that line passes nearest, settling further out to that corner's
+//   colour averaged over the loop. So its bands carry on in their own direction, and past the top
+//   left and the bottom right corners the light holds their colours.
 // - a ribbon past x 0 or 960 continues along its tangent there with its colour held there: the
 //   long diagonal strokes run on across the extra width (or up into the extra height).
 // At the frame's own size (?capture, ?bench, ?demo) nothing of this applies.
@@ -47,6 +48,7 @@ const XFADE = 16 // frames: the end of the loop crossfades into the frames just 
 const MAXR = 128
 const S = 30 // coarse lattice spacing (px)
 const FLOW = 0.36 // the coarse field's grain: its bands rise this much per px to the right
+const FAR = 240 // px across the grain past a corner's line over which its colour gives way to its steady one
 
 export function auroraFrame(t) {
   const f = (t * 30000) / 1001 + 1
@@ -72,6 +74,27 @@ function loadPixels(url) {
 }
 
 let coarseKeys = null // [Float32Array(NX*NY*3)] values 0..1
+let cornerSteady = null // [[r, g, b] top left, [r, g, b] bottom right]: see keysReady
+
+const bw = (f) => [(1 - f) ** 3 / 6, (3 * f ** 3 - 6 * f ** 2 + 4) / 6, (-3 * f ** 3 + 3 * f ** 2 + 3 * f + 1) / 6, f ** 3 / 6]
+// the fitted lattice g's B-spline at frame px (x, y), as the shader evaluates it: its 16 taps
+// (index into g, weight) into `taps` / `wts` from `q`, or its colour when no taps are given
+function fieldAt(g, x, y, taps = null, wts = null, q = 0) {
+  const ux = x / S + 1, uy = y / S + 1
+  const bx = Math.floor(ux), by = Math.floor(uy)
+  const wx = bw(ux - bx), wy = bw(uy - by)
+  const out = [0, 0, 0]
+  for (let b2 = 0; b2 < 4; b2++)
+    for (let a2 = 0; a2 < 4; a2++) {
+      const ci = Math.max(0, Math.min(NX - 1, bx - 1 + a2)), cj = Math.max(0, Math.min(NY - 1, by - 1 + b2))
+      const t = (cj * NX + ci) * 3, w = wx[a2] * wy[b2]
+      if (taps) {
+        taps[q + b2 * 4 + a2] = t
+        wts[q + b2 * 4 + a2] = w
+      } else for (let ch = 0; ch < 3; ch++) out[ch] += w * g[t + ch]
+    }
+  return out
+}
 let ribbonKeys = null // [Float32Array(NS*PER)] decoded values
 let NS = 0
 
@@ -94,6 +117,21 @@ export const keysReady = Promise.all([
         }
       coarseKeys.push(a)
     }
+    // the frame's top left and bottom right corners' colours averaged over the loop (keys from
+    // LOOP_A to LOOP_B): what the field beyond them settles to (makeView), unmoved by the light
+    // that passes through the corners now and then (a swell lights the top left at 385-420)
+    cornerSteady = [[0, 0], [960, 720]].map(([x, y]) => {
+      const sum = [0, 0, 0]
+      let cnt = 0
+      for (let k = 0; k < K; k++) {
+        const f = k * COARSE_STEP + 1
+        if (f < LOOP_A || f > LOOP_B) continue
+        const c = fieldAt(coarseKeys[k], x, y)
+        for (let ch = 0; ch < 3; ch++) sum[ch] += c[ch]
+        cnt++
+      }
+      return sum.map((v) => v / cnt)
+    })
   }
   if (r) {
     NS = r.w / PER
@@ -173,23 +211,25 @@ const REACH = Math.sqrt(2 * CUT) // in sigmas
 //   lattice: nx x ny control points with the fitted one's column 0 at L, row 0 at T. The fitted
 //        points inside the frame are kept; every other one (the fitted ring just outside the
 //        frame, which the fit barely constrained, and the points past it) is the fitted field's
-//        colour where the line through it along the grain enters the frame (or at the corner the
-//        line passes nearest): its 16 B-spline taps into the fitted lattice (index, weight).
-//        null at the frame's own size: the fitted lattice itself.
+//        colour where the line through it along the grain enters the frame: its 16 B-spline taps
+//        into the fitted lattice (index, weight). A line that misses the frame passes it by its
+//        top left or bottom right corner: the corner's colour, giving way over FAR px further
+//        across the grain to the corner's steady colour (far: corner, weight). All null at the
+//        frame's own size: the fitted lattice itself.
 //   tiles: tx x ty ribbon-mask tiles over the stage
 //   columns: mc mask columns over the stage (the frame's MC spacing), each with its frame x
 //        clamped to the frame (B-spline basis there, colB / colD / colI) and the run past it (colRun)
-const bw = (f) => [(1 - f) ** 3 / 6, (3 * f ** 3 - 6 * f ** 2 + 4) / 6, (-3 * f ** 3 + 3 * f ** 2 + 3 * f + 1) / 6, f ** 3 / 6]
 function makeView(w, h, ox, oy) {
   const L = ox > 0 ? Math.ceil(ox / S) : 0
   const T = oy > 0 ? Math.ceil(oy / S) : 0
   const R = w - ox > 960 ? Math.ceil((w - ox - 930) / S) : 0
   const B = h - oy > 720 ? Math.ceil((h - oy - 690) / S) : 0
   const nx = NX + L + R, ny = NY + T + B
-  let taps = null, wts = null
+  let taps = null, wts = null, far = null
   if (nx !== NX || ny !== NY) {
     taps = new Int32Array(nx * ny * 16)
     wts = new Float32Array(nx * ny * 16)
+    far = new Float32Array(nx * ny * 2) // (corner 0 | 1, how much of its steady colour)
     // the grain's direction, and the frame (px)
     const n = Math.hypot(1, FLOW)
     const dx = 1 / n, dy = -FLOW / n
@@ -206,6 +246,7 @@ function makeView(w, h, ox, oy) {
         }
         // the point (px), along the grain to where its line meets the frame: [l0, l1]
         let x = (i - 1) * S, y = (j - 1) * S
+        const u = (FLOW * x + y) / n // across the grain (px; the top left corner's line at 0)
         const l0 = Math.max(-x / dx, (Y1 - y) / dy)
         const l1 = Math.min((X1 - x) / dx, -y / dy)
         if (x >= 0 && x <= X1 && y >= 0 && y <= Y1) {
@@ -214,20 +255,20 @@ function makeView(w, h, ox, oy) {
           const l = l0 > 0 ? l0 : l1
           x += l * dx
           y += l * dy
-        } else if (FLOW * x + y < (FLOW * X1 + Y1) / 2) x = 0, y = 0 // passes above the top left corner
-        else x = X1, y = Y1 // below the bottom right one
+        } else {
+          // passes the frame by a corner: its colour, giving way further out to its steady colour
+          const c = u < (FLOW * X1 + Y1) / n / 2 ? 0 : 1
+          const dist = c ? u - (FLOW * X1 + Y1) / n : -u
+          const m = Math.max(0, Math.min(1, dist / FAR))
+          far[(J * nx + I) * 2] = c
+          far[(J * nx + I) * 2 + 1] = m * m * (3 - 2 * m)
+          x = c ? X1 : 0
+          y = c ? Y1 : 0
+        }
         x = Math.max(0, Math.min(X1, x))
         y = Math.max(0, Math.min(Y1, y))
-        // the fitted field there: the lattice's B-spline (as the shader evaluates it)
-        const ux = x / S + 1, uy = y / S + 1
-        const bx = Math.floor(ux), by = Math.floor(uy)
-        const wx = bw(ux - bx), wy = bw(uy - by)
-        for (let b2 = 0; b2 < 4; b2++)
-          for (let a2 = 0; a2 < 4; a2++) {
-            const ci = Math.max(0, Math.min(NX - 1, bx - 1 + a2)), cj = Math.max(0, Math.min(NY - 1, by - 1 + b2))
-            taps[q + b2 * 4 + a2] = (cj * NX + ci) * 3
-            wts[q + b2 * 4 + a2] = wx[a2] * wy[b2]
-          }
+        // the fitted field there
+        fieldAt(null, x, y, taps, wts, q)
       }
   }
   const tx = Math.ceil(w / TS), ty = Math.ceil(h / TS)
@@ -248,7 +289,7 @@ function makeView(w, h, ox, oy) {
     colD.set([-((1 - f) ** 2) / 2 / BSX, (9 * f ** 2 - 12 * f) / 6 / BSX, (-9 * f ** 2 + 6 * f + 3) / 6 / BSX, f ** 2 / 2 / BSX], c * 4)
   }
   return {
-    w, h, ox, oy, L, T, nx, ny, taps, wts,
+    w, h, ox, oy, L, T, nx, ny, taps, wts, far,
     grid: taps ? new Float32Array(nx * ny * 3) : null,
     tx, ty, tileMask: new Uint32Array(tx * ty * 4),
     mc, colB, colD, colI, colRun, ribY: new Float32Array(mc * 2),
@@ -258,7 +299,7 @@ function makeView(w, h, ox, oy) {
 // the fitted lattice g (NX x NY) carried out to the view's lattice
 function extendGrid(v, g) {
   if (!v.taps) return g
-  const { taps, wts, grid } = v
+  const { taps, wts, far, grid } = v
   for (let p = 0, q = 0; p < grid.length; p += 3, q += 16) {
     let r = 0, gg = 0, bb = 0
     for (let m = q; m < q + 16; m++) {
@@ -268,6 +309,14 @@ function extendGrid(v, g) {
       r += wm * g[a]
       gg += wm * g[a + 1]
       bb += wm * g[a + 2]
+    }
+    const k = (p / 3) * 2
+    const m = far[k + 1]
+    if (m > 0 && cornerSteady) {
+      const c = cornerSteady[far[k]]
+      r += (c[0] - r) * m
+      gg += (c[1] - gg) * m
+      bb += (c[2] - bb) * m
     }
     grid[p] = r
     grid[p + 1] = gg
@@ -697,7 +746,9 @@ export class AuroraRenderer {
       canvas.width = pw
       canvas.height = ph
     }
+    // (new textures first: creating one binds it on the active unit)
     const v = this.setView(view)
+    const fb = this.two ? this.columns(pw, v.ny) : null
     const a = auroraFrame(t)
     // loop seam: over the last XFADE frames blend into the frames just before LOOP_A
     const xw = t > 1 ? Math.max(0, Math.min(1, (a - (LOOP_B - XFADE)) / XFADE)) : 0
@@ -725,7 +776,6 @@ export class AuroraRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.tileTex)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, v.tx, v.ty, gl.RGBA_INTEGER, gl.UNSIGNED_INT, v.tileMask)
     gl.bindVertexArray(this.vao)
-    const fb = this.two ? this.columns(pw, v.ny) : null
     if (fb) {
       // pass 1: the ribbons in use and the lattice rows, per canvas column
       gl.activeTexture(gl.TEXTURE3)
