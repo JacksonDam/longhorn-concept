@@ -85,12 +85,12 @@ const HazeBox = memo(function HazeBox() {
 })
 // off: the element stays mounted but parked off-stage (painted and rastered once, drawn nowhere)
 const OFF = { transform: 'translateX(-4000px)', opacity: 1e-4 }
-function Haze({ rel, dx = 0 }) {
+function Haze({ rel, dx = 0, dy = 0 }) {
   const on = rel > 3.4 && rel < 7
   let st = OFF
   if (on) {
     const [x0, y0, x1, y1, a] = HAZE(rel)
-    st = { transform: `translate(${x0 + dx}px, ${y0}px) scale(${(x1 - x0) / HB.w}, ${(y1 - y0 + 30) / HB.h})`, opacity: a }
+    st = { transform: `translate(${x0 + dx}px, ${y0 + dy}px) scale(${(x1 - x0) / HB.w}, ${(y1 - y0 + 30) / HB.h})`, opacity: a }
   }
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: HB.w, height: HB.h, transformOrigin: '0 0', willChange: 'transform, opacity', ...st }}>
@@ -99,13 +99,16 @@ function Haze({ rel, dx = 0 }) {
   )
 }
 
+// (the video's frame: a horizontal shift only, as before)
+const shift = (dx, dy) => (dy ? `translate(${dx}px, ${dy}px)` : `translateX(${dx}px)`)
+
 // rel: frames since the trigger; fan: [start, peak, end]; spark: [start, peak, end]
 const env = (rel, [a, b, c]) => (rel <= a || rel >= c ? 0 : rel < b ? (rel - a) / (b - a) : 1 - (rel - b) / (c - b))
 
 // The beam is mounted as long as its window exists (`rel` null = idle): its layers are rasterised
-// once and only their transforms / opacities change. dx: horizontal shift of the whole effect
-// (taskbar button x relative to the video's my Music slot).
-export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true, haze = false, fanOp = 1, dx = 0 }) {
+// once and only their transforms / opacities change. dx, dy: shift of the whole effect (the
+// taskbar button relative to the video's my Music slot; dy: the taskbar's on a taller stage).
+export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = true, haze = false, fanOp = 1, dx = 0, dy = 0 }) {
   const r = rel ?? -1e9
   const f = clamp(env(r, fan)) * fanOp
   const s = clamp(env(r, spark))
@@ -114,11 +117,11 @@ export function Beam({ rel, fan = [3.2, 6, 8.2], spark = [7, 8.5, 12.5], rise = 
   const layer = { position: 'absolute', left: 0, top: 0, width: 960, height: 720, willChange: 'transform, opacity' }
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, pointerEvents: 'none' }}>
-      <Haze rel={haze ? r : -1e9} dx={dx} />
-      <div style={{ ...layer, ...(f > 0 ? { opacity: f, transform: `translateX(${dx}px) scaleY(${grow})`, transformOrigin: `${455}px 704px` } : OFF) }}>
+      <Haze rel={haze ? r : -1e9} dx={dx} dy={dy} />
+      <div style={{ ...layer, ...(f > 0 ? { opacity: f, transform: `${shift(dx, dy)} scaleY(${grow})`, transformOrigin: `${455}px 704px` } : OFF) }}>
         <Fan />
       </div>
-      <div style={{ ...layer, ...(s > 0 ? { opacity: s, transform: `translateX(${dx}px)` } : OFF) }}>
+      <div style={{ ...layer, ...(s > 0 ? { opacity: s, transform: shift(dx, dy) } : OFF) }}>
         <Sparkle />
       </div>
     </div>

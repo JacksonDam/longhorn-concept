@@ -1,6 +1,11 @@
 // Desktop shell: wallpaper, the window layer, sidebar, taskbar, the my Music flyout, the
 // Start menu, the shell's flyouts and menus.
 // `since` is the time of 'login.submit'; the desktop's entrance animates from it.
+// The stage is the video's 960 x 720 frame extended to the screen's shape (core/Stage.jsx:
+// w x h, dw = w - 960, dh = h - 720; exactly the frame under ?capture, ?bench and ?demo): the
+// wallpaper covers it, the sidebar keeps to its right edge and runs its height, the taskbar
+// runs along its bottom, and what belongs to them (flyouts, the Start menu, the calendar) moves
+// with them.
 import { memo, useEffect, useRef } from 'react'
 import { WindowLayer } from '../../os/WindowLayer.jsx'
 import { useTime, useEvents } from '../../core/time.jsx'
@@ -23,6 +28,7 @@ import { closePopups, sidebarVisible, setSessionFloor } from './shellState.js'
 import { USER_MENU, STATUS_MENU } from './sidebarMenus.js'
 import { DESK_MENU } from './deskMenu.js'
 import { framesSince, ramp } from './timing.js'
+import { useStageScale } from '../../core/Stage.jsx'
 
 const IMAGES = [
   'wallpaper.webp',
@@ -43,25 +49,30 @@ preload(IMAGES)
 
 // The wallpaper photo is the 4:3 crop x 94..1459 of the 1536x1024 source, mapped onto the
 // stage at scale 0.70315 (fitted with SIFT against the reference frames). Display Properties
-// can swap it for a plain colour (os/session.js wallpaper()).
-const Photo = memo(function Photo() {
+// can swap it for a plain colour (os/session.js wallpaper()). On an extended stage (w x h) it
+// covers the stage, centred: the box is the stage and the photo is scaled to cover it, so its
+// layer is never bigger than the screen.
+const PHOTO_FIT = { position: 'absolute', left: 0.16, top: 0.58, width: 959.8, height: 720.04 }
+const Photo = memo(function Photo({ w, h }) {
+  const box = w === 960 && h === 720 ? PHOTO_FIT : { position: 'absolute', left: 0, top: 0, width: w, height: h, objectFit: 'cover' }
   return (
     <img
       src={asset('img/desktop/wallpaper.webp')}
       alt=""
       draggable={false}
       // its own layer: drawn once, never re-rastered with what changes above it
-      style={{ position: 'absolute', left: 0.16, top: 0.58, width: 959.8, height: 720.04, willChange: 'transform' }}
+      style={{ ...box, willChange: 'transform' }}
     />
   )
 })
-const PHOTO = <Photo />
-function Wallpaper({ wp, dim }) {
+function Wallpaper({ wp, dim, w, h }) {
   return (
     <>
       <div style={{ position: 'absolute', inset: 0, background: wp.kind === 'color' ? wp.color : '#000', visibility: wp.kind === 'color' ? 'visible' : 'hidden' }} />
-      <div style={{ position: 'absolute', inset: 0, visibility: wp.kind === 'photo' ? 'visible' : 'hidden' }}>{PHOTO}</div>
-      {wp.kind === 'image' && <img src={wp.src} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, objectFit: 'cover' }} />}
+      <div style={{ position: 'absolute', inset: 0, visibility: wp.kind === 'photo' ? 'visible' : 'hidden' }}>
+        <Photo w={w} h={h} />
+      </div>
+      {wp.kind === 'image' && <img src={wp.src} alt="" draggable={false} style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, objectFit: 'cover' }} />}
       <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: dim, visibility: dim > 0 ? 'visible' : 'hidden' }} />
     </>
   )
@@ -95,6 +106,8 @@ const SIDEBAR_HITS = <SidebarHits />
 export function DesktopScene({ since, user: userId }) {
   const t = useTime()
   useEvents()
+  const stage = useStageScale()
+  const { w, h, dw, dh } = stage
   const pendingEl = useRef(null)
   useEffect(() => {
     const onKey = (e) => {
@@ -106,8 +119,9 @@ export function DesktopScene({ since, user: userId }) {
     return () => removeEventListener('keydown', onKey)
   }, [])
   const pending = since === Infinity
-  // between sessions nothing changes: reuse the element tree (React bails out on it)
-  if (pending && pendingEl.current) return pendingEl.current
+  // between sessions nothing changes: reuse the element tree (React bails out on it), unless the
+  // stage has changed shape
+  if (pending && pendingEl.current && pendingEl.current.stage === stage) return pendingEl.current.el
   if (!pending) pendingEl.current = null
   setSessionFloor(since)
   const f = framesSince(t, since)
@@ -137,25 +151,25 @@ export function DesktopScene({ since, user: userId }) {
       }}
     >
       <IconDefs />
-      <Wallpaper wp={wallpaper(t)} dim={Math.max(0, dim)} />
+      <Wallpaper wp={wallpaper(t)} dim={Math.max(0, dim)} w={w} h={h} />
       {/* the desktop surface: right-click opens the desktop menu */}
       <div style={{ position: 'absolute', inset: 0 }} onContextMenu={contextHandler('desk.ctx', DESK_MENU, () => closePopups())} />
       <WindowLayer />
       {/* the taskbar's glass, below the sidebar (Taskbar.jsx Bar); the rest of the taskbar is above it */}
       <Bar o={ramp(f, 516, 520)} />
-      <Sidebar opacity={op} haze={haze} mediaHL={mediaHL} user={user} media={media} slide={slide} mail={mailState(t, since)} live={<SidebarLive t={t} />} hits={SIDEBAR_HITS} />
-      <TaskbarLayer t={t} f={f} sidebarHidden={!sb.visible} sidebarAt={sb.at} />
-      <Flyout t={t} />
-      <StartMenu t={t} user={user} />
-      <WeatherFlyout t={t} />
-      <CalendarFlyout t={t} />
+      <Sidebar opacity={op} haze={haze} mediaHL={mediaHL} user={user} media={media} slide={slide} mail={mailState(t, since)} live={<SidebarLive t={t} />} hits={SIDEBAR_HITS} dw={dw} dh={dh} />
+      <TaskbarLayer t={t} f={f} sidebarHidden={!sb.visible} sidebarAt={sb.at} dw={dw} dh={dh} />
+      <Flyout t={t} dw={dw} />
+      <StartMenu t={t} user={user} dh={dh} />
+      <WeatherFlyout t={t} dw={dw} />
+      <CalendarFlyout t={t} dw={dw} dh={dh} />
       <ContextMenu id="desk.ctx" items={DESK_MENU} />
       <DropMenu id="sb.user" items={USER_MENU} />
       <DropMenu id="sb.status" items={STATUS_MENU} />
       <DropMenu id="fly.menu" items={FLY_MENU} />
     </div>
   )
-  if (pending) pendingEl.current = el
+  if (pending) pendingEl.current = { el, stage }
   return el
 }
 

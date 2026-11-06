@@ -10,6 +10,7 @@ import { clamp } from '../core/anim.js'
 import { lastOf } from './state.js'
 import { Overlay } from './Overlay.jsx'
 import { FONT } from './theme.js'
+import { stageSize } from '../core/Stage.jsx'
 
 const Tip = memo(function Tip({ text, x, y }) {
   return (
@@ -48,8 +49,10 @@ export function Tooltip({ forId, text, delay = 0.6, hold = 5, t: tProp }) {
   if (dt < delay || dt > delay + hold) return null
   const k = clamp(((dt - delay) * FPS) / 3)
   const w = String(text).length * 6 + 16
-  const x = Math.min(Math.round(e.x + 1), 958 - w)
-  const y = e.y + 38 > 698 ? Math.round(e.y - 22) : Math.round(e.y + 20)
+  // (inside the stage, above the taskbar: core/Stage.jsx, the video's frame extended by dw x dh)
+  const S = stageSize()
+  const x = Math.min(Math.round(e.x + 1), (S.w || 960) - 2 - w)
+  const y = e.y + 38 > 698 + (S.dh || 0) ? Math.round(e.y - 22) : Math.round(e.y + 20)
   return (
     <Overlay>
       <div style={{ position: 'absolute', left: 0, top: 0, opacity: k }}>

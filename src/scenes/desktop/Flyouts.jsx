@@ -1,6 +1,8 @@
 // Shell flyouts in the my Music flyout's style (blue title bar, pale list, blue footer):
 // the Seattle weather flyout (slides out of the sidebar) and the clock's calendar (rises out
 // of the taskbar). Content the video doesn't show is fictional and neutral (late 2003).
+// On a stage extended to the screen's shape (core/Stage.jsx) they move with what they belong to:
+// the weather with the sidebar (dw), the calendar with the clock (dw, dh); Popup's offset.
 import { memo } from 'react'
 import { CAPTURE } from '../../core/clock.js'
 import { Popup } from './Popup.jsx'
@@ -111,10 +113,19 @@ const WEATHER_HITS = (
   </>
 )
 
-export function WeatherFlyout({ t }) {
+// (offsets are cached so the popup's wrappers hold frame to frame)
+const offsets = new Map()
+const offsetOf = (x, y) => {
+  const k = x + ',' + y
+  let o = offsets.get(k)
+  if (!o) offsets.set(k, (o = { x, y }))
+  return o
+}
+
+export function WeatherFlyout({ t, dw = 0 }) {
   const b = WEATHER
   return (
-    <Popup t={t} id="weather" kind="left" n={10} box={{ left: b.x - 6, top: b.y, width: 960 - b.x + 6, height: b.h + 6 }} live={<FootLive t={t} id="wx.go" b={b} />} hits={WEATHER_HITS}>
+    <Popup t={t} id="weather" kind="left" n={10} box={{ left: b.x - 6, top: b.y, width: 960 - b.x + 6, height: b.h + 6 }} offset={offsetOf(dw, 0)} live={<FootLive t={t} id="wx.go" b={b} />} hits={WEATHER_HITS}>
       {WEATHER_PANEL}
     </Popup>
   )
@@ -209,7 +220,7 @@ const CalHits = memo(function CalHits({ first, days, off }) {
   )
 })
 
-export function CalendarFlyout({ t }) {
+export function CalendarFlyout({ t, dw = 0, dh = 0 }) {
   const now = calendarDate()
   const st = popupState(t, 'calendar')
   // the shown month resets each time the calendar opens
@@ -227,6 +238,7 @@ export function CalendarFlyout({ t }) {
       kind="rise"
       n={10}
       box={{ left: CAL.x - 6, top: CAL.y - 4, width: CAL.w + 12, height: CAL.h + 4 }}
+      offset={offsetOf(dw, dh)}
       live={<FootLive t={t} id="cal.go" b={CAL} />}
       hits={<CalHits first={new Date(y, m, 1).getDay()} days={new Date(y, m + 1, 0).getDate()} off={off} />}
     >

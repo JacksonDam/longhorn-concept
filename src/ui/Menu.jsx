@@ -15,6 +15,7 @@ import { clamp, ease } from '../core/anim.js'
 import { lastOf, hoverKeys, menuState, openMenu, stageRect, pt } from './state.js'
 import { Overlay, Catcher } from './Overlay.jsx'
 import { C, FONT, HEAVY } from './theme.js'
+import { stageSize } from '../core/Stage.jsx'
 
 export const ITEM_H = 20
 export const SEP_H = 7
@@ -185,13 +186,18 @@ function EscCloses({ onClose }) {
   return null
 }
 
-// place a popup of `items` at (x, y) inside the stage (flip up / left near the edges)
-export function placePopup(items, x, y, { above = 0, bottom = 698 } = {}) {
+// place a popup of `items` at (x, y) inside the stage (flip up / left near the edges). The
+// stage is the video's frame extended to the screen's shape (core/Stage.jsx: w x h); bottom
+// defaults to just above its taskbar (698 on the video's frame, dh lower on a taller stage).
+export function placePopup(items, x, y, { above = 0, bottom } = {}) {
+  const S = stageSize()
+  if (bottom == null) bottom = 698 + (S.dh || 0)
+  const right = (S.w || 960) - 2
   const w = menuWidth(items)
   const h = menuHeight(items)
   let px = x
   let py = y
-  if (px + w > 958) px = Math.max(2, 958 - w)
+  if (px + w > right) px = Math.max(2, right - w)
   if (py + h > bottom) py = above ? above - h : Math.max(2, bottom - h)
   return { x: Math.round(px), y: Math.round(py) }
 }

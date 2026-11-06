@@ -27,7 +27,7 @@ import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
 import { WindowShadow } from './shadow.jsx'
 import { LookLayer, INACTIVE_SHADOW } from './look.jsx'
-import { RADIUS_TOP, RADIUS_BOTTOM, radiiAt, BODY_TOP, WORK, MAX_RECT, titleBaseline } from './frame.js'
+import { RADIUS_TOP, RADIUS_BOTTOM, radiiAt, BODY_TOP, WORK, titleBaseline, workArea, maxRect, placeDefault, keepReachable } from './frame.js'
 import { POINT } from '../core/point.js'
 import {
   OPEN_DELAY, RESTORE_DELAY, OPEN_END, openPose, openMoving, openLight, poseCss, openBlur,
@@ -40,12 +40,17 @@ export { WORK } // the area a maximised window's body fills (os/frame.js: left o
 const toRel = (t, t0) => (t - t0) * FPS
 
 // ---------------------------------------------------------------- window rect
-// win.x / win.y (dragged) or the app's default position; maximised: MAX_RECT (the body fills WORK)
-// (app.size / app.position may be functions of the window's props: a message box sizes to its text)
+// win.x / win.y (dragged) or the app's default position; maximised: maxRect() (the body fills
+// the work area). (app.size / app.position may be functions of the window's props: a message box
+// sizes to its text.) On a stage extended to the screen's shape the default position keeps its
+// place in the work area (frame.js placeDefault) and a dragged one stays reachable
+// (keepReachable): both follow the stage as it changes, and the log keeps what was dragged.
 export function normalRect(win, app) {
   const s = (typeof app.size === 'function' ? app.size(win.props || {}) : app.size) || { w: 420, h: 300 }
+  const w = win.w ?? s.w, h = win.h ?? s.h
+  if (win.x != null) return { ...keepReachable(win.x, win.y, w), w, h }
   const p = (typeof app.position === 'function' ? app.position(win.props || {}, s) : app.position) || { x: 120, y: 80 }
-  return { x: win.x ?? p.x, y: win.y ?? p.y, w: win.w ?? s.w, h: win.h ?? s.h }
+  return { ...placeDefault(p, s), w, h }
 }
 
 // sub-frame window position while dragging: interpolate the 'win.move' events of this window
@@ -66,9 +71,9 @@ function rectAt(win, app, tt) {
       const a = ms[i], b = ms[i + 1]
       if (b && b.t - a.t < 0.12) {
         const k = (tt - a.t) / (b.t - a.t)
-        return { ...r, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }
+        return { ...r, ...keepReachable(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, r.w) }
       }
-      return { ...r, x: a.x, y: a.y }
+      return { ...r, ...keepReachable(a.x, a.y, r.w) }
     }
   }
   return r
@@ -285,15 +290,18 @@ function TitleControls({ win, w, topH, active, h, app }) {
     if (!active) emit('win.focus', { id })
     if (win.maximized) return
     const p = toStage(e.clientX, e.clientY)
-    drag.current = { sx: p.x, sy: p.y, x0: win.x ?? win.rect.x, y0: win.rect.y, last: 0 }
+    // (from where the window is drawn: a dragged one kept reachable on a smaller stage)
+    const at = win.x != null ? keepReachable(win.x, win.y, win.rect.w) : win.rect
+    drag.current = { sx: p.x, sy: p.y, x0: at.x, y0: at.y, w: win.rect.w, last: 0 }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   const onMove = (e) => {
     const d = drag.current
     if (!d) return
     const p = toStage(e.clientX, e.clientY)
-    d.px = Math.round(d.x0 + p.x - d.sx)
-    d.py = Math.round(Math.max(0, d.y0 + p.y - d.sy))
+    const q = keepReachable(Math.round(d.x0 + p.x - d.sx), Math.round(d.y0 + p.y - d.sy), d.w)
+    d.px = q.x
+    d.py = q.y
     // one 'win.move' per frame, at the frame's time (core/time.jsx nextFrame)
     if (d.queued) return
     d.queued = true
@@ -336,8 +344,9 @@ function TitleControls({ win, w, topH, active, h, app }) {
     const d = size.current
     if (!d) return
     const p = toStage(e.clientX, e.clientY)
-    d.pw = Math.round(Math.max(minS.w, Math.min(WORK.w - win.rect.x, d.w0 + p.x - d.sx)))
-    d.ph = Math.round(Math.max(minS.h, Math.min(WORK.h - win.rect.y, d.h0 + p.y - d.sy)))
+    const a = workArea()
+    d.pw = Math.round(Math.max(minS.w, Math.min(a.w - win.rect.x, d.w0 + p.x - d.sx)))
+    d.ph = Math.round(Math.max(minS.h, Math.min(a.h - win.rect.y, d.h0 + p.y - d.sy)))
     if (d.queued) return
     d.queued = true
     nextFrame((t) => {
@@ -383,10 +392,11 @@ function motion(win, app, t) {
   const r0 = normalRect(win, app)
   const dock = dockPoint(win.id, t)
   const max = (tt) => {
-    // maximise / restore-down tween between the normal rect and MAX_RECT
+    // maximise / restore-down tween between the normal rect and maxRect() (the stage's work area)
     const k = win.maximizedAt == null ? (win.maximized ? 1 : 0) : maxEase(toRel(tt, win.maximizedAt) / MAX_FRAMES)
-    const from = win.maximized ? rectAt(win, app, tt) : MAX_RECT
-    const to = win.maximized ? MAX_RECT : rectAt(win, app, tt)
+    const M = maxRect()
+    const from = win.maximized ? rectAt(win, app, tt) : M
+    const to = win.maximized ? M : rectAt(win, app, tt)
     const kk = win.maximizedAt == null ? 1 : k
     return {
       x: from.x + (to.x - from.x) * kk, y: from.y + (to.y - from.y) * kk,
@@ -411,7 +421,7 @@ function motion(win, app, t) {
       // (the content keeps its current state: closing changes no content, so nothing re-renders)
       ...base, closing: true, n: 10, shutter: 0.8, hidden: crel >= CLOSE_END,
       pose: (tt) => closePose(toRel(tt, win.changedAt)),
-      beam: { rel: OPEN_END - crel * 1.6, fan: [3.2, 6, 8.2], spark: [-1, -1, -1], dx: dock.x - 440 },
+      beam: { rel: OPEN_END - crel * 1.6, fan: [3.2, 6, 8.2], spark: [-1, -1, -1], dx: dock.x - 440, dy: dock.y - 698 },
     }
   }
   if (win.lastAction === 'initial') return { ...base, hidden: true }
@@ -421,7 +431,7 @@ function motion(win, app, t) {
     const b = minimizeBlur(mrel)
     return {
       ...base, ...b, pose: (tt) => minimizePoseFor(toRel(tt, win.changedAt), r0, dock),
-      beam: { rel: mrel, fan: [5, 6.8, 8.6], spark: [6, 7.5, 9.5], rise: false, dx: dock.x - 440 },
+      beam: { rel: mrel, fan: [5, 6.8, 8.6], spark: [6, 7.5, 9.5], rise: false, dx: dock.x - 440, dy: dock.y - 698 },
     }
   }
   if (win.lastAction === 'restore') {
@@ -430,13 +440,13 @@ function motion(win, app, t) {
     if (mrel < RESTORE_END)
       return {
         ...base, ...restoreBlur(mrel), pose: (tt) => restorePoseFor(toRel(tt, tR), r0, dock),
-        beam: { rel: mrel, fan: [-0.5, 1.2, 3.2], spark: [0.5, 2, 4.5], dx: dock.x - 440 },
+        beam: { rel: mrel, fan: [-0.5, 1.2, 3.2], spark: [0.5, 2, 4.5], dx: dock.x - 440, dy: dock.y - 698 },
       }
     return base
   }
   // open
   const rel = toRel(t, tOpen)
-  const res = { ...base, light: rel, beam: { rel, haze: true, fanOp: 0.6, dx: dock.x - 440 } }
+  const res = { ...base, light: rel, beam: { rel, haze: true, fanOp: 0.6, dx: dock.x - 440, dy: dock.y - 698 } }
   if (rel < 5) return { ...res, hidden: true, warm: openPose(6) }
   if (openMoving(rel)) return { ...res, ...openBlur(rel), pose: (tt) => openPose(toRel(tt, tOpen)) }
   if (win.maximizedAt != null && toRel(t, win.maximizedAt) < MAX_FRAMES + 1) return { ...res, n: 6, shutter: 1 }

@@ -2,7 +2,9 @@
 // "pictures & videos" watermark, a left "find pictures" list (albums, presets, folders, sort by
 // date / name / type), a glass panel with a 3 x 3 page of captioned photos, and a single-photo
 // view with a cross-fading slide show (props.auto: advance every 4 s). Drawn in the overlay above
-// the sidebar and taskbar while its window is open; Esc closes it, arrows step.
+// the sidebar and taskbar while its window is open; Esc closes it, arrows step. It fills the
+// stage (the video's frame extended to the screen's shape, core/Stage.jsx: w x h): the blue
+// backdrop and the photo view's shade cover it, the 960 x 720 layout sits centred in it.
 //   win.open { id: 'slideshow', app: 'slideshow', props: { photo?, auto?, album? (photo ids) } }
 import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
@@ -12,6 +14,7 @@ import { scoped, wid, valueOf, hoverKeys, pt, Overlay, find, FONT, HEAVY } from 
 import { GROUPS, PHOTOS, TAGS, photoById, MONTHS } from '../lib/pictures.jsx'
 import { library } from '../pictures/state.js'
 import { closeWin } from '../lib/common.js'
+import { useStageScale } from '../../core/Stage.jsx'
 
 const SLIDE = 4 // s per photo in a slide show
 const FADE = 0.6
@@ -45,10 +48,11 @@ function pages(mode, t) {
   return chunk(['Albums', albums.length ? '' : 'none yet: make one with Create an Album'], albums.map((a) => ({ key: a.id, url: photoById(a.photos[0])?.url, caption: a.name, album: a.photos })))
 }
 
+// (the gradient fills the stage: Slideshow draws it on the full-stage box)
+const BACK_FILL = 'linear-gradient(160deg, #2a62c0 0, #1d4ea8 40%, #2f6dc4 75%, #4f8ad8 100%)'
 const Backdrop = memo(function Backdrop() {
   return (
     <>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #2a62c0 0, #1d4ea8 40%, #2f6dc4 75%, #4f8ad8 100%)' }} />
       <div style={{ position: 'absolute', left: -200, top: -100, width: 900, height: 1100, transform: 'rotate(28deg)', background: 'linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0) 100%)' }} />
       <div style={{ position: 'absolute', left: -14, top: -40, fontFamily: FONT, fontWeight: 300, fontSize: 150, color: 'rgba(255,255,255,0.1)', whiteSpace: 'nowrap', letterSpacing: -4 }}>pictures &amp; videos</div>
       <div style={{ position: 'absolute', left: 50, top: 40, fontFamily: FONT, fontSize: 28, fontWeight: 300, color: '#9fb4f2', whiteSpace: 'nowrap' }}>
@@ -137,7 +141,6 @@ function PhotoView({ t, view }) {
   const q = prev && k < 1 ? photoById(prev) : null
   return (
     <>
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, background: 'rgba(5,15,45,0.55)' }} />
       {q && <Big p={q} op={1} />}
       {p && <Big p={p} op={q ? k : 1} />}
       <div style={{ position: 'absolute', left: 0, right: 0, top: 660, textAlign: 'center', fontFamily: FONT, fontSize: 18, color: '#eaf2ff' }}>
@@ -183,6 +186,7 @@ function Nav({ win, t, nav }) {
 }
 
 function Slideshow({ win, t, live }) {
+  const stage = useStageScale()
   const p = win.props || {}
   const v0 = p.photo || p.auto ? { mode: 'photo', photo: p.photo || (p.album ? p.album[0] : PHOTOS[0].id), list: p.album || null, auto: !!p.auto, at: win.openedAt } : { mode: 'grid', at: win.openedAt }
   // a later win.open (e.g. View Slide Show again) restarts from its props
@@ -201,15 +205,21 @@ function Slideshow({ win, t, live }) {
   if (!live || win.state !== 'open') return null
   const since = win.lastAction === 'restore' ? win.changedAt : win.openedAt
   const op = clamp(((t - since) * FPS) / 10)
+  // the 960 x 720 layout, centred on the stage
+  const frame = { position: 'absolute', left: Math.round(stage.dw / 2), top: Math.round(stage.dh / 2), width: 960, height: 720 }
   return (
     <Overlay>
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, opacity: op, pointerEvents: 'auto', overflow: 'hidden' }} onContextMenu={(e) => e.preventDefault()}>
-        <Backdrop />
-        <Nav win={win} t={t} nav={nav} />
-        <Grid win={win} t={t} mode={nav} page={page} />
+      <div style={{ position: 'absolute', left: 0, top: 0, width: stage.w, height: stage.h, opacity: op, pointerEvents: 'auto', overflow: 'hidden', background: BACK_FILL }} onContextMenu={(e) => e.preventDefault()}>
+        <div style={frame}>
+          <Backdrop />
+          <Nav win={win} t={t} nav={nav} />
+          <Grid win={win} t={t} mode={nav} page={page} />
+        </div>
         {view.mode === 'photo' && (
-          <div style={{ position: 'absolute', inset: 0 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'view'), value: { mode: 'grid', at: now() } })}>
-            <PhotoView t={t} view={view} />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(5,15,45,0.55)' }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'view'), value: { mode: 'grid', at: now() } })}>
+            <div style={frame}>
+              <PhotoView t={t} view={view} />
+            </div>
           </div>
         )}
         <div

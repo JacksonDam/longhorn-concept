@@ -17,6 +17,7 @@ import { launch } from './appInfo.jsx'
 import { asset } from '../../core/preload.js'
 import { clamp, track } from '../../core/anim.js'
 import { FlyNote, FlyTitleButtons, FlyGoArrow } from './icons.jsx'
+import { stageSize } from '../../core/Stage.jsx'
 
 export const FLY = { x: 665, y: 258, w: 193, h: 241 }
 
@@ -243,7 +244,7 @@ const HitAreas = memo(function HitAreas() {
       />
       {/* title bar: the note and "my Music" open the window, the arrow drops a menu, x closes */}
       <FlyHit x={668} y={261} w={110} h={30} id="fly.title" go={() => goToMusic()} />
-      <FlyHit x={819} y={263} w={20} h={18} id="fly.drop" go={() => openMenu('fly.menu', true, { x: 742, y: 282 })} />
+      <FlyHit x={819} y={263} w={20} h={18} id="fly.drop" go={() => openMenu('fly.menu', true, { x: 742 + (stageSize().dw || 0), y: 282 })} />
       <FlyHit x={840} y={262} w={18} h={20} id="fly.x" go={() => closeFlyout()} />
       {/* the scrollbar: the whole list is in view, so its arrows step through the tracks */}
       <FlyHit x={845} y={296} w={12} h={10} id="fly.up" go={() => emit('media.prev')} />
@@ -310,7 +311,10 @@ const BOX = { left: FLY.x - 1, top: FLY.y, width: FLY.w + 1, height: FLY.h }
 const BACK = <FlyoutBack />
 const FRONT = <FlyoutFront />
 
-export function Flyout({ t }) {
+// dw: the stage's extra width (core/Stage.jsx): the sidebar, the screen's edge the panel shoots
+// in from and everything here are dw further right (the box's left; the edge tracks are
+// measured on the video's frame)
+export function Flyout({ t, dw = 0 }) {
   const s = flyoutState(t)
   const df = (t - s.at) * FPS
   const visible = s.open || (s.at !== -Infinity && df <= CLOSE_END)
@@ -323,7 +327,7 @@ export function Flyout({ t }) {
   }
   const moving = visible && (s.open ? df < OPEN_END + 0.5 : df < CLOSE_END + 0.5)
   return (
-    <div style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, overflow: 'hidden', pointerEvents: 'none' }}>
+    <div style={{ position: 'absolute', left: dw, top: 0, width: 960, height: 720, overflow: 'hidden', pointerEvents: 'none' }}>
       <Blur t={df} box={BOX} n={12} shutter={1} phase={-0.5} pose={pose} moving={moving} hidden={!visible} live={<RowHighlightsLayer t={t} />} front={FRONT}>
         {BACK}
       </Blur>

@@ -3,6 +3,7 @@ import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
 import { valueOf, setValue, menuWidth } from '../../ui/index.js'
 import { launch } from './appInfo.jsx'
+import { stageSize } from '../../core/Stage.jsx'
 
 // the user header ("Sondra")
 export const USER_MENU = [
@@ -26,5 +27,5 @@ export const STATUS_MENU = () => {
   ]
 }
 
-// left of the sidebar, its top at y
-export const besideSidebar = (items, y) => ({ x: Math.round(856 - menuWidth(typeof items === 'function' ? items() : items)), y })
+// left of the sidebar (dw further right on a wide stage, core/Stage.jsx), its top at y
+export const besideSidebar = (items, y) => ({ x: Math.round(856 + (stageSize().dw || 0) - menuWidth(typeof items === 'function' ? items() : items)), y })

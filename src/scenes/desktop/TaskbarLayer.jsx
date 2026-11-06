@@ -17,14 +17,15 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const dateText = (d) => `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
 
-// hit areas: Start button, clock (calendar, date tooltip), chevron (hide / show the sidebar)
-const HITS = [
-  { id: 'tb.start', x: 0, y: 699, w: 64, h: 21, go: () => togglePopup('start') },
+// hit areas: Start button (START_HITS), clock (calendar, date tooltip), chevron (hide / show the
+// sidebar) (CLOCK_HITS, under the sidebar: dw further right on a wide stage)
+const START_HITS = [{ id: 'tb.start', x: 0, y: 699, w: 64, h: 21, go: () => togglePopup('start') }]
+const CLOCK_HITS = [
   { id: 'tb.clock', x: 878, y: 700, w: 60, h: 20, go: () => togglePopup('calendar') },
   { id: 'tb.chevron', x: 940, y: 700, w: 20, h: 20, go: () => toggleSidebar() },
 ]
-const Hits = memo(function Hits() {
-  return HITS.map((h) => (
+const Hits = memo(function Hits({ hits }) {
+  return hits.map((h) => (
     <div
       key={h.id}
       style={{ position: 'absolute', left: h.x, top: h.y, width: h.w, height: h.h, pointerEvents: 'auto' }}
@@ -40,7 +41,8 @@ const Hits = memo(function Hits() {
     />
   ))
 })
-const HITS_EL = <Hits />
+const START_HITS_EL = <Hits hits={START_HITS} />
+const CLOCK_HITS_EL = <Hits hits={CLOCK_HITS} />
 
 // the start button lights up on hover and stays lit while the Start menu is open
 function StartGlow({ t }) {
@@ -78,7 +80,12 @@ function realTime() {
   return `${h}:${m} ${d.getHours() < 12 ? 'am' : 'pm'}`
 }
 
-export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
+// dw, dh: the stage's extension past the video's frame (core/Stage.jsx). Everything here is
+// authored on the video's taskbar (y 699-720, the clock under the sidebar at x 858-960); it is
+// drawn dh lower and the clock and chevron dw further right, by wrappers positioned with left /
+// top (no transform: a transformed wrapper would be a stacking context and isolate the press
+// flash's and the birth flare's plus-lighter blends from the bar and the wallpaper under them).
+export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt, dw = 0, dh = 0 }) {
   // entrance (absolute video frames, measured element by element)
   const bar = ramp(f, 516, 520)
   const flag = ramp(f, 520.3, 521.3)
@@ -93,28 +100,31 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
   const oldClock = DEMO ? '7:09 PM' : realTime()
   const newLabel = DEMO ? '11:31 am' : realTime()
   return (
-    <div style={{ ...POINT, pointerEvents: 'none' }}>
-      <Fade o={bar * (1 - built)}>{EARLY}</Fade>
+    <div style={{ ...POINT, top: dh, pointerEvents: 'none' }}>
+      <Fade o={bar * (1 - built)}>{dw ? <EarlyBarTint dw={dw} /> : EARLY}</Fade>
       <TaskGroup t={t} f={f} />
       <StartGlow t={t} />
       <Fade o={flag * (1 - built)}>{FLAG_PASTEL}</Fade>
       <Fade o={flag * built}>{FLAG}</Fade>
       <Fade o={start}>{START_LABEL}</Fade>
       <Fade o={dotIn * (1 - dotOut)}>{DOT}</Fade>
-      <Fade o={clockIn * (1 - oldClockOut)}>
-        <Clock label={oldClock} old />
-      </Fade>
-      <Fade o={newClock}>
-        <Clock label={newLabel} />
-      </Fade>
-      <Fade o={chevron}>
-        <div style={{ position: 'absolute', left: 943, top: 702, width: 15, height: 15, transformOrigin: '7.5px 7.5px', transform: `rotate(${chevronTurn(t, sidebarHidden, sidebarAt)}deg)` }}>
-          <div style={{ position: 'absolute', left: -943, top: -702 }}>{CHEVRON}</div>
-        </div>
-        <div style={{ position: 'absolute', left: 941, top: 700, width: 19, height: 19, borderRadius: '50%', opacity: hover(t, 'tb.chevron') * 0.6, background: 'radial-gradient(circle, rgba(220,240,255,0.7), rgba(160,210,255,0) 70%)' }} />
-      </Fade>
-      <div style={{ position: 'absolute', left: 880, top: 702, width: 56, height: 16, borderRadius: 3, opacity: Math.max(hover(t, 'tb.clock'), popupState(t, 'calendar').open ? 1 : 0) * 0.35, background: 'rgba(170,210,255,0.6)' }} />
-      <div style={{ ...POINT, visibility: start > 0 ? 'visible' : 'hidden' }}>{HITS_EL}</div>
+      <div style={{ ...POINT, left: dw }}>
+        <Fade o={clockIn * (1 - oldClockOut)}>
+          <Clock label={oldClock} old />
+        </Fade>
+        <Fade o={newClock}>
+          <Clock label={newLabel} />
+        </Fade>
+        <Fade o={chevron}>
+          <div style={{ position: 'absolute', left: 943, top: 702, width: 15, height: 15, transformOrigin: '7.5px 7.5px', transform: `rotate(${chevronTurn(t, sidebarHidden, sidebarAt)}deg)` }}>
+            <div style={{ position: 'absolute', left: -943, top: -702 }}>{CHEVRON}</div>
+          </div>
+          <div style={{ position: 'absolute', left: 941, top: 700, width: 19, height: 19, borderRadius: '50%', opacity: hover(t, 'tb.chevron') * 0.6, background: 'radial-gradient(circle, rgba(220,240,255,0.7), rgba(160,210,255,0) 70%)' }} />
+        </Fade>
+        <div style={{ position: 'absolute', left: 880, top: 702, width: 56, height: 16, borderRadius: 3, opacity: Math.max(hover(t, 'tb.clock'), popupState(t, 'calendar').open ? 1 : 0) * 0.35, background: 'rgba(170,210,255,0.6)' }} />
+        <div style={{ ...POINT, visibility: start > 0 ? 'visible' : 'hidden' }}>{CLOCK_HITS_EL}</div>
+      </div>
+      <div style={{ ...POINT, visibility: start > 0 ? 'visible' : 'hidden' }}>{START_HITS_EL}</div>
       <Tooltip forId="tb.clock" text={dateText(calendarDate())} />
       <ContextMenu id="tb.ctx" items={taskMenuItems} />
     </div>

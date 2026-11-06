@@ -117,15 +117,16 @@ const BAR_BG = rowsGradient(BAR_ROWS, 0.55)
 // device pixel along a blurring element's edge dark, which at the foot made a dark line down the
 // left of the clock. The clip is overflow: hidden (neither a backdrop root nor a stacking context).
 // DesktopScene draws the bar below the sidebar, so what it blurs past its right edge is the
-// wallpaper or a window there, not the foot's glass.
+// wallpaper or a window there, not the foot's glass. On a stage extended to the screen's shape
+// (core/Stage.jsx) the bar runs along its bottom (dh lower) up to the sidebar (dw further).
 const REACH = 12
 export const Bar = memo(function Bar({ o = 1 }) {
-  useStageScale()
+  const { dw, dh } = useStageScale()
   const vis = { opacity: o, visibility: o > 0 ? 'visible' : 'hidden' }
-  const w = seam(858)
+  const w = seam(858 + dw)
   return (
     <>
-      <div style={{ position: 'absolute', left: 0, top: BAR_TOP, width: w, height: 21, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', left: 0, top: BAR_TOP + dh, width: w, height: 21, overflow: 'hidden' }}>
         <div
           style={{
             position: 'absolute',
@@ -143,7 +144,7 @@ export const Bar = memo(function Bar({ o = 1 }) {
           }}
         />
       </div>
-      <div style={{ position: 'absolute', left: 0, top: 700, width: 60, height: 20, background: 'linear-gradient(to right, rgba(30,40,90,0.22), rgba(30,40,90,0.12) 30px, rgba(30,40,90,0) 60px)', ...vis }} />
+      <div style={{ position: 'absolute', left: 0, top: 700 + dh, width: 60, height: 20, background: 'linear-gradient(to right, rgba(30,40,90,0.22), rgba(30,40,90,0.12) 30px, rgba(30,40,90,0) 60px)', ...vis }} />
     </>
   )
 })
@@ -187,8 +188,11 @@ export function Clock({ label, old }) {
 }
 
 // While the taskbar is still being built (frames ~520-574) it glows around the task group
-// and is darker towards both ends; measured as two overlays on the final bar.
-export const EarlyBarTint = memo(function EarlyBarTint() {
+// and is darker towards both ends; measured as two overlays on the final bar. dw: the bar's
+// extra width on a wide stage (its right end moves by dw, the group's glow by its centre's
+// dw / 2, as taskbarModel.js places the group).
+export const EarlyBarTint = memo(function EarlyBarTint({ dw = 0 }) {
+  const mid = Math.floor(dw / 2)
   return (
     <>
       <div
@@ -196,10 +200,9 @@ export const EarlyBarTint = memo(function EarlyBarTint() {
           position: 'absolute',
           left: 0,
           top: 699,
-          width: 858,
+          width: 858 + dw,
           height: 21,
-          background:
-            'linear-gradient(to right, rgba(10,20,35,0.5) 0px, rgba(10,20,35,0.5) 40px, rgba(10,20,35,0.45) 60px, rgba(10,20,35,0.25) 100px, rgba(10,20,35,0.05) 140px, rgba(10,20,35,0) 160px, rgba(10,20,35,0) 780px, rgba(10,20,35,0.08) 820px, rgba(10,20,35,0.22) 858px)',
+          background: `linear-gradient(to right, rgba(10,20,35,0.5) 0px, rgba(10,20,35,0.5) 40px, rgba(10,20,35,0.45) 60px, rgba(10,20,35,0.25) 100px, rgba(10,20,35,0.05) 140px, rgba(10,20,35,0) 160px, rgba(10,20,35,0) ${780 + dw}px, rgba(10,20,35,0.08) ${820 + dw}px, rgba(10,20,35,0.22) ${858 + dw}px)`,
         }}
       />
       <div
@@ -207,10 +210,9 @@ export const EarlyBarTint = memo(function EarlyBarTint() {
           position: 'absolute',
           left: 0,
           top: 699,
-          width: 858,
+          width: 858 + dw,
           height: 21,
-          background:
-            'linear-gradient(to right, rgba(160,210,255,0) 140px, rgba(160,210,255,0.08) 170px, rgba(160,210,255,0.16) 200px, rgba(160,210,255,0.25) 248px, rgba(160,210,255,0.25) 676px, rgba(160,210,255,0.13) 724px, rgba(160,210,255,0.04) 772px, rgba(160,210,255,0) 800px)',
+          background: `linear-gradient(to right, rgba(160,210,255,0) ${140 + mid}px, rgba(160,210,255,0.08) ${170 + mid}px, rgba(160,210,255,0.16) ${200 + mid}px, rgba(160,210,255,0.25) ${248 + mid}px, rgba(160,210,255,0.25) ${676 + mid}px, rgba(160,210,255,0.13) ${724 + mid}px, rgba(160,210,255,0.04) ${772 + mid}px, rgba(160,210,255,0) ${800 + mid}px)`,
         }}
       />
     </>

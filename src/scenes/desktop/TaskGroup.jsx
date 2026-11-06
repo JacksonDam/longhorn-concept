@@ -18,6 +18,7 @@ import { closePopups } from './shellState.js'
 import { hoverLevel } from './Flyout.jsx'
 import { SUBMIT_FRAME } from './timing.js'
 import { POINT } from '../../core/point.js'
+import { stageSize } from '../../core/Stage.jsx'
 
 // ---- insertion (video frames 701.5-716 for My Music: 8 frames after music.open) ----------
 // The group opens a gap around the new button: the left buttons slide left, the right ones
@@ -236,6 +237,7 @@ function taskContext(id, e) {
   closePopups()
   const p = pt(e)
   const items = [{ label: 'Restore' }, { label: 'Minimize' }, { label: 'Maximize' }, '-', { label: 'Close' }]
-  const q = placePopup(items, p.x, p.y, { bottom: 696, above: 698 })
+  const dh = stageSize().dh || 0
+  const q = placePopup(items, p.x, p.y, { bottom: 696 + dh, above: 698 + dh })
   openMenu('tb.ctx', true, { ...q, win: id })
 }

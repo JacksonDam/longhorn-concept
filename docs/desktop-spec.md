@@ -230,3 +230,42 @@ Glass section (520-720, machine load ~8, 4 repeats): window drag under the glass
 button insertion frame (528, 8 frames after the window opens) costs ~8 ms, as its twin frame 128
 does on the build without live glass at the same load. The video
 replay's RMSE is unchanged by the shell (every segment within 0.01 of the pre-shell capture).
+
+## The screen's shape (extended stage)
+The stage is the video's 960 x 720 frame extended to the screen's shape (`core/Stage.jsx`: w x h,
+dw = w - 960, dh = h - 720; exactly the frame under ?capture, ?bench and ?demo, so every frame of
+the video replay is unchanged). The shell keeps the video's layout against the screen's edges:
+- Wallpaper: covers w x h, centred (`object-fit: cover` in a stage-sized box, so its layer is
+  never bigger than the screen); on the frame the photo keeps its fitted placement.
+- Sidebar: on the right edge (x 858 + dw), the panel's glass from 0 to h - 20, the clock foot at
+  h - 20..h, tiles at the top. The tint (glass-tint.webp, 102 x 720) keeps rows 0-692 at the top
+  and rows 692-700 (the panel's bottom edge) above the foot, and fills the dh rows between with
+  `glass-band.webp`: the mean of tint rows 688-691, the plain glass below the thumbnails
+  (`python3 -I tools/desktop/glass_band.py` cuts it after a refit). One plus-lighter element:
+  three background layers clipped to its border, padding and content boxes (a transparent
+  692 px top border, a dh top padding). The tile wrapper is positioned at left = dw (no
+  transform beyond the chevron's slide).
+- Taskbar: along the bottom (y 699 + dh), bar width 858 + dw (its clip at seam(858 + dw)), the
+  clock and chevron dw further right. The task group keeps its place between the Start button
+  and the bar's end: centre 458 + floor(dw / 2), the video's two layouts shifted by the same
+  whole pixels, dw more room before the buttons narrow (`taskbarModel.js`); the entrance tints
+  follow (dark right end + dw, glow + dw / 2). TaskbarLayer moves its contents with wrappers
+  positioned by left / top, not transforms: a transformed wrapper is a stacking context and
+  would isolate the press flash's and birth flare's plus-lighter blends from the bar under them.
+- Popups (`Popup.jsx` `offset`): the Start menu and its glass stand on the taskbar (dh), the
+  weather flyout and the sidebar menus move with the sidebar (dw), the calendar with the clock
+  (dw, dh); the my Music flyout's box is at left = dw (it shoots in from the screen's edge,
+  960 + dw); the rise / left clips use the stage's size. UI kit menus and tooltips clamp to
+  w x h above the taskbar (`placePopup`, `Tooltip`), the menu catcher covers w x h, and the
+  overlay host is a point (0 x 0) at the stage's origin.
+- Windows (`os/frame.js`): `workArea()` = 858 + dw by 699 + dh, `maxRect()` tucks 1 px under the
+  sidebar and the taskbar as MAX_RECT does; maximise, the resize grip and drags use them. A
+  window opens where the app's position puts it on the frame, moved so its centre keeps its
+  place in the work area (`placeDefault`: centred stays centred, a corner stays near its
+  corner). A dragged window is kept reachable when drawn (`keepReachable`: 60 px of its drag
+  handle inside the work area, its top between the screen's top and 24 px above the taskbar);
+  drags clamp the same way, and a resize or rotation never writes to the log. Minimise /
+  restore collapse into the taskbar buttons where they are (dock y 698 + dh), and the beam
+  moves with them (`Beam` dx, dy).
+- Apps: the slide show (full-screen) fills w x h with its backdrop and its photo view's shade,
+  its 960 x 720 layout centred.

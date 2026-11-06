@@ -208,17 +208,19 @@ const eater = (
 const BLUR = `blur(${GLASS_BLUR}px)`
 const BOX = { left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }
 const CLIP_Y = 699 // the taskbar's top: the panel rises from behind it
-function StartGlass({ t }) {
+// (dh: the taskbar's offset on a taller stage, core/Stage.jsx; the menu rises from it)
+function StartGlass({ t, dh = 0 }) {
   const { st, df, visible, din, dout } = popupPhase(t, 'start', 'rise')
   const p = visible ? popupTravel(st.open, df, din, dout) : null
-  const top = START.y + (p ? p.h * BOX.height : 0)
-  const h = Math.max(0, Math.min(START.h, CLIP_Y - top))
+  const top = START.y + dh + (p ? p.h * BOX.height : 0)
+  const clipY = CLIP_Y + dh
+  const h = Math.max(0, Math.min(START.h, clipY - top))
   const op = p ? p.op : 0
   const on = op > 0 && h > 0
   return (
     <div
       style={{
-        position: 'absolute', left: START.x, top: Math.min(top, CLIP_Y), width: START.w, height: h,
+        position: 'absolute', left: START.x, top: Math.min(top, clipY), width: START.w, height: h,
         borderRadius: '7px 7px 0 0', backdropFilter: BLUR, WebkitBackdropFilter: BLUR,
         opacity: op, visibility: on ? 'visible' : 'hidden', pointerEvents: 'none',
       }}
@@ -226,17 +228,19 @@ function StartGlass({ t }) {
   )
 }
 
-export function StartMenu({ t, user }) {
+// dh: the stage's extra height (core/Stage.jsx): the menu stands on the taskbar, dh lower
+export function StartMenu({ t, user, dh = 0 }) {
   const items = rows()
   return (
     <>
-      <StartGlass t={t} />
+      <StartGlass t={t} dh={dh} />
       <Popup
         t={t}
         id="start"
         kind="rise"
         n={10}
         box={BOX}
+        offset={offsetY(dh)}
         live={<Live t={t} />}
         hits={
           <>
@@ -251,3 +255,5 @@ export function StartMenu({ t, user }) {
   )
 }
 const EMPTY = []
+let offsetCache = { x: 0, y: 0 }
+const offsetY = (dh) => (offsetCache.y === dh ? offsetCache : (offsetCache = { x: 0, y: dh }))

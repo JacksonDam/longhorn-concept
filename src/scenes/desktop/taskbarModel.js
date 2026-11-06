@@ -6,7 +6,12 @@
 // the video (between Yahoo.com and Document); closed windows drop out.
 // Layout: the group is centred on x 458 (the video's 5-button layout). The video's two
 // layouts (4 and 5 buttons) are kept exactly as measured; any other set is laid out from
-// per-button widths (measured for the video's buttons, from the label otherwise).
+// per-button widths (measured for the video's buttons, from the label otherwise). On a stage
+// extended to the screen's shape (core/Stage.jsx) the bar is dw wider and runs dh lower: the
+// group keeps its place between the Start button and the bar's end (its centre and the video's
+// layouts move by dw / 2, on whole pixels so their sub-pixel phase stays the measured one), it
+// has dw more room before the buttons narrow, and every button is dh lower (TaskbarLayer draws
+// the bar's contents dh lower; the rects here, for the window system, include it).
 // Transition: a window's button is inserted 8 frames after it opens (the video's timing);
 // the left buttons slide out to make room and the right ones likewise, with the video's
 // overshoot curves scaled to the actual distances. Removal: the gap closes over 6 frames.
@@ -14,6 +19,7 @@ import { FPS } from '../../core/clock.js'
 import { windows, getWindow, sessionStart, RUNNING_AT_LOGIN } from '../../os/wm.js'
 import { setButtonLocator } from '../../os/taskbar.js'
 import { taskLabel } from './appInfo.jsx'
+import { stageSize } from '../../core/Stage.jsx'
 
 export const INSERT_DELAY = 8 // frames after 'win.open' until the button starts to appear
 export const REMOVE_FRAMES = 6
@@ -53,32 +59,37 @@ function geometry(win) {
   return { w: Math.round(tw + 40), icon: 9, text: 29, tw: tw >= 110 ? 110 : undefined }
 }
 
-// layouts are cached by their content so the buttons' objects stay identical frame to frame
+// layouts are cached by their content (and the bar's extra width) so the buttons' objects stay
+// identical frame to frame
 const layoutCache = new Map()
 export function layoutFor(list) {
-  const key = list.map((w) => w.id + '\u0001' + w.app + '\u0001' + taskLabel(w)).join('\u0002')
+  const dw = stageSize().dw || 0
+  const key = dw + '\u0003' + list.map((w) => w.id + '\u0001' + w.app + '\u0001' + taskLabel(w)).join('\u0002')
   let v = layoutCache.get(key)
   if (!v) {
-    v = computeLayout(list)
+    v = computeLayout(list, dw)
     if (layoutCache.size > 200) layoutCache.clear()
     layoutCache.set(key, v)
   }
   return v
 }
 
-function computeLayout(list) {
+const shiftLayout = (l, d) => (d ? { x0: l.x0 + d, x1: l.x1 + d, buttons: l.buttons.map((b) => ({ ...b, x: b.x + d })) } : l)
+
+function computeLayout(list, dw = 0) {
   const ids = list.map((w) => w.id)
-  if (ids.join() === LAYOUT4.buttons.map((b) => b.id).join() && list.every((w, i) => geometry(w) === MEASURED[ids[i]])) return LAYOUT4
+  const mid = Math.floor(dw / 2)
+  if (ids.join() === LAYOUT4.buttons.map((b) => b.id).join() && list.every((w, i) => geometry(w) === MEASURED[ids[i]])) return shiftLayout(LAYOUT4, mid)
   let geo = list.map(geometry)
   let total = geo.reduce((s, g) => s + g.w, 0)
-  const room = MAX_X - MIN_X
+  const room = MAX_X + dw - MIN_X
   if (total > room) {
     const k = room / total
     geo = geo.map((g) => ({ ...g, w: g.w * k, tw: Math.max(10, Math.min(g.tw ?? g.w, g.w * k - g.text - 6)) }))
     total = room
   }
-  let x = Math.max(MIN_X, Math.min(MAX_X - total, CENTER - total / 2))
-  if (ids.join() === VIDEO5.join()) x = 185.5
+  let x = Math.max(MIN_X, Math.min(MAX_X + dw - total, CENTER + mid - total / 2))
+  if (ids.join() === VIDEO5.join()) x = 185.5 + mid
   const x0 = x
   const buttons = list.map((w, i) => {
     const g = geo[i]
@@ -142,6 +153,6 @@ export function buttonRectFor(id, t) {
     const k = Math.ceil(without.length / 2)
     b = layoutFor([...without.slice(0, k), w, ...without.slice(k)]).buttons.find((x) => x.id === id)
   }
-  return b ? { x: b.x, y: 698, w: b.w, h: 22 } : null
+  return b ? { x: b.x, y: 698 + (stageSize().dh || 0), w: b.w, h: 22 } : null
 }
 setButtonLocator(buttonRectFor)

@@ -1,6 +1,9 @@
 // The Plex sidebar: a translucent glass panel on the right (x 858-960, y 0-700) with tiles
 // top to bottom: user header, Seattle weather, Mail, media strip, Buddies, photo, Go Online,
 // desktop thumbnails. Static content is memoised; only tile opacities follow the clock.
+// On a stage extended to the screen's shape (core/Stage.jsx) it stays on the right edge (dw
+// further right) and runs the screen's full height: the panel's glass reaches down to the clock
+// foot at the bottom (dh lower), the tiles stay at the top.
 import { memo } from 'react'
 import { asset } from '../../core/preload.js'
 import {
@@ -241,15 +244,41 @@ const transmission = (ox) =>
 // filter, mask, blend mode or isolation) would become the backdrop root, the blur would see
 // nothing and the tint would add to nothing. data-glass: tools/desktop/fit_glass.py empties
 // both layers to capture the bare blur.
-const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
+//
+// Taller stage (dh > 0): the panel's glass is dh taller. Its tint keeps glass-tint.webp's rows
+// above BAND_SPLIT (the tiles) at the top and its rows BAND_SPLIT..700 (the panel's bottom edge)
+// at the panel's bottom, and fills the dh rows between with glass-band.webp: the plain glass of
+// the video just above that edge, one row (tools/desktop/glass_band.py). One element, three
+// background layers clipped to the box's border, padding and content boxes: a transparent top
+// border of BAND_SPLIT px and a top padding of dh put the band's region at BAND_SPLIT.. and the
+// bottom rows' at BAND_SPLIT + dh.. (a single plus-lighter layer, as on the video's frame). The
+// clock foot (tint rows 700-720) moves down with the bottom edge.
+const TINT = asset('img/desktop/glass-tint.webp')
+const BAND = asset('img/desktop/glass-band.webp')
+export const BAND_SPLIT = 692
+// x0: the panel's left edge (stage px; PANEL.x + dw); ty: the tint row at the box's top (the
+// foot: 700); dh: the panel's extra height (the panel glass only)
+const tintStyle = (ox, ty, dh) =>
+  dh > 0
+    ? {
+        boxSizing: 'border-box',
+        borderTop: `${BAND_SPLIT}px solid transparent`,
+        paddingTop: dh,
+        background:
+          `url(${TINT}) ${ox}px ${dh}px / ${PANEL.w}px 720px no-repeat border-box content-box,` +
+          `url(${BAND}) ${ox}px 0px / ${PANEL.w}px 100% no-repeat border-box padding-box,` +
+          `url(${TINT}) ${ox}px 0px / ${PANEL.w}px 720px no-repeat border-box border-box`,
+      }
+    : { background: `url(${TINT}) ${ox}px ${-ty}px / ${PANEL.w}px 720px` }
+const Glass = memo(function Glass({ x0 = PANEL.x, top, height, ty = top, dh = 0, o, dx = 0 }) {
   useStageScale()
-  const left = seam(PANEL.x)
-  const ox = PANEL.x - left
+  const left = seam(x0)
+  const ox = x0 - left
   const box = {
     position: 'absolute',
     left,
     top,
-    width: PANEL.x + PANEL.w - left,
+    width: x0 + PANEL.w - left,
     height,
     transform: dx ? `translateX(${dx}px)` : undefined,
     opacity: o,
@@ -258,14 +287,7 @@ const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
   return (
     <>
       <div data-glass="" style={{ ...box, backdropFilter: BLUR, WebkitBackdropFilter: BLUR, background: transmission(ox) }} />
-      <div
-        data-glass=""
-        style={{
-          ...box,
-          mixBlendMode: 'plus-lighter',
-          background: `url(${asset('img/desktop/glass-tint.webp')}) ${ox}px ${-top}px / ${PANEL.w}px 720px`,
-        }}
-      />
+      <div data-glass="" style={{ ...box, mixBlendMode: 'plus-lighter', ...tintStyle(ox, ty, dh) }} />
     </>
   )
 })
@@ -274,24 +296,26 @@ const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
 const show = (o) => ({ ...POINT, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' })
 
 // opacity: { panel, header, name, seattle, ... } in 0..1; media: { title, playing, scroll };
-// slide: px the panel is pushed right (chevron), 0..102
-export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, live, hits, mail }) {
+// slide: px the panel is pushed right (chevron), 0..102; dw, dh: the stage's extension past the
+// video's frame (the sidebar is dw further right, its panel dh taller, the clock foot dh lower)
+export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, live, hits, mail, dw = 0, dh = 0 }) {
   const hl = mediaHL?.hover ?? 0
   return (
     <div style={{ ...POINT, pointerEvents: 'none' }}>
       {/* the clock foot stays; the panel moves when the chevron hides the sidebar. The panel's
           glass slides by its own transform: the tile wrapper's transform makes it a stacking
           context, which would isolate the tint's blend from the backdrop. */}
-      <Glass top={PANEL.h} height={720 - PANEL.h} o={opacity.panel} />
-      <Glass top={0} height={PANEL.h} o={slide >= PANEL.w ? 0 : opacity.panel} dx={slide} />
-      <div style={{ ...POINT, transform: slide ? `translateX(${slide}px)` : undefined, visibility: slide >= PANEL.w ? 'hidden' : 'visible' }}>
+      <Glass x0={PANEL.x + dw} top={PANEL.h + dh} height={720 - PANEL.h} ty={PANEL.h} o={opacity.panel} />
+      <Glass x0={PANEL.x + dw} top={0} height={PANEL.h + dh} dh={dh} o={slide >= PANEL.w ? 0 : opacity.panel} dx={slide} />
+      {/* (the tiles are authored at x 858-960: the wrapper's left puts them dw further right) */}
+      <div style={{ ...POINT, left: dw, transform: slide ? `translateX(${slide}px)` : undefined, visibility: slide >= PANEL.w ? 'hidden' : 'visible' }}>
         <div
           style={{
             position: 'absolute',
             left: PANEL.x,
             top: 0,
             width: PANEL.w,
-            height: PANEL.h,
+            height: PANEL.h + dh,
             background: 'rgb(170,190,225)',
             opacity: opacity.panel * haze,
             visibility: opacity.panel * haze > 0 ? 'visible' : 'hidden',
