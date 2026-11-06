@@ -4,11 +4,41 @@
 // same multi-sample motion blur as the video (fast moves show as a streak).
 import { memo, useEffect, useState } from 'react'
 import { toStage } from './Stage.jsx'
-import { useTime } from './time.jsx'
+import { useTime, nextFrame } from './time.jsx'
 import { FPS } from './clock.js'
+import { emit } from './events.js'
+import { lastOfType } from '../os/logIndex.js'
 
 let live = { x: -100, y: -100 }
 export const pointer = () => live
+
+// The pointer as input to visuals that follow it (my Music's slabs tilt towards it): a pure
+// function of (t, log) like everything else. Under ?demo / ?capture it is the cursor's path (the
+// video's, demo/cursor.js); in real time, 'ptr' events logged from the pointer's moves while
+// something wants them (wantPointer), one a frame at the frame's time.
+let currentPath = null
+let wanted = 0
+export function wantPointer() {
+  wanted++
+  return () => wanted--
+}
+// -> { x, y } (stage px) or { hidden: true }
+export function pointerAt(t) {
+  if (currentPath) return currentPath(t) || { hidden: true }
+  const e = lastOfType(t, 'ptr')
+  return !e || e.hidden ? { hidden: true } : { x: e.x, y: e.y }
+}
+let queued = false
+function logPointer(p) {
+  if (!wanted || queued) return
+  queued = true
+  nextFrame((t) => {
+    queued = false
+    const last = lastOfType(t, 'ptr')
+    if (p.hidden ? last && !last.hidden : !last || last.hidden || last.x !== live.x || last.y !== live.y)
+      emit('ptr', p.hidden ? { hidden: true } : { x: Math.round(live.x * 10) / 10, y: Math.round(live.y * 10) / 10 }, t)
+  })
+}
 
 const Arrow = memo(function Arrow() {
   return (
@@ -39,17 +69,22 @@ const SHUTTER = 0.75 / FPS
 export function Cursor({ path }) {
   const t = useTime()
   const [, force] = useState(0)
+  currentPath = path || null
   useEffect(() => {
     if (path) return
     const on = (e) => {
       live = toStage(e.clientX, e.clientY)
       force((n) => n + 1)
+      logPointer(live)
     }
+    const out = () => logPointer({ hidden: true })
     addEventListener('pointermove', on)
     addEventListener('pointerdown', on)
+    document.documentElement.addEventListener('pointerleave', out)
     return () => {
       removeEventListener('pointermove', on)
       removeEventListener('pointerdown', on)
+      document.documentElement.removeEventListener('pointerleave', out)
     }
   }, [path])
   const base = { position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 10000 }

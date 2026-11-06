@@ -2,7 +2,7 @@
 // made fully usable: library with scrolling, thumbnail / tiles / details views, grouping and
 // arranging, the Size slider, search, album pages for every album, silent playback through
 // os/media.js, task-pane links, menus and drop-downs. The video's frames are the defaults.
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { FPS } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { asset } from '../../core/preload.js'
@@ -20,6 +20,8 @@ import { warmSlabs } from './SlabCanvas.jsx'
 import { DEFAULTS, settings, gridLayout } from './layout.js'
 import { viewState } from './state.js'
 import { musicActions, openT } from './actions.js'
+import { normalRect } from '../../os/PlexWindow.jsx'
+import { wantPointer } from '../../core/Cursor.jsx'
 
 // compile the 3D slab shader at load (never on the frame a slab first appears)
 warmSlabs({ w: 4, h: 4, d: 2, map: TWEET_COVER })
@@ -76,12 +78,14 @@ function MusicContent({ win, t, live, w, h }) {
 }
 
 // the 3D slabs (device / album) on every visible blur copy, rendered once per frame
+// (the slabs tilt towards the pointer: while the overlay is mounted the pointer's moves are logged)
 function MusicOverlay({ win, t, skip, hidden }) {
+  useEffect(() => wantPointer(), [])
   const s = settings(t, win)
   if (!s.preview) return null
   const t0 = openT(win)
   const vs = viewState(t, t0)
-  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} hidden={hidden} />
+  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} hidden={hidden} rect={normalRect(win, music)} />
 }
 
 // the content a motion-blur copy shows: the settled state after the latest change (the intro

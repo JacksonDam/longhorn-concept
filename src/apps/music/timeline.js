@@ -16,24 +16,21 @@ import { table } from '../../os/table.js'
 export { table }
 
 // ---------------------------------------------------------------- header slabs
-// ping-pong playback of the fitted idle range once the table runs out (interactive use)
-function pingPong(f, a, b) {
-  if (f <= b) return f
-  const span = b - a
-  const k = (f - b) % (2 * span)
-  return k < span ? b - k : a + (k - span)
-}
+// The fitted spin-in and settle play to REST frames; the slab then holds that pose and tilts
+// towards the pointer (tilt.js) instead of the fitted idle drift.
+export const DEVICE_REST = 40
+export const ALBUM_REST = 40
 const pose6 = ([x, y, rx, ry, rz, z]) => ({ x, y, rx, ry, rz, z })
 
 const devTable = table(DEVICE_POSES.map((r, i) => [DEVICE_F0 + i, ...r]))
 const DEV_END = DEVICE_F0 + DEVICE_POSES.length - 1
 // rel: frames since music.open
-export const devicePoseRel = (rel) => pose6(devTable(pingPong(rel, 40, DEV_END)))
+export const devicePoseRel = (rel) => pose6(devTable(Math.min(rel, DEVICE_REST, DEV_END)))
 
 const albTable = table(ALBUM_POSES)
 const ALB_END = ALBUM_POSES[ALBUM_POSES.length - 1][0]
 // hrel: frames since the album page transition started
-export const albumPoseRel = (hrel) => pose6(albTable(pingPong(hrel, 40, ALB_END)))
+export const albumPoseRel = (hrel) => pose6(albTable(Math.min(hrel, ALBUM_REST, ALB_END)))
 
 // the album page: the header changes this long after the album tile is clicked
 export const PAGE_DELAY = 22.5

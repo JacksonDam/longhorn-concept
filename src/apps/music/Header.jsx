@@ -7,7 +7,8 @@ import { Txt, abs, FONT, HEAVY, useLayer, LiveLayers } from '../../os/text.jsx'
 import * as I from '../../os/icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
-import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
+import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel, DEVICE_REST, ALBUM_REST } from './timeline.js'
+import { tiltAt, tiltMoving } from './tilt.js'
 import { TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
 import { FPS, frameTime } from '../../core/clock.js'
@@ -394,14 +395,25 @@ function albumSlabFor(album) {
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
 // window's overlay layer). track / trackHover / playing: the page's track list state.
-export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, actions }) {
+// rect: the window's rect (stage px), for the slabs' pointer tilt (none: no tilt)
+export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, rect = null, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
-  // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate; their
-  // slow idle drift (a fraction of a pixel per video frame) steps on the video's frame grid, so the
-  // slab canvases re-render 30 times a second at rest instead of every display frame (the grid
-  // holds the capture frames themselves: ?capture draws the same)
-  const fast = rel < 24 || (hrel > 0 && hrel < 21)
+  // the slab's settled pose tilted towards the pointer (tilt.js), eased in after `rest` frames
+  const tilted = (pose, tt, r, rest) => {
+    const k = rect ? smoothRamp(r, rest, rest + 12) : 0
+    if (k <= 0) return pose
+    const [rx, ry] = tiltAt(tt, rect.x + SC.x + pose.x, rect.y + SC.y + pose.y, rect)
+    return { ...pose, rx: pose.rx + rx * k, ry: pose.ry + ry * k }
+  }
+  // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate with
+  // a multi-sample blur, and so does a tilt that is moving; at rest the slab holds still (its
+  // canvases don't re-render), its slow settle stepping on the video's frame grid (the grid holds
+  // the capture frames themselves: ?capture draws the same)
+  const spin = rel < 24 || (hrel > 0 && hrel < 21)
+  const restPose = page == null || page.album == null ? devicePoseRel(DEVICE_REST) : albumPoseRel(ALBUM_REST)
+  const moving = rect && tiltMoving(slabT0, rect.x + SC.x + restPose.x, rect.y + SC.y + restPose.y, rect)
+  const fast = spin || moving
   const slabT = fast ? slabT0 : onFrameGrid(slabT0)
   const toDevice = page != null && page.album == null
   const fromDevice = page != null && page.prev == null
@@ -414,10 +426,14 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   }
   const spinIn = (tt) => {
     const h = toRel(tt, page.t)
-    return { ...albumPoseRel(h), opacity: ramp(h, 4, 5) }
+    const p = page.album ? tilted(albumPoseRel(h), tt, h, ALBUM_REST) : albumPoseRel(h)
+    return { ...p, opacity: ramp(h, 4, 5) }
   }
   const items = []
-  const device = (tt) => devicePoseRel(toRel(tt, openT))
+  const device = (tt) => {
+    const r = toRel(tt, openT)
+    return tilted(devicePoseRel(r), tt, r, DEVICE_REST)
+  }
   // (only a header that draws the slabs builds them: the device's equaliser canvas is one shared
   // canvas, drawn here for this header's slab time, so a header without slabs (the window
   // content's, at its own content time) mustn't redraw it under the slab overlay)
@@ -437,7 +453,7 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   }
   const slabEl =
     items.length > 0 && slabs !== 'none' ? (
-      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} hidden={hidden} />
+      <Slabs t={slabT} items={items} samples={copy ? 1 : spin ? 8 : 3} shutter={(spin ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} hidden={hidden} />
     ) : null
   if (slabs === 'only') return slabEl
   const prevListOp = page && page.prev ? 1 - smoothRamp(hrel, 1, 6) : 0
