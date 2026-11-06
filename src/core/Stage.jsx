@@ -113,7 +113,12 @@ export function Stage({ children }) {
   useEffect(() => {
     const on = () => {
       const n = fit()
-      if (n.s === current.s && n.x === current.x && n.y === current.y && n.w === current.w && n.h === current.h && n.dpr === current.dpr) return
+      // (a phone's devicePixelRatio follows its pinch zoom, index.html: that alone redraws nothing,
+      // as before, or every canvas would grow while zoomed in)
+      const same = coarse
+        ? Math.abs(n.x - current.x) < 0.5 && Math.abs(n.y - current.y) < 0.5
+        : n.x === current.x && n.y === current.y && n.dpr === current.dpr
+      if (same && n.s === current.s && n.w === current.w && n.h === current.h) return
       current = n
       setF(n)
     }
