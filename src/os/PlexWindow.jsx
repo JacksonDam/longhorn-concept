@@ -265,16 +265,16 @@ function TitleControls({ win, w, topH, active, h, app }) {
   }
   const onUp = () => (drag.current = null)
   // (the pointer on minimise or close prepares the animation: the window's copies mount while
-  // it is there, so the click finds them rasterised)
-  const prepare = (type) => (type === 'win.minimize' || type === 'win.close' ? () => emit('win.prepare', { id }) : undefined)
+  // it is there, and for a moment after it leaves, so the click finds them rasterised)
   const btn = (x, type) => (
     <div
       data-hit={type}
       style={abs(x, 2, 16, 18, { cursor: 'default' })}
-      onPointerEnter={prepare(type)}
+      onPointerEnter={type === 'win.minimize' || type === 'win.close' ? () => emit('win.prepare', { id, on: true }) : undefined}
+      onPointerLeave={type === 'win.minimize' || type === 'win.close' ? () => emit('win.prepare', { id, on: false }) : undefined}
       onPointerDown={(e) => {
         e.stopPropagation()
-        prepare(type)?.()
+        if (type === 'win.minimize' || type === 'win.close') emit('win.prepare', { id })
       }}
       onClick={(e) => {
         e.stopPropagation()
@@ -404,8 +404,9 @@ function motion(win, app, t) {
 // ---------------------------------------------------------------- the window
 // the app's live overlay, memoised: blur copies pass their snapshot time, so their overlay
 // renders once per snapshot instead of every frame
-// (hidden: the layer doesn't show yet (a copy waiting for its animation): the overlay draws but
-// stays hidden, so its canvases are ready when the layer shows)
+// (every mounted layer's overlay draws, shown on its layer: a copy waiting for its animation at a
+// near-zero opacity has its canvases drawn and composited when it shows; hiding them until then
+// costs a re-layerisation on the animation's frame)
 const OverlayLayer = memo(
   function OverlayLayer({ Overlay, win, t, skip, hidden }) {
     return <Overlay win={win} t={t} skip={skip} hidden={hidden} />
@@ -677,7 +678,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         <LiveLayers.Provider value={k === 0}>
           <WindowBody defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
-        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={false} hidden={!visible} />}
+        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={false} hidden={false} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius.top} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
