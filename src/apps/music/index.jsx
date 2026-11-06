@@ -76,12 +76,12 @@ function MusicContent({ win, t, live, w, h }) {
 }
 
 // the 3D slabs (device / album) on every visible blur copy, rendered once per frame
-function MusicOverlay({ win, t, skip }) {
+function MusicOverlay({ win, t, skip, hidden }) {
   const s = settings(t, win)
   if (!s.preview) return null
   const t0 = openT(win)
   const vs = viewState(t, t0)
-  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} />
+  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} hidden={hidden} />
 }
 
 // the content a motion-blur copy shows: the settled state after the latest change (the intro

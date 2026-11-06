@@ -18,8 +18,10 @@
 //     Overlay: ({ win, t }) =>           // live layer drawn once above the blur copies (3D slabs)
 //     liveTime: (win, t, base) => time   // see os/PlexWindow liveContentT (long app animations)
 //     copyKey: (win, t) => string        // the copies' visual state at t: equal keys skip re-rendering
-//     copies: n                          // blur copies (default 6); my Music uses 10. Every copy draws
+//     copies: n                          // blur layers (default 6); my Music uses 10. Every copy draws
 //                                        // the full Content (memoised snapshots; os/PlexWindow.jsx)
+//                                        // and exists only around a blurred animation; in real time
+//                                        // the device budget may allow fewer
 //     usesActive: true                   // Content draws differently when the window isn't active
 //                                        // (otherwise focus changes don't re-render it)
 //     relevant: (e, win) => bool         // events (besides its ui-kit ids and '<app>.*') that change
@@ -30,7 +32,7 @@
 // motion-blur copies pass a frozen snapshot time, so keep Content a pure function of win/t/events)
 // and `active` (focused window).
 //
-// Mount timing: a window opened later (not prewarmed) mounts its frame and chrome on the open's
+// Mount timing: an opened window mounts its frame and chrome on the open's
 // frame, its Content on the next frame and one copy per frame after that, while the beam plays
 // (it shows from 5 frames in). Explorer chrome is cheap in copies by itself (one toolbar image,
 // grouped labels, no hit areas or menus); an explorer `Search` component gets `copy` there.

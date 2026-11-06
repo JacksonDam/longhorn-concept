@@ -6,7 +6,8 @@
 //
 // usage: node tools/dragbench.mjs [--url http://127.0.0.1:5312/longhorn-concept/] [--dpr 1.5,2]
 //        [--size 1440x1080] [--rate 144,1000] [--scenario wallpaper,windows,glass,music,outlook,
-//        pictures,maximise,resize] [--prefill 0,5000,20000] [--secs 3] [--trace] [--json out.json]
+//        pictures,maximise,resize,idle,minrestore,minrestore0] [--prefill 0,5000,20000] [--secs 3]
+//        [--trace] [--json out.json]
 // Scenarios (stage px):
 //   wallpaper  Notepad dragged in loops over the empty desktop
 //   windows    Notepad dragged over Outlook and Internet Explorer
@@ -16,6 +17,9 @@
 //   pictures   my Pictures & Videos dragged over the desktop
 //   maximise   Outlook maximised and restored by double-clicks on its title bar, repeatedly
 //   resize     Outlook resized by its grip
+//   idle       my Music open, no input
+//   minrestore my Music minimised (title bar) and restored (taskbar), the pointer resting 300 ms
+//              on each control first (minrestore0: clicked at once)
 // --prefill N adds N 'win.move' events of the dragged window to the log first (a long session).
 // --trace adds a Chrome trace of the drag and prints where the frame time goes per thread.
 import { spawn } from 'node:child_process'
@@ -65,6 +69,11 @@ const SCEN = {
   resize: { open: [['inbox', 'outlook', { message: 'Hello' }]], drag: 'inbox', mode: 'resize' },
   // no input: what the open windows cost per frame at rest (baseline for the drags)
   idle: { open: [['music', 'music']], drag: 'music', mode: 'idle' },
+  // my Music minimised from its title bar and restored from its taskbar button, again and again;
+  // the pointer rests on the control LEAD ms before the click (the copies mount from the hover:
+  // os/PlexWindow residency), or clicks at once (minrestore0: they mount with the animation)
+  minrestore: { open: [['music', 'music']], drag: 'music', mode: 'minrestore', lead: 300 },
+  minrestore0: { open: [['music', 'music']], drag: 'music', mode: 'minrestore', lead: 0 },
 }
 function loop(k, x0, y0, rx, ry) {
   const a = k * 2 * Math.PI
@@ -209,6 +218,26 @@ for (const dpr of dprs) {
           const mouse = (type, p, extra = {}) => s.post('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: type === 'mouseMoved' ? 'left' : 'left', buttons: 1, clickCount: 1, ...extra })
           if (S.mode === 'idle') {
             await sleep(secs * 1000)
+          } else if (S.mode === 'minrestore') {
+            const tap = async (p) => {
+              s.post('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y })
+              if (S.lead) await sleep(S.lead)
+              s.post('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1, clickCount: 1 })
+              s.post('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: 0, clickCount: 1 })
+            }
+            const away = P(600, 400)
+            while (performance.now() - T0 < secs * 1000) {
+              const b = await s.evaluate(`(() => { const e = document.querySelector('[data-hit="win.minimize"]'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 } })()`)
+              if (!b) break
+              await tap(b)
+              await sleep(700)
+              s.post('Input.dispatchMouseEvent', { type: 'mouseMoved', x: away.x, y: away.y })
+              await sleep(300)
+              await tap(P(460, 710)) // the taskbar's My Music button
+              await sleep(900)
+              s.post('Input.dispatchMouseEvent', { type: 'mouseMoved', x: away.x, y: away.y })
+              await sleep(300)
+            }
           } else if (S.mode === 'maximise') {
             const g = P(rect.x + 300, rect.y + 12)
             // double-click the title bar every 0.5 s (maximise / restore)

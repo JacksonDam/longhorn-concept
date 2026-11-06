@@ -247,10 +247,11 @@ const albumSlab = {
 }
 
 // The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-// skip (the canvases are on an invisible blur copy): they keep their pixels and are hidden, so the
-// compositor neither draws them nor their reflection's mask under a resting or parked copy
-function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip }) {
-  const hide = skip ? { visibility: 'hidden' } : null
+// skip: the canvases keep their pixels; hidden (the layer is waiting to show, e.g. a blur copy
+// mounted ahead of its animation): they draw but stay hidden, so the compositor neither draws
+// them nor their reflection's mask until the layer shows, and they're ready then
+function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip, hidden }) {
+  const hide = skip || hidden ? { visibility: 'hidden' } : null
   return (
     <>
       {reflection && <SlabCanvas
@@ -394,7 +395,7 @@ function albumSlabFor(album) {
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
 // window's overlay layer). track / trackHover / playing: the page's track list state.
-export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, actions }) {
+export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
   // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate; their
@@ -437,7 +438,7 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   }
   const slabEl =
     items.length > 0 && slabs !== 'none' ? (
-      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} />
+      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} hidden={hidden} />
     ) : null
   if (slabs === 'only') return slabEl
   const prevListOp = page && page.prev ? 1 - smoothRamp(hrel, 1, 6) : 0

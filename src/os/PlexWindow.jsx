@@ -404,11 +404,13 @@ function motion(win, app, t) {
 // ---------------------------------------------------------------- the window
 // the app's live overlay, memoised: blur copies pass their snapshot time, so their overlay
 // renders once per snapshot instead of every frame
+// (hidden: the layer doesn't show yet (a copy waiting for its animation): the overlay draws but
+// stays hidden, so its canvases are ready when the layer shows)
 const OverlayLayer = memo(
-  function OverlayLayer({ Overlay, win, t, skip }) {
-    return <Overlay win={win} t={t} skip={skip} />
+  function OverlayLayer({ Overlay, win, t, skip, hidden }) {
+    return <Overlay win={win} t={t} skip={skip} hidden={hidden} />
   },
-  (a, b) => sameRelT(a, b) && a.skip === b.skip && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
+  (a, b) => sameRelT(a, b) && a.skip === b.skip && a.hidden === b.hidden && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
 )
 const STAGGER = 4 // frames between copy snapshot updates (copy k updates 4k frames after a change)
 // times of the events that concern a window's content (sorted), cached per log version:
@@ -675,7 +677,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         <LiveLayers.Provider value={k === 0}>
           <WindowBody defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
         </LiveLayers.Provider>
-        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={visible ? live : ct} skip={!visible} />}
+        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={false} hidden={!visible} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius.top} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}

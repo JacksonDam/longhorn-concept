@@ -83,22 +83,25 @@ OS in the same style. Everything still derives from (time, event log).
   `{ id, title, taskbarLabel, icon, size, position, explorer, Content, usesActive?, ... }`;
   `src/os/PlexWindow.jsx` draws it (frame, title bar, drag/resize/maximise, open/minimise/restore/
   close animations with multi-sample blur), `src/os/ExplorerChrome.jsx` is the my Music-style
-  toolbar block, `src/os/WindowLayer.jsx` renders all windows. Every motion-blur copy draws the
-  app's full Content (memoised snapshots, re-rendered when the content settles on new state,
-  `copyKey`); there are no stand-in copies. Copies mount one per frame from the open (two
-  frames in) and are rasterised in their first visible pose before the window shows (an
-  opening window's layers are never hidden: revealing one costs ~3 ms). Other parked layers
-  (closed, never shown) carry `content-visibility: hidden`, so a session that opened many
-  windows costs nothing per frame for them; a window running at login rasterises its copies one
-  per step of the background mount queue, not all at once; a closed window also lets its
-  compositing layers go. Idle copies of a shown window rest on its rect at opacity 1e-4 (drawn,
-  so they stay painted and rasterised; at opacity 0 Chrome lets them go); the windows running at
-  login rest at opacity 0 until their first restore (painted, not drawn: no GPU memory or fill
-  for their full-size copies). Idle copies keep the size the window settled at while it is
-  resized or maximised. Each window's layers sit in one group
-  positioned by a transform, so a drag moves one transform. `usesActive: true` marks Content
-  that draws differently when the window isn't active (otherwise focus changes don't re-render
-  it).
+  toolbar block, `src/os/WindowLayer.jsx` renders all windows. Windows live under a memory
+  budget (every engine backs a composited layer at its own size x devicePixelRatio^2; WebKit
+  ignores the stage's scale transform): an idle window is one layer (the live window), and a
+  minimised, closed or never-shown window has none (it unmounts; everything is f(t, log), so it
+  remounts exactly). Motion-blur copies, each drawing the app's full Content (memoised snapshots,
+  `copyKey`; no stand-in copies), exist only around a blurred animation (open, minimise, restore,
+  close): they mount MOUNT_RATE a frame from its trigger and unmount once it has settled. The
+  trigger is the animation's event, or earlier a prepare signal: the pointer on the title bar's
+  minimise or close button ('win.prepare', on hover and press) or on the window's taskbar
+  button (its 'hover' events), so the click finds the copies mounted and rasterised (they wait on
+  the window's rect at opacity 1e-4: drawn, so they rasterise; at opacity 0 Chrome would skip
+  them). An open mounts one copy a frame from its event (it shows 5 frames in; copies rasterise
+  in their first pose before that). How many layers a window blurs with is `copyCount`: the
+  app's (the video's) count under ?capture / ?bench, in real time what a per-window budget
+  allows (navigator.deviceMemory x 24 MB, 48-192 MB; 128 MB without the API; at most 64 MB on
+  coarse-pointer or small screens); and only the first two windows animating at once blur
+  (`blurringWindows`). Each window's layers sit in one group positioned by a transform, so a drag
+  moves one transform. `usesActive: true` marks Content that draws differently when the window
+  isn't active (otherwise focus changes don't re-render it).
   `src/os/ErrorBoundary.jsx` keeps a crash inside its window.
 - Input and the log: continuous input (window drags and resizes) goes through
   `core/time.jsx nextFrame`, one event per frame at the frame's time, emitted in the same render
@@ -175,7 +178,10 @@ opened, minimised, restored, closed; `node tools/appbench.mjs --dpr 1.5` prints 
 per-phase costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
 Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ...] [--prefill
 5000,20000] [--trace|--profile]` drags windows with CDP mouse events at a mouse's report rate in
-the real-time app (vsync off) and prints each run's frame-cost percentiles.
+the real-time app (vsync off) and prints each run's frame-cost percentiles. bench, appbench and
+dragbench also print the run's peak memory (physical footprint of the renderer + GPU processes,
+GPU allocations included: tools/lib/memory.mjs); `tools/memory.mjs` plays a long many-windows
+session on Chrome, Playwright WebKit or the iOS Simulator and prints the peak per phase.
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
 
