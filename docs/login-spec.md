@@ -25,6 +25,8 @@ demo input: src/demo/login.js.
 - Aurora on a taller stage (dh > 0): the fitted frame scaled up uniformly to the stage's height
   (k = h / 720), centred across, its sides cropped; ribbons wider and faster with it (Aurora.jsx
   view, aurora.js uScale). The UI stays at its offsets (the tiles, slab and panel on the bottom).
+  The ribbon the fit gave the bar's highlight line (along y 571-577, slot 7) is left out there:
+  scaled up it would show above the bar (aurora.js alongBar).
 - Aurora past the frame on a wider stage: coarse lattice points outside the frame take the fitted field's colour
   where a line through them along the field's grain (slope 0.36 up to the right, its least-varying
   direction) enters the frame; lines that miss it take the nearest corner's colour, settling over
