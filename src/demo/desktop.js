@@ -32,6 +32,8 @@ export const desktopDemo = [
   { frame: 693.5, type: 'desk.flypress', on: false },
   { frame: 693.5, type: 'desk.flyout', open: false },
   { frame: 693.5, type: 'music.open' },
+  // the video's slabs drift on their own once settled (real use: they hold and follow the pointer)
+  { frame: 693.5, type: 'slab.drift' },
 
   // the window is minimised from its title bar (music scene); a click on the taskbar's
   // My Music button restores it (the pointer reaches the button first: the window prepares)

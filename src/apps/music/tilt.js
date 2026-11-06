@@ -1,60 +1,53 @@
-// my Music's 3D slabs tilt towards the pointer once their spin-in has settled (instead of the
-// fitted idle drift): the target tilt comes from the pointer's position relative to the tile's
-// centre, and the slab follows it critically damped, so it eases in and settles without
-// overshoot; with the pointer outside the window the target is flat.
-// Pure: the tilt at t is the target over the last few T s (core/Cursor.jsx pointerAt, the
-// video's cursor under ?demo / ?capture) weighted by a critically damped step response's
-// derivative (h(s) = s / T^2 e^(-s / T)), so any frame renders the same at any seek order.
-// The login's selected tile uses the same feel (TILT).
-import { pointerAt } from '../../core/Cursor.jsx'
+// my Music's 3D slabs after their spin-in: in real use they hold their settled pose and turn
+// toward the pointer (core/tilt.js, the login's selected slab's feel); the video's idle drift
+// plays only when the log asks for it ('slab.drift', the demo's input: ?demo / ?capture match
+// the video) and fades out over DRIFT_OUT from the first pointer sample, so the two never fight.
+// Pointer samples are 'ptr' events (core/Cursor.jsx, real time only: none under ?demo /
+// ?capture), those since the slab settled plus the last one before it, re-timed to it.
+import { tiltAt } from '../../core/tilt.js'
+import { lastOfType, eventsOf } from '../../os/logIndex.js'
 
-export const TILT = {
-  max: (12 * Math.PI) / 180, // the largest tilt, rad (each axis)
-  radius: 180, // stage px from the tile's centre at which the tilt is full
-  T: 0.12, // s, the critically damped response's time constant
-}
-const K = 24 // samples of the response
-const SPAN = 6 // response length, in T
-const W = (() => {
-  const w = []
-  let sum = 0
-  for (let i = 0; i < K; i++) {
-    const s = ((i + 0.5) * SPAN * TILT.T) / K
-    const v = s * Math.exp(-s / TILT.T)
-    w.push([s, v])
-    sum += v
+export const DRIFT_OUT = 0.3 // s
+const DEG = Math.PI / 180
+
+// whether the video's idle drift plays at t
+export const drifting = (t) => lastOfType(t, 'slab.drift') != null
+
+const upTo = (a, t) => {
+  let lo = 0, hi = a.length
+  while (lo < hi) {
+    const m = (lo + hi) >> 1
+    if (a[m].t <= t) lo = m + 1
+    else hi = m
   }
-  return w.map(([s, v]) => [s, v / sum])
-})()
-
-const clamp1 = (v) => Math.max(-1, Math.min(1, v))
-// the tilt the pointer asks for at t: [rx, ry] (rad); r: the window's rect (stage px)
-function target(t, cx, cy, r) {
-  const p = pointerAt(t)
-  if (!p || p.hidden || p.x < r.x || p.x > r.x + r.w || p.y < r.y || p.y > r.y + r.h) return [0, 0]
-  return [clamp1((cy - p.y) / TILT.radius) * TILT.max, clamp1((p.x - cx) / TILT.radius) * TILT.max]
+  return lo
+}
+// the pointer samples from `from` to t: { t, x, y } or { t, gone } (the pointer outside the
+// window's rect r, or off the page)
+function samples(from, t, r) {
+  const a = eventsOf('ptr')
+  const n = upTo(a, t)
+  let i = upTo(a, from)
+  const out = []
+  const map = (e, at) => (e.hidden || e.x < r.x || e.x > r.x + r.w || e.y < r.y || e.y > r.y + r.h ? { t: at, gone: true } : { t: at, x: e.x, y: e.y })
+  if (i > 0) out.push(map(a[i - 1], from))
+  for (; i < n; i++) out.push(map(a[i], a[i].t))
+  return out
 }
 
-const memo = new Map()
-// -> [rx, ry] (rad) at t for a tile centred at (cx, cy) in window rect r (stage px)
-export function tiltAt(t, cx, cy, r) {
-  const key = `${t}|${cx}|${cy}|${r.x}|${r.y}|${r.w}|${r.h}`
-  let v = memo.get(key)
-  if (v) return v
-  let rx = 0, ry = 0
-  for (const [s, w] of W) {
-    const [a, b] = target(t - s, cx, cy, r)
-    rx += a * w
-    ry += b * w
-  }
-  v = [rx, ry]
-  if (memo.size > 256) memo.clear()
-  memo.set(key, v)
-  return v
+// -> { yaw, pitch } (deg) and drift (1: the video's drift in full .. 0: gone), for a slab that
+// settled at `from`, centred at c { x, y, hw, hh } (stage px) in window rect r; null: no pointer yet
+export function slabTilt(tt, from, c, r) {
+  if (tt <= from) return null
+  const s = samples(from, tt, r)
+  if (!s.length) return null
+  const { yaw, pitch } = tiltAt(tt, s, c)
+  const u = Math.max(0, Math.min(1, (tt - s[0].t) / DRIFT_OUT))
+  return { yaw, pitch, drift: 1 - u * u * (3 - 2 * u) }
 }
-// whether the tilt is still moving at t (the pointer moved within the response's length)
-export function tiltMoving(t, cx, cy, r) {
-  const a = tiltAt(t, cx, cy, r)
-  const b = tiltAt(t - 0.5 / 29.97, cx, cy, r)
-  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) > 1e-4
+
+// the pose with the tilt applied (the slab renderer's ry / rx turn the other way: ry -= yaw)
+export function applyTilt(pose, tilt) {
+  if (!tilt) return pose
+  return { ...pose, ry: pose.ry - tilt.yaw * DEG, rx: pose.rx - tilt.pitch * DEG }
 }
