@@ -117,7 +117,18 @@ export function Stage({ children }) {
       current = n
       setF(n)
     }
-    addEventListener('resize', on)
+    // (a resize can come before the layout has its new size: Mobile Safari applying index.html's
+    // viewport tag left the stage fitted to an earlier 787 px layout inside the 960 px page, at
+    // 0.82, in the simulator; so the size is checked again a frame later, and once after mounting)
+    let raf = 0
+    const later = () => {
+      on()
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(on)
+    }
+    addEventListener('resize', later)
+    window.visualViewport?.addEventListener('resize', later)
+    raf = requestAnimationFrame(on)
     // a new device pixel ratio without a resize (the window moved to another display): canvases
     // and seams follow it
     let mq = null
@@ -129,7 +140,9 @@ export function Stage({ children }) {
     const onDpr = () => (on(), watch())
     watch()
     return () => {
-      removeEventListener('resize', on)
+      removeEventListener('resize', later)
+      window.visualViewport?.removeEventListener('resize', later)
+      cancelAnimationFrame(raf)
       mq?.removeEventListener('change', onDpr)
     }
   }, [])
