@@ -14,11 +14,11 @@
 // and image is rasterised at the screen's density. Under a scale transform WebKit backs each
 // composited layer at its untransformed size x devicePixelRatio and stretches it (the live site
 // was blurry in Safari at any scale above 1), and Chrome can keep a will-change: transform layer
-// at a stale raster scale (my Music's window was soft once its album page had opened). Zoom's semantics (checked in Chrome, Playwright WebKit
-// and the system WebKit): every length inside is multiplied (transforms' px, filters, shadows,
-// borders, which snap to whole device px), getBoundingClientRect and event clientX/Y are in
-// viewport px (so toStage maps both), while offsetWidth, scrollTop, ResizeObserver and
-// getComputedStyle stay in stage px. An engine with the old zoom (rects divided by the zoom),
+// at a stale raster scale (my Music's window was soft once its album page had opened). Zoom's
+// semantics (checked in Chrome, Playwright WebKit and the system WebKit): every length inside is
+// multiplied (transforms' px, filters, shadows, borders, which snap to whole device px),
+// getBoundingClientRect and event clientX/Y are in viewport px (so toStage maps both), while
+// offsetWidth, scrollTop, ResizeObserver and getComputedStyle stay in stage px. An engine with the old zoom (rects divided by the zoom),
 // or none, keeps the transform. Phones keep it too: index.html lays their page out at the
 // stage's size with a page zoom, so the stage's own scale is 1 there and nothing changes.
 // ?stage=transform|zoom overrides the choice (comparisons).
