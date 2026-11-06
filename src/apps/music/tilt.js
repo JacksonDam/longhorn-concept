@@ -24,24 +24,32 @@ const upTo = (a, t) => {
 }
 // the pointer samples from `from` to t: { t, x, y } or { t, gone } (the pointer outside the
 // window's rect r, or off the page)
-function samples(from, t, r) {
+function samples(from, t, rAt) {
   const a = eventsOf('ptr')
   const n = upTo(a, t)
   let i = upTo(a, from)
   const out = []
-  const map = (e, at) => (e.hidden || e.x < r.x || e.x > r.x + r.w || e.y < r.y || e.y > r.y + r.h ? { t: at, gone: true } : { t: at, x: e.x, y: e.y })
+  const map = (e, at) => {
+    const r = rAt(at)
+    return e.hidden || e.x < r.x || e.x > r.x + r.w || e.y < r.y || e.y > r.y + r.h ? { t: at, gone: true } : { t: at, x: e.x, y: e.y }
+  }
   if (i > 0) out.push(map(a[i - 1], from))
   for (; i < n; i++) out.push(map(a[i], a[i].t))
   return out
 }
 
 // -> { yaw, pitch } (deg) and drift (1: the video's drift in full .. 0: gone), for a slab that
-// settled at `from`, centred at c { x, y, hw, hh } (stage px) in window rect r; null: no pointer yet
-export function slabTilt(tt, from, c, r) {
+// settled at `from`, at offset o { x, y } from its window's rect, half size hw x hh; rAt(t): the
+// window's rect at t (stage px: the slab moves with a dragged window, so a drag that carries the
+// pointer along doesn't turn it); null: no pointer yet
+export function slabTilt(tt, from, o, hw, hh, rAt) {
   if (tt <= from) return null
-  const s = samples(from, tt, r)
+  const s = samples(from, tt, rAt)
   if (!s.length) return null
-  const { yaw, pitch } = tiltAt(tt, s, c)
+  const { yaw, pitch } = tiltAt(tt, s, (at) => {
+    const r = rAt(at)
+    return { x: r.x + o.x, y: r.y + o.y, hw, hh }
+  })
   const u = Math.max(0, Math.min(1, (tt - s[0].t) / DRIFT_OUT))
   return { yaw, pitch, drift: 1 - u * u * (3 - 2 * u) }
 }

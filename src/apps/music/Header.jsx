@@ -395,7 +395,8 @@ function albumSlabFor(album) {
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
 // window's overlay layer). track / trackHover / playing: the page's track list state.
-// rect: the window's rect (stage px), for the slabs' pointer tilt (none: no tilt)
+// rect: the window's rect at a time (t => { x, y, w, h }, stage px), for the slabs' pointer tilt
+// (none: no tilt)
 export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, rect = null, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
@@ -406,7 +407,7 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   const settled = (poseAt, tt, t0, rest) => {
     const from = t0 + rest / FPS
     const base = poseAt(rest)
-    const tilt = rect ? slabTilt(tt, from, { x: rect.x + SC.x + base.x, y: rect.y + SC.y + base.y, hw: DEV.w / 2, hh: DEV.h / 2 }, rect) : null
+    const tilt = rect ? slabTilt(tt, from, { x: SC.x + base.x, y: SC.y + base.y }, DEV.w / 2, DEV.h / 2, rect) : null
     return applyTilt(poseAt(toRel(tt, t0), drift ? (tilt ? tilt.drift : 1) : 0), tilt)
   }
   // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate with
