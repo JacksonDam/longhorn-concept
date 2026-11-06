@@ -194,7 +194,10 @@ GPU allocations included: tools/lib/memory.mjs); `tools/memory.mjs` plays a long
 session on Chrome, Playwright WebKit or the iOS Simulator and prints the peak per phase.
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
-Memory (phones): `node tools/memory.mjs --engine chrome|webkit|ios`, see docs/briefs/perf.md.
+Memory (phones): `node tools/memory.mjs --engine chrome|webkit|ios` (peak footprint through a
+scripted session) and `node tools/layers.mjs` (WebKit's layer tree with each layer's memory and
+compositing reasons), see docs/briefs/perf.md. Wrappers around content placed by left / top are
+`core/point.js` POINT (0x0), not `inset: 0` boxes: WebKit backs an overlapping wrapper at its box.
 
 ## Usability audit
 `node tools/audit.mjs --url <base> --scenarios desktop,start,flyout,music,album,app:<id>,...`
