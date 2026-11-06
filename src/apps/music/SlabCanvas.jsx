@@ -47,17 +47,50 @@ export function warmSlabs(slab) {
   })
 }
 
+// A pool of canvases: a slab canvas whose layer unmounts (a blur copy after its animation) goes
+// back to the pool and the next one mounting takes it, so mounting a window's copies creates no
+// canvases (creating one, and its GPU buffer, costs the GPU process milliseconds); canvases left
+// in the pool for a few seconds are freed (when memory is freed never changes what is drawn).
+const pool = []
+const POOL_MAX = 24
+let poolTimer = null
+function takeCanvas() {
+  return pool.pop() || document.createElement('canvas')
+}
+function giveCanvas(c) {
+  c.remove()
+  drawn.delete(c)
+  if (pool.length >= POOL_MAX) return
+  pool.push(c)
+  clearTimeout(poolTimer)
+  poolTimer = setTimeout(() => {
+    for (const p of pool.splice(0)) p.width = p.height = 0
+  }, 3000)
+}
+
 // skip: keep the last pixels (the canvas is on an invisible layer)
 export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, phase = -0.5, P = 1000, origin, style, cacheKey, skip }) {
+  const host = useRef(null)
   const ref = useRef(null)
   const scene = useMemo(() => acquireSlabScene(), [])
   useEffect(() => () => releaseSlabScene(scene), [scene])
   const { s } = useStageScale()
-  // (device px per stage px, the page zoom included: see gl/Slab3D)
+  // (device px per stage px: devicePixelRatio as is, it includes a phone's page zoom)
   const scale = Math.min(3, s * (window.devicePixelRatio || 1))
   useLayoutEffect(() => {
+    const c = takeCanvas()
+    c.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%'
+    host.current.appendChild(c)
+    ref.current = c
+    return () => {
+      ref.current = null
+      giveCanvas(c)
+    }
+  }, [])
+  useLayoutEffect(() => {
     const c = ref.current
-    if (!c || skip) return
+    // (skip: keep the pixels, once there are some)
+    if (!c || (skip && drawn.has(c))) return
     const n = Math.max(1, samples)
     const times = []
     for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + shutter * ((k + 0.5) / n + phase))
@@ -85,5 +118,5 @@ export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, 
     })
     if (cacheKey) shared.set(cacheKey, { key, canvas: c })
   })
-  return <canvas ref={ref} style={{ position: 'absolute', width, height, pointerEvents: 'none', ...style }} />
+  return <div ref={host} style={{ position: 'absolute', width, height, pointerEvents: 'none', ...style }} />
 }

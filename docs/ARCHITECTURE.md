@@ -96,13 +96,21 @@ OS in the same style. Everything still derives from (time, event log).
   minimised, closed or never-shown window has none (it unmounts; everything is f(t, log), so it
   remounts exactly). Motion-blur copies, each drawing the app's full Content (memoised snapshots,
   `copyKey`; no stand-in copies), exist only around a blurred animation (open, minimise, restore,
-  close): they mount MOUNT_RATE a frame from its trigger and unmount once it has settled. The
-  trigger is the animation's event, or earlier a prepare signal: the pointer on the title bar's
-  minimise or close button ('win.prepare', on hover and press) or on the window's taskbar
-  button (its 'hover' events), so the click finds the copies mounted and rasterised (they wait on
-  the window's rect at opacity 1e-4: drawn, so they rasterise; at opacity 0 Chrome would skip
-  them). An open mounts one copy a frame from its event (it shows 5 frames in; copies rasterise
-  in their first pose before that). How many layers a window blurs with is `copyCount`: the
+  close). From its trigger they grow a step a video frame, each copy in three steps: mounted
+  (React work, under content-visibility: hidden), laid out (visibility: hidden), shown (painted
+  and rasterised, waiting on the window's rect at opacity 1e-4: drawn, so it rasterises; at
+  opacity 0 Chrome would skip it); once it has settled they unmount a step at a time, and a new
+  need carries the layers still mounted over. A copy whose content equals copy 1's is a DOM clone
+  of copy 1's body (`CloneBody`: no React mount; canvases get their pixels copied); my Music's
+  slab canvases come from a pool. The trigger is the animation's event, or earlier a prepare
+  signal: the pointer on the title bar's minimise or close button ('win.prepare', held while the
+  pointer rests there, and on press) or on the window's taskbar button (its 'hover' events), so
+  the click finds the copies ready; a hidden window's live layer mounts whole on the first step,
+  so an animation without a lead (a tap) shows on time with the copies joining as they're ready.
+  The demo and the bench scripts give each minimise, restore and close the prepare a pointer
+  would (src/apps/lib/benchScript.js withPrepares). An open mounts one copy a frame from its
+  event (it shows 5 frames in; copies rasterise in their first pose before that). How many
+  layers a window blurs with is `copyCount`: the
   app's (the video's) count under ?capture / ?bench, in real time what a per-window budget
   allows (navigator.deviceMemory x 24 MB, 48-192 MB; 128 MB without the API; at most 64 MB on
   coarse-pointer or small screens); and only the first two windows animating at once blur

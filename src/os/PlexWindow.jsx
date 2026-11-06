@@ -14,7 +14,7 @@
 // it has settled. How many a window gets is a device budget (copyCount; the video's count under
 // ?capture / ?bench). Per-copy overlays that change every frame (the open's lighting, the app's
 // Overlay such as my Music's 3D slabs) sit outside the memoised content.
-import { memo, useRef } from 'react'
+import { memo, useLayoutEffect, useRef } from 'react'
 import { ErrorBoundary } from './ErrorBoundary.jsx'
 import { emit, getLog, getVersion, getEpoch } from '../core/events.js'
 import { eventsOf } from './logIndex.js'
@@ -161,13 +161,14 @@ const WindowBody = memo(
   // outline is rounded, the bars inside it run square to its edges and the client area is
   // clipped to its corners
   // cut: the top chrome's height (app chromeTop); its leftmost pixel column is left to the rim
-  function WindowBody({ win, app, t, w, h, active, live, ck, defer, rt = RADIUS_TOP, rb = RADIUS_BOTTOM, cut = 0 }) {
+  function WindowBody({ win, app, t, w, h, active, live, ck, defer, rt = RADIUS_TOP, rb = RADIUS_BOTTOM, cut = 0, slot }) {
     const explorer = !!app.explorer
     const bare = app.chrome === 'none'
     const topH = bare ? 0 : explorer ? EXPLORER_TOP : TITLE_H
     const Content = app.Content
     return (
       <div
+        ref={slot ? (el) => (slot.el = el) : undefined}
         style={{
           position: 'absolute', left: 0, top: 0, width: w, height: h, borderRadius: `${rt}px ${rt}px ${rb}px ${rb}px`, overflow: 'hidden',
           clipPath: bodyClip(w, h, rt, rb, cut),
@@ -195,6 +196,30 @@ const WindowBody = memo(
     (a.ck != null && a.ck === b.ck ? true : sameRelT(a, b)) &&
     a.w === b.w && a.h === b.h && a.rt === b.rt && a.rb === b.rb && a.cut === b.cut && (a.active === b.active || !a.app.usesActive) && a.live === b.live && a.app === b.app && a.defer === b.defer && winKey(a.win) === winKey(b.win),
 )
+// A motion-blur copy whose content is the same as copy 1's (the usual case: copies only differ
+// while the content changes, see STAGGER) is a DOM clone of copy 1's body instead of a second
+// React rendering of it: cloneNode is native, a React mount of a full window's content costs a
+// few ms of JS per copy. Canvases get their pixels copied (cloneNode copies the element only).
+// Copies draw no inputs, menus or hover (ui/scope.jsx), so the clone draws what a rendering would.
+const CloneBody = memo(
+  function CloneBody({ src, cloneKey }) {
+    const ref = useRef(null)
+    useLayoutEffect(() => {
+      const host = ref.current
+      if (!host || !src.el) return
+      const c = src.el.cloneNode(true)
+      const from = src.el.getElementsByTagName('canvas')
+      if (from.length) {
+        const to = c.getElementsByTagName('canvas')
+        for (let i = 0; i < from.length; i++) to[i].getContext('2d').drawImage(from[i], 0, 0)
+      }
+      host.replaceChildren(c)
+    }, [src, cloneKey])
+    return <div ref={ref} style={{ position: 'absolute', left: 0, top: 0 }} />
+  },
+  (a, b) => a.cloneKey === b.cloneKey && a.src === b.src,
+)
+
 // content time relative to the window's open (layers at the same relative time render identical
 // content)
 const sameRelT = (a, b) => Math.abs(a.t - a.win.openedAt - (b.t - b.win.openedAt)) < 1e-9
@@ -404,9 +429,10 @@ function motion(win, app, t) {
 // ---------------------------------------------------------------- the window
 // the app's live overlay, memoised: blur copies pass their snapshot time, so their overlay
 // renders once per snapshot instead of every frame
-// (every mounted layer's overlay draws, shown on its layer: a copy waiting for its animation at a
-// near-zero opacity has its canvases drawn and composited when it shows; hiding them until then
-// costs a re-layerisation on the animation's frame)
+// (a layer that doesn't show (a copy waiting for its animation at a near-zero opacity) draws its
+// overlay once and then keeps those pixels (skip) until it shows: its canvases exist and are
+// composited when the animation starts, and waiting costs no redraws; hiding them instead costs a
+// re-layerisation on the animation's frame)
 const OverlayLayer = memo(
   function OverlayLayer({ Overlay, win, t, skip, hidden }) {
     return <Overlay win={win} t={t} skip={skip} hidden={hidden} />
@@ -475,7 +501,6 @@ function liveContentT(win, app, t) {
 // mount the same. The live layer exists while the window shows (or is about to, see below);
 // copies exist from the trigger of a blurred animation to a little after it has settled.
 export const DEFAULT_COPIES = 6 // blur copies per window (my Music, the video's window: 10)
-const MOUNT_RATE = 2 // layers mounted per video frame once a window's copies are wanted
 const PREP_HOLD = 1.5 // s: how long a prepare keeps them after the pointer has left the control
 
 // How many layers (live + copies) a window may have while it blurs: the app's (the video's) count
@@ -556,15 +581,23 @@ function prepared(win, t) {
   const span = animSpan(win)
   return p != null && !(span && span[0] <= t && p <= span[0]) ? p : null
 }
-// -> the number of layers mounted at t (0: none, the window renders nothing)
-function layersAt(win, app, t, N) {
+// When the last run of prepare signals ended (each holds PREP_HOLD s after it, a hover until its
+// leave), if it has ended by t
+function prepEnd(win, t) {
+  let end = null
+  for (const a of [eventsOf('win.prepare', win.id), eventsOf('hover', 'tb.' + win.id)]) {
+    const i = upTo(a, t) - 1
+    if (i < 0 || a[i].on === true) continue
+    const e = a[i].t + PREP_HOLD
+    if (e <= t && (end == null || e > end)) end = e
+  }
+  return end
+}
+// the start of the need for layers beyond the resting ones at t (a prepare or a blurred
+// animation), or null
+function needFrom(win, t) {
   const span = animSpan(win)
   const inAnim = span && t >= span[0] && t < span[1]
-  if (inAnim && win.lastAction === 'open') {
-    // the open: the live layer on the open's frame (its content on the next), then a copy a
-    // frame (the open shows from rel 5; the copies rasterise in their first pose before it)
-    return Math.max(1, Math.min(N, Math.floor(toRel(t, win.openedAt) + 1e-6)))
-  }
   let from = prepared(win, t)
   if (inAnim) {
     const p = prepStart(win, span[0])
@@ -574,9 +607,51 @@ function layersAt(win, app, t, N) {
     // layers stay mounted from then on, none unmounts in between
     from = Math.min(from, span[0], prepStart(win, span[0]) ?? Infinity)
   }
-  const shows = win.state === 'open' && win.lastAction !== 'initial'
-  if (from == null) return shows ? 1 : 0
-  return Math.max(1, Math.min(N, 1 + Math.floor(toRel(t, from) * MOUNT_RATE + 1e-6)))
+  return from
+}
+// the layers that stay when nothing is wanted: the live window while it shows
+const restingLayers = (win) => (win.state === 'open' && win.lastAction !== 'initial' ? 1 : 0)
+// Layers grow one step at a time from the need's start, each in three steps: mounted (its DOM
+// and React work, under content-visibility: hidden: no style, layout or paint yet), laid out
+// (visibility: hidden: style and layout, no paint), shown (painted and rasterised, waiting on
+// the window's rect at a near-zero opacity). STEP steps a video frame, one at a time, so no frame
+// does more than one of them. -> { mounted, laid, ready }
+const STEP = 1
+const PH = 3
+// (a hidden window's live layer mounts whole on the first step: an animation that starts at once,
+// a tap on its taskbar button, shows the window on time, its copies joining as they're ready)
+function grown(win, t, N, from, base) {
+  let s = Math.floor(toRel(t, from) * STEP + 1e-6)
+  if (base === 0) {
+    if (s < 0) return { mounted: 0, laid: 0, ready: 0 }
+    base = 1
+    s -= 1
+  }
+  const at = (d) => base + Math.min(N - base, Math.max(0, Math.floor((s - d) / PH) + 1))
+  return { mounted: at(0), laid: at(1), ready: at(2) }
+}
+// -> { mounted, laid, ready }: the layers that exist at t (0: none, the window renders nothing),
+// how many of them are laid out and how many shown (the first `ready`; the others wait hidden)
+function residency(win, app, t, N, depth = 0) {
+  const span = animSpan(win)
+  if (span && t >= span[0] && t < span[1] && win.lastAction === 'open') {
+    // the open: the live layer on the open's frame (its content on the next), then a copy a
+    // frame (the open shows from rel 5; the copies rasterise in their first pose before it)
+    const n = Math.max(1, Math.min(N, Math.floor(toRel(t, win.openedAt) + 1e-6)))
+    return { mounted: n, laid: n, ready: n }
+  }
+  const base = restingLayers(win)
+  // (the layers still mounted from the need before (shrinking, or resting) carry over: a new need
+  // grows from them, none unmounts to be mounted again)
+  const carried = (at) => (depth < 3 ? residency(win, app, at - 1e-6, N, depth + 1).mounted : base)
+  const from = needFrom(win, t)
+  if (from != null) return grown(win, t, N, from, Math.max(base, carried(from)))
+  // the need has ended (its animation settled, its prepare expired): the extra layers unmount one
+  // a step, the last mounted first, so no frame tears down more than one window copy
+  const end = Math.max(span && span[1] <= t ? span[1] : -Infinity, prepEnd(win, t) ?? -Infinity)
+  if (end === -Infinity) return { mounted: base, laid: base, ready: base }
+  const n = Math.max(base, carried(end) - Math.floor(toRel(t, end) * STEP + 1e-6))
+  return { mounted: n, laid: n, ready: n }
 }
 
 // a window layer that shows nothing: parked off-stage at a near-zero opacity (painted, not
@@ -591,10 +666,9 @@ const REST = { opacity: 1e-4 }
 // this key changes only with its own events and prepare signals, so WindowLayer can skip
 // re-rendering it. null = the window shows, animates or is being prepared.
 export function quietKey(win, app, t) {
-  const span = animSpan(win)
-  if (span && t < span[1]) return null
   if (win.state === 'open' && win.lastAction !== 'initial') return null
-  if (prepared(win, t) != null) return null
+  const N = app.copies ?? DEFAULT_COPIES
+  if (residency(win, app, t, N).mounted > 0) return null
   // hidden and unprepared: nothing mounted until its next event or prepare signal
   const sig = upTo(eventsOf('win.prepare', win.id), t) + upTo(eventsOf('hover', 'tb.' + win.id), t)
   return `${win.lastAction}|${win.state}|${win.changedAt}|${sig}|${winKey(win)}`
@@ -605,8 +679,8 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   const m = motion(win, app, t)
   const r = m.rect(t)
   const N = blurs ? copyCount(app, normalRect(win, app)) : 1
-  const mounted = layersAt(win, app, t, N)
-  const nEff = Math.min(m.n, mounted)
+  const { mounted, laid, ready } = residency(win, app, t, N)
+  const nEff = Math.min(m.n, ready)
   const blur = nEff > 1 && m.pose
   const live = m.frozen ?? t
   const topH = app.chrome === 'none' ? app.topH ?? EXPLORER_TOP : app.explorer ? EXPLORER_TOP : TITLE_H
@@ -620,6 +694,9 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   // an opening window mounts its frame and chrome on the open event's frame and the content on
   // the next (it shows from rel 5), so the two mounts don't share a frame
   const contentMounted = useRef(false)
+  // per copy index: { el } of its React-rendered body (copy 1 is the source copies clone)
+  const slots = useRef(null)
+  if (!slots.current) slots.current = []
   const deferContent = !contentMounted.current && win.lastAction === 'open' && toRel(t, win.openedAt) < 1 - 1e-6
   if (!deferContent) contentMounted.current = true
   if (mounted === 0) {
@@ -635,10 +712,14 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   // and an inactive window's wash covers it
   const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const layers = []
+  let key1 = null
   for (let k = 0; k < mounted; k++) {
     let style
     let tt = t
-    if (blur && k < nEff) {
+    // (a layer still growing waits hidden: see grown)
+    const waiting = k >= ready
+    if (waiting) style = rest
+    else if (blur && k < nEff) {
       tt = t + (m.shutter / FPS) * ((k + 0.5) / nEff + m.phase)
       const p = m.pose(tt)
       style = { ...poseCss(p), opacity: Math.max(0, p.op) / nEff }
@@ -663,6 +744,16 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
       ct = app.snapshot ? app.snapshot(win, tk, ev, settle) : Math.max(win.openedAt, ev) + settle
     }
     if (k === 0) live0 = { style, rr, mk }
+    const ck = k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined
+    // what a copy's body draws (WindowBody's memo inputs): equal keys draw the same pixels
+    const bodyKey = k > 0 ? `${ck ?? Math.round((ct - win.openedAt) * 1e6)}|${rr.w}|${rr.h}|${radius.top}|${radius.bottom}|${winKey(win)}` : null
+    if (k === 1) key1 = bodyKey
+    let body
+    if (k >= 2 && bodyKey === key1 && slots.current[1]?.el) body = <CloneBody src={slots.current[1]} cloneKey={bodyKey} />
+    else {
+      if (k > 0 && !slots.current[k]) slots.current[k] = { el: null }
+      body = <WindowBody defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={ck} slot={k > 0 ? slots.current[k] : undefined} />
+    }
     const visible = style !== PARKED && style.opacity > 1e-3
     // the open's lighting layers: on the live layer always, on copies until the open is over
     // (unmounted one copy per frame afterwards)
@@ -676,14 +767,16 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         style={{
           position: 'absolute', left: rr.x - r.x, top: rr.y - r.y, width: rr.w, height: rr.h,
           ...style, mixBlendMode: 'plus-lighter', willChange: 'transform, opacity',
+          contentVisibility: k >= laid ? 'hidden' : undefined,
+          visibility: waiting ? 'hidden' : undefined,
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
         <LiveLayers.Provider value={k === 0}>
-          <WindowBody defer={k === 0 && deferContent} win={win} app={app} t={ct} w={rr.w} h={rr.h} rt={radius.top} rb={radius.bottom} cut={k > 0 || mk > 0 ? 0 : chromeTop} active={k === 0 ? active : false} live={k === 0} ck={k > 0 && app.copyKey ? app.copyKey(win, ct) : undefined} />
+          {body}
         </LiveLayers.Provider>
-        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={false} hidden={false} />}
+        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={!visible} hidden={false} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius.top} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
