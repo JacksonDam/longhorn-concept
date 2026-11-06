@@ -18,6 +18,7 @@ import {
 } from './icons.jsx'
 import { GLASS_BLUR, GLASS_K } from './glassFit.js'
 import { POINT } from '../../core/point.js'
+import { seam, useStageScale } from '../../core/Stage.jsx'
 
 export const PANEL = { x: 858, y: 0, w: 102, h: 700 }
 const L = PANEL.x // panel left, all coordinates below are absolute stage px
@@ -232,18 +233,23 @@ export const TILES = [
 // of video frames 521-523 and the clock foot (rows 700-720) of the later frames, against
 // Chrome's own blur of the wallpaper. See docs/desktop-spec.md.
 const BLUR = `blur(${GLASS_BLUR}px)`
-const TRANSMISSION =
-  'linear-gradient(to right,' + GLASS_K.map(([c, k]) => `rgba(0,0,0,${(1 - k).toFixed(3)}) ${c + 0.5}px`).join(',') + ')'
+// (ox: px the glass's box starts left of PANEL.x, its edge being on a whole device pixel to meet
+// the taskbar: Stage.jsx seam; the transmission and the tint stay where they were fitted)
+const transmission = (ox) =>
+  'linear-gradient(to right,' + GLASS_K.map(([c, k]) => `rgba(0,0,0,${(1 - k).toFixed(3)}) ${(c + 0.5 + ox).toFixed(3)}px`).join(',') + ')'
 // The glass carries its own opacity (the entrance fade): an ancestor with opacity < 1 (or a
 // filter, mask, blend mode or isolation) would become the backdrop root, the blur would see
 // nothing and the tint would add to nothing. data-glass: tools/desktop/fit_glass.py empties
 // both layers to capture the bare blur.
 const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
+  useStageScale()
+  const left = seam(PANEL.x)
+  const ox = PANEL.x - left
   const box = {
     position: 'absolute',
-    left: PANEL.x,
+    left,
     top,
-    width: PANEL.w,
+    width: PANEL.x + PANEL.w - left,
     height,
     transform: dx ? `translateX(${dx}px)` : undefined,
     opacity: o,
@@ -251,13 +257,13 @@ const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
   }
   return (
     <>
-      <div data-glass="" style={{ ...box, backdropFilter: BLUR, WebkitBackdropFilter: BLUR, background: TRANSMISSION }} />
+      <div data-glass="" style={{ ...box, backdropFilter: BLUR, WebkitBackdropFilter: BLUR, background: transmission(ox) }} />
       <div
         data-glass=""
         style={{
           ...box,
           mixBlendMode: 'plus-lighter',
-          background: `url(${asset('img/desktop/glass-tint.webp')}) 0 ${-top}px / ${PANEL.w}px 720px`,
+          background: `url(${asset('img/desktop/glass-tint.webp')}) ${ox}px ${-top}px / ${PANEL.w}px 720px`,
         }}
       />
     </>

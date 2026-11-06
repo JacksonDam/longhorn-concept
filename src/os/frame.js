@@ -20,8 +20,13 @@ export const BODY_TOP = 3
 // A maximised window's body fills the work area exactly: from the top of the screen down to the
 // taskbar's top row (699) and across to the sidebar's edge (858). Its layer starts BODY_TOP px
 // above the screen, so the rim's top edge lies off-screen and the title bar keeps its look.
+// It reaches TUCK px further, under the sidebar's glass and the taskbar (both drawn above it):
+// at a phone's page zoom an edge falls inside a device pixel and Safari rounds each layer's edges
+// on its own, so two layers that only met left a column neither fully covered, the wallpaper
+// showing through as a seam beside the sidebar.
 export const WORK = { x: 0, y: 0, w: 858, h: 699 }
-export const MAX_RECT = { x: WORK.x, y: WORK.y - BODY_TOP, w: WORK.w, h: WORK.h + BODY_TOP }
+const TUCK = 1
+export const MAX_RECT = { x: WORK.x, y: WORK.y - BODY_TOP, w: WORK.w + TUCK, h: WORK.h + BODY_TOP + TUCK }
 
 // The vertical centre of the title bar's minimise / maximise / close glyphs (window px: the glyphs
 // span y 7.7-15.8, PlexWindow WinButtonsIcon). Title text is centred on it by its cap height:

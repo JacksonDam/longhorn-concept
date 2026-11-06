@@ -5,7 +5,7 @@ import { CAPTURE, FPS } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { clamp, ease } from '../../core/anim.js'
 import { Tooltip, ContextMenu, pt } from '../../ui/index.js'
-import { Bar, StartFlag, StartLabel, Clock, ShutDot, ClockChevron, EarlyBarTint } from './Taskbar.jsx'
+import { StartFlag, StartLabel, Clock, ShutDot, ClockChevron, EarlyBarTint } from './Taskbar.jsx'
 import { TaskGroup, taskMenuItems } from './TaskGroup.jsx'
 import { ramp } from './timing.js'
 import { hover, popupState, togglePopup, toggleSidebar } from './shellState.js'
@@ -94,7 +94,6 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
   const newLabel = DEMO ? '11:31 am' : realTime()
   return (
     <div style={{ ...POINT, pointerEvents: 'none' }}>
-      <Bar o={bar} />
       <Fade o={bar * (1 - built)}>{EARLY}</Fade>
       <TaskGroup t={t} f={f} />
       <StartGlow t={t} />

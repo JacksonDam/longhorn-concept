@@ -214,9 +214,11 @@ Files (src/scenes/desktop unless noted):
 - `src/os/session.js` (shared with the session builder): currentUser / userInfo / wallpaper;
   `src/os/media.js`: the silent player; `src/os/logIndex.js`: indexed event lookups.
 - `src/apps/display`: Display Properties (Stonehenge, the leaf stand-in, plain colours).
-- `src/demo/shell.js` + `?scenario=shell`: scripted shell input for bench/capture (frames 1-720;
+- `src/demo/shell.js` + `?scenario=shell`: scripted shell input for bench/capture (frames 1-780;
   520-720: a window dragged under the sidebar glass, the sidebar hidden and shown over it,
-  Refresh, the window dragged back out, the leaf, blue, black and photo wallpapers).
+  Refresh, the window dragged back out, the leaf, blue, black and photo wallpapers; 715-780:
+  Notepad maximised against the sidebar's glass and the taskbar, the place to check the seams
+  between them at a phone's page zoom, e.g. in the iPhone simulator with ?demo&scenario=shell).
 - Details: task buttons show their full label as a tooltip and have a Restore / Minimize /
   Maximize / Close menu on right-click; the calendar pages through months and selects days;
   a mail row moves the sidebar's selection, marks the mail read and opens it; Windows Tour and

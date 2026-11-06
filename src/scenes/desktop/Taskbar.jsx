@@ -6,6 +6,7 @@ import { emit } from '../../core/events.js'
 import { pt } from '../../ui/index.js'
 import { Chevron } from './icons.jsx'
 import { GLASS_BLUR } from './glassFit.js'
+import { seam, useStageScale } from '../../core/Stage.jsx'
 
 export const BAR_TOP = 699
 
@@ -110,11 +111,38 @@ export const GroupBg = memo(function GroupBg({ x0, x1 }) {
 // backdrop root and the blur would see nothing).
 const BLUR = `blur(${GLASS_BLUR}px)`
 const BAR_BG = rowsGradient(BAR_ROWS, 0.55)
+//
+// It meets the sidebar's clock foot on a whole device pixel (Stage.jsx seam), and its blurring
+// element reaches REACH px past every edge under a clip that cuts it back: Safari draws the last
+// device pixel along a blurring element's edge dark, which at the foot made a dark line down the
+// left of the clock. The clip is overflow: hidden (neither a backdrop root nor a stacking context).
+// DesktopScene draws the bar below the sidebar, so what it blurs past its right edge is the
+// wallpaper or a window there, not the foot's glass.
+const REACH = 12
 export const Bar = memo(function Bar({ o = 1 }) {
+  useStageScale()
   const vis = { opacity: o, visibility: o > 0 ? 'visible' : 'hidden' }
+  const w = seam(858)
   return (
     <>
-      <div style={{ position: 'absolute', left: 0, top: BAR_TOP, width: 858, height: 21, background: BAR_BG, backdropFilter: BLUR, WebkitBackdropFilter: BLUR, ...vis }} />
+      <div style={{ position: 'absolute', left: 0, top: BAR_TOP, width: w, height: 21, overflow: 'hidden' }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: -REACH,
+            top: -REACH,
+            width: w + 2 * REACH,
+            height: 21 + 2 * REACH,
+            background: BAR_BG,
+            backgroundSize: '100% 21px',
+            backgroundPosition: `0 ${REACH}px`,
+            backgroundRepeat: 'no-repeat',
+            backdropFilter: BLUR,
+            WebkitBackdropFilter: BLUR,
+            ...vis,
+          }}
+        />
+      </div>
       <div style={{ position: 'absolute', left: 0, top: 700, width: 60, height: 20, background: 'linear-gradient(to right, rgba(30,40,90,0.22), rgba(30,40,90,0.12) 30px, rgba(30,40,90,0) 60px)', ...vis }} />
     </>
   )

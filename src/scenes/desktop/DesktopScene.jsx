@@ -15,6 +15,7 @@ import { IconDefs } from './icons.jsx'
 import { Sidebar, PANEL } from './Sidebar.jsx'
 import { SidebarHits, SidebarLive, mailState } from './SidebarHits.jsx'
 import { TaskbarLayer } from './TaskbarLayer.jsx'
+import { Bar } from './Taskbar.jsx'
 import { Flyout, flyoutState, closeFlyout, hoverLevel, FLY_MENU } from './Flyout.jsx'
 import { StartMenu } from './StartMenu.jsx'
 import { WeatherFlyout, CalendarFlyout } from './Flyouts.jsx'
@@ -140,6 +141,8 @@ export function DesktopScene({ since, user: userId }) {
       {/* the desktop surface: right-click opens the desktop menu */}
       <div style={{ position: 'absolute', inset: 0 }} onContextMenu={contextHandler('desk.ctx', DESK_MENU, () => closePopups())} />
       <WindowLayer />
+      {/* the taskbar's glass, below the sidebar (Taskbar.jsx Bar); the rest of the taskbar is above it */}
+      <Bar o={ramp(f, 516, 520)} />
       <Sidebar opacity={op} haze={haze} mediaHL={mediaHL} user={user} media={media} slide={slide} mail={mailState(t, since)} live={<SidebarLive t={t} />} hits={SIDEBAR_HITS} />
       <TaskbarLayer t={t} f={f} sidebarHidden={!sb.visible} sidebarAt={sb.at} />
       <Flyout t={t} />

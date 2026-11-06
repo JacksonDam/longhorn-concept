@@ -61,8 +61,11 @@ export const shellScenario = [
   { frame: 680, type: 'desk.wallpaper', kind: 'color', color: '#000000' },
   { frame: 695, type: 'desk.wallpaper', kind: 'photo' },
   { frame: 705, type: 'win.close', id: 'documents' },
+  // a maximised window against the sidebar's glass and the taskbar
+  { frame: 715, type: 'win.open', id: 'notepad', app: 'notepad' },
+  { frame: 735, type: 'win.maximize', id: 'notepad' },
 ]
-export const SHELL_FRAMES = '1-720'
+export const SHELL_FRAMES = '1-780'
 
 // a window drag: one 'win.move' per frame, easing out
 function drag(id, f0, f1, x0, y0, x1, y1) {
