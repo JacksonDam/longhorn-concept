@@ -12,6 +12,27 @@ demo input: src/demo/login.js.
 - Coarse colour field: cubic B-spline grid (30 px spacing) keyframed every 4 frames; thin ribbons:
   keyframed curves drawn in the shader.
 
+## Wider and taller screens (layout.js, aurora.js, Bar.jsx)
+- The stage is the frame widened or heightened to the screen's shape (core/Stage.jsx: dw, dh past
+  960x720; pinned to the frame under ?capture, ?bench and ?demo, where every offset below is 0).
+  The login keeps the frame's relations: logo top right (+dw), Shut Down bottom left (+dh), clock
+  bottom right (+dw, +dh), the bar's band full width on the bottom (+dh), and the frame's middle
+  (tiles, slab, halo, panel, the aurora's fitted field) centred across on the bottom edge
+  (+dw / 2, +dh; layout.js frameOffset). Offsets are whole device pixels (Stage.jsx seam).
+  'login.pointer' samples are in that middle's coordinates. The slab's exit bends over to the
+  stage's top right corner (exit.js slabExit corner). The power screens and the shutting-down
+  message are centred (+dw / 2, +dh / 2).
+- Aurora past the frame: coarse lattice points outside the frame take the fitted field's colour
+  where a line through them along the field's grain (slope 0.36 up to the right, its least-varying
+  direction) enters the frame; lines that miss it take the nearest corner's colour, settling over
+  240 px to that corner's loop-averaged colour. Ribbons run on past x 0 / 960 along their tangent
+  with their colour held. Nothing is stretched.
+- Bar band on a wider stage: its left 120 px and right 160 px stay at the stage's ends, the middle
+  stretches across (parts joined on device pixels).
+- The aurora draws at the screen's pixel density (up to 3 device px per stage px), in two passes
+  where float render targets exist (per canvas column: ribbon centrelines, slopes, colours and the
+  coarse rows; then per pixel lookups), else one; ?aurora=one forces the single pass.
+
 ## Logo (Logo.jsx)
 - Lockup = assets-src derived XP stacked logo (535 x 356.2 units), drawn at 142.1 px wide,
   top-left (706.25, 48.4). Split by paths into flag.svg (flag + shadow, recoloured) and
