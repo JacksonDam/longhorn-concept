@@ -209,8 +209,9 @@ const accumQuad = (() => {
   return () => {
     if (q) return q
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uTex: { value: null }, uScale: { value: 1 } },
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      // (uUv: the part of the target the render covers, see targets)
+      uniforms: { uTex: { value: null }, uScale: { value: 1 }, uUv: { value: new THREE.Vector2(1, 1) } },
+      vertexShader: 'varying vec2 vUv; uniform vec2 uUv; void main(){ vUv = uv * uUv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: 'varying vec2 vUv; uniform sampler2D uTex; uniform float uScale; void main(){ gl_FragColor = texture2D(uTex, vUv) * uScale; }',
       depthTest: false,
       depthWrite: false,
@@ -224,15 +225,31 @@ const accumQuad = (() => {
   }
 })()
 
-const rtCache = new Map() // size -> { sample, accum, w, h }
-function targets(w, h) {
+// Render targets come in a few sizes, 256 px steps, the render using their bottom-left part: a
+// canvas whose size changes every frame (the login's slab canvas, cropped to its slabs) reuses
+// one pair instead of allocating one per size, which grew GPU memory frame by frame and with it
+// the state a frame was drawn in (a frame then rendered differently after others than alone).
+// The three most recently used sizes stay allocated.
+const STEP_PX = 256
+const KEEP = 3
+const rtCache = new Map() // size -> { sample, accum, w, h }, most recently used last
+function targets(pw, ph) {
+  const w = Math.min(MAX, Math.ceil(pw / STEP_PX) * STEP_PX)
+  const h = Math.min(MAX, Math.ceil(ph / STEP_PX) * STEP_PX)
   const key = w + 'x' + h
   let t = rtCache.get(key)
-  if (!t) {
+  if (t) rtCache.delete(key)
+  else {
     const opts = { type: THREE.HalfFloatType, depthBuffer: true, samples: 4 }
     t = { sample: new THREE.WebGLRenderTarget(w, h, opts), accum: new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType }), w, h }
-    rtCache.set(key, t)
+    for (const [k, old] of rtCache) {
+      if (rtCache.size < KEEP) break
+      old.sample.dispose()
+      old.accum.dispose()
+      rtCache.delete(k)
+    }
   }
+  rtCache.set(key, t)
   return t
 }
 // the drawing buffer: as large as the largest target size in use (resizing it reallocates it)
@@ -340,8 +357,10 @@ export function renderSlabs(ctx2d, slabScene, items, times, view) {
   const ph = Math.min(MAX, Math.max(1, Math.round(ch * scale)))
   setupCamera(slabScene.camera, cw, ch, view.P ?? 1000, view.ox ?? cw / 2, view.oy ?? ch / 2)
   slabScene.ensure(items.length)
-  const { sample, accum } = targets(pw, ph)
+  const tg = targets(pw, ph)
+  const { sample, accum } = tg
   const q = accumQuad()
+  q.mat.uniforms.uUv.value.set(pw / tg.w, ph / tg.h)
   const n = times.length
   r.setRenderTarget(accum)
   r.setViewport(0, 0, pw, ph)
