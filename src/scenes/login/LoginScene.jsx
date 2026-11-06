@@ -14,6 +14,7 @@ import { Panel } from './Panel.jsx'
 import { rowState } from './select.js'
 import { currentSelection, submitEvent, passwordLength } from './state.js'
 import { LOGIN_EXIT, layerOpacity, chromeExit } from './exit.js'
+import { POINT } from '../../core/point.js'
 
 export { LOGIN_EXIT }
 
@@ -61,9 +62,11 @@ export function LoginScene({ visible = true }) {
   useKeys(visible)
   // While hidden, the content stays mounted but frozen as a fresh login screen (t = 0: no
   // selection, nothing typed) on an invisible layer, so coming back (log off, boot) is a small
-  // update, not a mount; the aurora keeps its canvas and GL context, paused.
+  // update, not a mount; the aurora keeps its canvas and GL context, paused. Its rendering is
+  // skipped meanwhile (content-visibility): WebKit otherwise keeps every composited layer of a
+  // hidden subtree backed (a phone kept ~10 MB of login layers under the desktop).
   return (
-    <div style={{ position: 'absolute', inset: 0, visibility: visible ? 'visible' : 'hidden', pointerEvents: visible ? 'auto' : 'none' }}>
+    <div style={{ position: 'absolute', inset: 0, visibility: visible ? 'visible' : 'hidden', contentVisibility: visible ? 'visible' : 'hidden', pointerEvents: visible ? 'auto' : 'none' }}>
       <LoginContent t={visible ? t : 0} visible={visible} />
     </div>
   )
@@ -93,7 +96,8 @@ const LoginContent = memo(function LoginContent({ t, visible }) {
       )}
       {!REFBG && !NOBAR && <BarBand />}
       <Logo t={t} exitK={exitK} />
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
+      {/* (a point, not a full-stage box: core/point.js) */}
+      <div style={{ ...POINT, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
         <div style={{ pointerEvents: 'auto' }}>
           <ShutDown onClick={shutDown} />
         </div>

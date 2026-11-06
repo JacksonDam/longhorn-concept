@@ -122,9 +122,22 @@ did that on iPhones at boot, with my Music open and with many windows open. Budg
   the real footprint.
 - What WebKit backs (vmmap of its GPU process): every composited layer at its size before any
   CSS transform, times the device pixel ratio (an ancestor's downscale doesn't shrink it: the
-  reason for the viewport fit, ARCHITECTURE.md, Stage); a layer at opacity 0 or 1e-4 still has
-  its backing store; backing stores are double-buffered; a canvas is its own surface at its pixel
-  size. So on a phone every mounted layer costs memory whether it shows or not.
+  reason for the viewport fit, ARCHITECTURE.md, Stage); a layer at opacity 0 or 1e-4, or under
+  visibility: hidden, still has its backing store; backing stores are double-buffered while they
+  change; a canvas is its own surface at its pixel size. So on a phone every mounted layer costs
+  memory whether it shows or not.
+- `node tools/layers.mjs [--url <prod build>] [--query ...] [--at s] [--emit js] [--all]` lists
+  WebKit's own layer tree at a state (Web Inspector's LayerTree through Playwright WebKit): every
+  composited layer with its backing memory, WebKit's reasons and the element. Most of the
+  desktop's layers were `overlap` ones: anything that paints above a composited layer (the
+  glass, a window, a canvas) and overlaps it is composited too, and backed at its own box, so a
+  full-stage `inset: 0` wrapper around a clock cost a stage-sized backing store. Wrappers of
+  content placed by left / top are points (`core/point.js` POINT: 0x0 at the stage's origin):
+  the settled desktop's layers went from 63 to 25 MB (one buffer each). A hidden subtree that
+  stays mounted skips rendering (`content-visibility: hidden`, the login scene under the desktop).
+- Canvas sizes: devicePixelRatio already includes the page zoom on a phone (index.html), so
+  size canvases by `stage scale x devicePixelRatio` and never multiply by
+  `visualViewport.scale` as well (that drew the my Music slabs at 0.17 of their shown pixels).
 - No rehearsal on WebKit (ARCHITECTURE.md, Boot): its long frames per phase were the same with
   a full, a video or no rehearsal (Playwright WebKit and the simulator), and a full one ran to
   the 10 s deadline on the simulator. Chrome keeps it (its GPU pipeline compiles are what the
