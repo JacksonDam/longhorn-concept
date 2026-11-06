@@ -618,8 +618,15 @@ const restingLayers = (win) => (win.state === 'open' && win.lastAction !== 'init
 // does more than one of them. -> { mounted, laid, ready }
 const STEP = 1
 const PH = 3
+// (a hidden window's live layer mounts whole on the first step: an animation that starts at once,
+// a tap on its taskbar button, shows the window on time, its copies joining as they're ready)
 function grown(win, t, N, from, base) {
-  const s = Math.floor(toRel(t, from) * STEP + 1e-6)
+  let s = Math.floor(toRel(t, from) * STEP + 1e-6)
+  if (base === 0) {
+    if (s < 0) return { mounted: 0, laid: 0, ready: 0 }
+    base = 1
+    s -= 1
+  }
   const at = (d) => base + Math.min(N - base, Math.max(0, Math.floor((s - d) / PH) + 1))
   return { mounted: at(0), laid: at(1), ready: at(2) }
 }
