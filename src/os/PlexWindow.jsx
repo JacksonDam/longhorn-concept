@@ -20,7 +20,7 @@ import { emit, getLog, getVersion, getEpoch } from '../core/events.js'
 import { eventsOf } from './logIndex.js'
 import { FPS, now, CAPTURE } from '../core/clock.js'
 import { nextFrame } from '../core/time.jsx'
-import { toStage, seam, useStageScale } from '../core/Stage.jsx'
+import { toStage, seam, useStageScale, stageScale, STAGE_MODE } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
 import { focusedField } from '../ui/state.js'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
@@ -522,8 +522,9 @@ const PREP_HOLD = 1.5 // s: how long a prepare keeps them after the pointer has 
 
 // How many layers (live + copies) a window may have while it blurs: the app's (the video's) count
 // under ?capture / ?bench; in real time what the device's budget for one blurring window allows
-// (every engine backs a layer at its own size x devicePixelRatio^2, whatever the stage's scale
-// transform; on a phone devicePixelRatio includes the page zoom, index.html)
+// (every engine backs a layer at its own size x devicePixelRatio^2: under the stage's zoom its size
+// is the zoomed one, x the stage's scale; WebKit ignores a scale transform; on a phone
+// devicePixelRatio includes the page zoom, index.html)
 let budgetMB = null
 function copyBudgetMB() {
   if (budgetMB != null) return budgetMB
@@ -536,7 +537,7 @@ function copyBudgetMB() {
 export function copyCount(app, r) {
   const N = app.copies ?? DEFAULT_COPIES
   if (CAPTURE) return N
-  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+  const dpr = (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1) * (STAGE_MODE === 'zoom' ? stageScale() : 1)
   const perCopy = (r.w * r.h * dpr * dpr * 4) / 1048576
   return Math.max(2, Math.min(N, Math.floor(copyBudgetMB() / perCopy)))
 }
