@@ -391,20 +391,28 @@ function ribbonsAt(v, a, w0, row) {
   return row
 }
 
-// ------------------------------------------------------------------ shader
+// ------------------------------------------------------------------ shaders
+// Two passes where the GPU can render to float textures (EXT_color_buffer_float), one otherwise.
+// What a ribbon is at a pixel column (its centreline, slope and colour) and the coarse field's
+// lattice rows summed across (the separable B-spline's x half) are the same for every pixel of
+// the column, so a first pass works them out once per canvas column (the canvas's width x the
+// ribbon rows, then x the lattice rows: a few hundred thousand fragments) and the second pass
+// per pixel only looks them up: 4 fetches for the coarse colour instead of 16, and per candidate
+// ribbon 1 fetch and a few operations (2 fetches when it reaches the pixel) instead of 5 fetches
+// and two B-spline evaluations. Full resolution on a 2x laptop screen is ~6 Mpx a frame: the
+// single pass cost ~4 ms of GPU there, the two ~1.5 ms. Same values either way (the same
+// operations, split), so the fallback draws the same picture.
 const VS = `#version 300 es
 in vec2 aPos;
 out vec2 vUv;
 void main() { vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`
 
-const FS = `#version 300 es
+const COMMON = `#version 300 es
 precision highp float;
 in vec2 vUv;
-out vec4 outColor;
 uniform sampler2D uGrid;   // the lattice's control points (RGB)
 uniform sampler2D uRib;    // (KX+1) x MAXR: control points (y, Ar, Ag, Ab), then 1/(2 s^2)
 uniform highp usampler2D uTiles; // per 30 px tile of the stage: bitmask of the ribbons that reach it
-uniform int uCount;
 uniform float uDim;
 uniform vec2 uSize;        // the stage (px)
 uniform vec2 uOff;         // the frame's corner in it
@@ -421,54 +429,125 @@ vec4 bw(float f) {
   float f2 = f * f, f3 = f2 * f;
   return vec4((1.0 - f) * (1.0 - f) * (1.0 - f), 3.0 * f3 - 6.0 * f2 + 4.0, -3.0 * f3 + 3.0 * f2 + 3.0 * f + 1.0, f3) / 6.0;
 }
-vec3 coarse(vec2 p) {
-  vec2 u = p / S + 1.0 + uLat;
-  vec2 b = floor(u);
-  vec2 f = u - b;
-  vec4 wx = bw(f.x), wy = bw(f.y);
-  ivec2 i0 = ivec2(b) - 1;
-  vec3 acc = vec3(0.0);
-  for (int a = 0; a < 4; a++) {
-    vec3 row = cp(i0.x, i0.y + a) * wx.x + cp(i0.x + 1, i0.y + a) * wx.y + cp(i0.x + 2, i0.y + a) * wx.z + cp(i0.x + 3, i0.y + a) * wx.w;
-    acc += row * wy[a];
-  }
-  return acc;
+// the coarse field's lattice row j summed across at frame x (the B-spline's x half)
+vec3 coarseRow(float x, int j) {
+  float u = x / S + 1.0 + uLat.x;
+  float b = floor(u);
+  vec4 wx = bw(u - b);
+  int i0 = int(b) - 1;
+  return cp(i0, j) * wx.x + cp(i0 + 1, j) * wx.y + cp(i0 + 2, j) * wx.z + cp(i0 + 3, j) * wx.w;
 }
-
-void main() {
-  vec2 q = vec2(vUv.x * uSize.x, (1.0 - vUv.y) * uSize.y); // stage px
-  vec2 p = q - uOff; // frame px
-  vec3 col = coarse(p);
-  // the ribbons are cubic B-splines in x (KX control points, BSX apart): the basis weights and
-  // their x derivative depend only on the pixel's x, so they are computed once here; past the
-  // frame's sides a ribbon runs on along its tangent there (run), its colour held
-  float xc = clamp(p.x, 0.0, 960.0);
-  float run = p.x - xc;
+// the lattice rows a pixel at frame y blends (from j0) and their weights
+void coarseRows(float y, out int j0, out vec4 wy) {
+  float u = y / S + 1.0 + uLat.y;
+  float b = floor(u);
+  wy = bw(u - b);
+  j0 = int(b) - 1;
+}
+// ribbon i at frame x: centreline y, 1/(2 s^2) over the slope term (e = (py - y)^2 q), colour.
+// The ribbons are cubic B-splines in x (KX control points, BSX apart); past the frame's sides a
+// ribbon runs on along its tangent there (run), its colour held.
+void ribbonAt(float x, int i, out float y, out float q, out vec3 amp) {
+  float xc = clamp(x, 0.0, 960.0);
+  float run = x - xc;
   float ru = (xc - ${BX0}.0) / ${BSX.toFixed(6)} + 1.0;
   float rf = ru - floor(ru);
   int ri = int(floor(ru)) - 1;
   vec4 wb = bw(rf);
   vec4 wd = vec4(-(1.0 - rf) * (1.0 - rf) * 0.5, (9.0 * rf * rf - 12.0 * rf) / 6.0, (-9.0 * rf * rf + 6.0 * rf + 3.0) / 6.0, rf * rf * 0.5) / ${BSX.toFixed(6)};
   ivec4 ks = clamp(ivec4(ri, ri + 1, ri + 2, ri + 3), 0, ${KX - 1});
-  uvec4 m = texelFetch(uTiles, ivec2(clamp(int(q.x / ${TS}.0), 0, uTileMax.x), clamp(int(q.y / ${TS}.0), 0, uTileMax.y)), 0);
+  vec4 c0 = texelFetch(uRib, ivec2(ks.x, i), 0);
+  vec4 c1 = texelFetch(uRib, ivec2(ks.y, i), 0);
+  vec4 c2 = texelFetch(uRib, ivec2(ks.z, i), 0);
+  vec4 c3 = texelFetch(uRib, ivec2(ks.w, i), 0);
+  vec4 ys = vec4(c0.x, c1.x, c2.x, c3.x);
+  float dy = dot(wd, ys);
+  y = dot(wb, ys) + dy * run;
+  q = texelFetch(uRib, ivec2(${KX}, i), 0).x / (1.0 + dy * dy);
+  amp = wb.x * c0.yzw + wb.y * c1.yzw + wb.z * c2.yzw + wb.w * c3.yzw;
+}
+// the pixel's stage and frame px
+vec2 stagePx() { return vec2(vUv.x * uSize.x, (1.0 - vUv.y) * uSize.y); }
+uvec4 tileMask(vec2 q) {
+  return texelFetch(uTiles, ivec2(clamp(int(q.x / ${TS}.0), 0, uTileMax.x), clamp(int(q.y / ${TS}.0), 0, uTileMax.y)), 0);
+}
+// lowest set bit's index, cleared (GLSL ES 3.00 has no findLSB): the bit alone as a float is an
+// exact power of two, whose exponent field is the index
+int lowBit(inout uint bits) {
+  uint low = bits & (~bits + 1u);
+  bits ^= low;
+  return int(floatBitsToUint(float(low)) >> 23u) - 127;
+}
+`
+
+// one pass: everything per pixel
+const FS_ONE = `${COMMON}
+out vec4 outColor;
+void main() {
+  vec2 q = stagePx();
+  vec2 p = q - uOff;
+  int j0; vec4 wy;
+  coarseRows(p.y, j0, wy);
+  vec3 col = vec3(0.0);
+  for (int a = 0; a < 4; a++) col += coarseRow(p.x, j0 + a) * wy[a];
+  uvec4 m = tileMask(q);
   for (int w = 0; w < ${MAXR / 32}; w++) {
     uint bits = m[w];
     while (bits != 0u) {
-      uint low = bits & (~bits + 1u);   // lowest set bit (GLSL ES 3.00 has no findLSB)
-      int i = w * 32 + int(floor(log2(float(low)) + 0.5));
-      bits ^= low;
-      vec4 c0 = texelFetch(uRib, ivec2(ks.x, i), 0);
-      vec4 c1 = texelFetch(uRib, ivec2(ks.y, i), 0);
-      vec4 c2 = texelFetch(uRib, ivec2(ks.z, i), 0);
-      vec4 c3 = texelFetch(uRib, ivec2(ks.w, i), 0);
-      vec4 ys = vec4(c0.x, c1.x, c2.x, c3.x);
-      float dy = dot(wd, ys);
-      float y = dot(wb, ys) + dy * run;
-      float d = (p.y - y) * inversesqrt(1.0 + dy * dy);
-      float e = d * d * texelFetch(uRib, ivec2(${KX}, i), 0).x;
+      int i = w * 32 + lowBit(bits);
+      float y, k; vec3 amp;
+      ribbonAt(p.x, i, y, k, amp);
+      float d = p.y - y;
+      float e = d * d * k;
       if (e > ${CUT}.0) continue;
-      vec3 amp = wb.x * c0.yzw + wb.y * c1.yzw + wb.z * c2.yzw + wb.w * c3.yzw;
       col += amp * exp(-e);
+    }
+  }
+  outColor = vec4(col * uDim, 1.0);
+}`
+
+// two passes, 1: per canvas column (x) and row: rows 0..MAXR-1 the ribbons (o0: y, q; o1: colour),
+// rows MAXR.. the lattice rows summed across (o1)
+const FS_COLS = `${COMMON}
+layout(location = 0) out vec4 o0;
+layout(location = 1) out vec4 o1;
+void main() {
+  float x = stagePx().x - uOff.x;
+  int row = int(gl_FragCoord.y);
+  if (row < ${MAXR}) {
+    float y, k; vec3 amp;
+    ribbonAt(x, row, y, k, amp);
+    o0 = vec4(y, k, 0.0, 0.0);
+    o1 = vec4(amp, 0.0);
+  } else {
+    o0 = vec4(0.0);
+    o1 = vec4(coarseRow(x, row - ${MAXR}), 0.0);
+  }
+}`
+
+// 2: per pixel, from its column's
+const FS_MAIN = `${COMMON}
+uniform highp sampler2D uCol0;
+uniform highp sampler2D uCol1;
+out vec4 outColor;
+void main() {
+  vec2 q = stagePx();
+  vec2 p = q - uOff;
+  int cx = int(gl_FragCoord.x);
+  int j0; vec4 wy;
+  coarseRows(p.y, j0, wy);
+  vec3 col = vec3(0.0);
+  for (int a = 0; a < 4; a++) col += texelFetch(uCol1, ivec2(cx, ${MAXR} + clamp(j0 + a, 0, uGridMax.y)), 0).rgb * wy[a];
+  uvec4 m = tileMask(q);
+  for (int w = 0; w < ${MAXR / 32}; w++) {
+    uint bits = m[w];
+    while (bits != 0u) {
+      int i = w * 32 + lowBit(bits);
+      vec2 r = texelFetch(uCol0, ivec2(cx, i), 0).xy;
+      float d = p.y - r.x;
+      float e = d * d * r.y;
+      if (e > ${CUT}.0) continue;
+      col += texelFetch(uCol1, ivec2(cx, i), 0).rgb * exp(-e);
     }
   }
   outColor = vec4(col * uDim, 1.0);
@@ -482,37 +561,50 @@ function compile(gl, type, src) {
   return s
 }
 
+const UNIFORMS = ['uGrid', 'uRib', 'uTiles', 'uDim', 'uSize', 'uOff', 'uLat', 'uGridMax', 'uTileMax', 'uCol0', 'uCol1']
+function program(gl, vs, fs) {
+  const prog = gl.createProgram()
+  gl.attachShader(prog, vs)
+  gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, fs))
+  gl.bindAttribLocation(prog, 0, 'aPos')
+  gl.linkProgram(prog)
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog))
+  const u = {}
+  for (const n of UNIFORMS) u[n] = gl.getUniformLocation(prog, n)
+  return { prog, u }
+}
+
 const FRAME_VIEW = { w: 960, h: 720, ox: 0, oy: 0 }
+// local comparison aid: ?aurora=one draws in one pass where two would do
+const ONE_PASS = new URLSearchParams(location.search).get('aurora') === 'one'
 
 export class AuroraRenderer {
   constructor(canvas) {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: false })
     this.gl = gl
     this.canvas = canvas
-    const prog = gl.createProgram()
-    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS))
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS))
-    gl.linkProgram(prog)
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog))
-    this.prog = prog
+    const vs = compile(gl, gl.VERTEX_SHADER, VS)
+    this.two = !ONE_PASS && !!gl.getExtension('EXT_color_buffer_float')
+    if (this.two) {
+      this.cols = program(gl, vs, FS_COLS)
+      this.main = program(gl, vs, FS_MAIN)
+    } else this.one = program(gl, vs, FS_ONE)
     const buf = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, buf)
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
-    const loc = gl.getAttribLocation(prog, 'aPos')
     this.vao = gl.createVertexArray()
     gl.bindVertexArray(this.vao)
-    gl.enableVertexAttribArray(loc)
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-    // textures are allocated once per stage size (immutable storage) and only updated with
-    // texSubImage2D, so a frame never reallocates GPU memory (reallocating ~1 MB per frame could
-    // stall behind other GPU work, e.g. right after the desktop releases its resources)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+    // textures are allocated once per stage or canvas size (immutable storage) and only updated
+    // with texSubImage2D, so a frame never reallocates GPU memory (reallocating ~1 MB per frame
+    // could stall behind other GPU work, e.g. right after the desktop releases its resources)
     this.ribTex = this.texture()
     gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, KX + 1, MAXR)
     this.tex = null
     this.tileTex = null
     this.view = null
-    this.u = {}
-    for (const n of ['uGrid', 'uRib', 'uTiles', 'uCount', 'uDim', 'uSize', 'uOff', 'uLat', 'uGridMax', 'uTileMax']) this.u[n] = gl.getUniformLocation(prog, n)
+    this.fb = null // the column pass's target: { w, h, fbo, col0, col1 }
   }
 
   texture() {
@@ -546,10 +638,55 @@ export class AuroraRenderer {
     return nv
   }
 
+  // the column pass's target for a canvas width and lattice height: RG32F (centreline, q) and
+  // RGBA16F (colours; ~0.1 of a level at most), canvas width x (MAXR + lattice rows); false when
+  // the GPU can't draw into them (then one pass)
+  columns(pw, ny) {
+    const gl = this.gl
+    const h = MAXR + ny
+    if (this.fb && this.fb.w === pw && this.fb.h === h) return this.fb.ok ? this.fb : null
+    if (this.fb) {
+      gl.deleteFramebuffer(this.fb.fbo)
+      gl.deleteTexture(this.fb.col0)
+      gl.deleteTexture(this.fb.col1)
+      this.fb = null
+    }
+    if (pw > gl.getParameter(gl.MAX_TEXTURE_SIZE)) return null
+    const col0 = this.texture()
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RG32F, pw, h)
+    const col1 = this.texture()
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA16F, pw, h)
+    const fbo = gl.createFramebuffer()
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, col0, 0)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, col1, 0)
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1])
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    this.fb = { w: pw, h, fbo, col0, col1, ok }
+    return ok ? this.fb : null
+  }
+
   // the context's GPU memory goes now (Aurora.jsx: while the login screen is away)
   dispose() {
     this.gl.getExtension('WEBGL_lose_context')?.loseContext()
     this.gl = null
+  }
+
+  uniforms(p, v, g) {
+    const { gl } = this
+    const u = p.u
+    gl.uniform1i(u.uGrid, 0)
+    gl.uniform1i(u.uRib, 1)
+    gl.uniform1i(u.uTiles, 2)
+    gl.uniform1i(u.uCol0, 3)
+    gl.uniform1i(u.uCol1, 4)
+    gl.uniform1f(u.uDim, g ? 1 : 0)
+    gl.uniform2f(u.uSize, v.w, v.h)
+    gl.uniform2f(u.uOff, v.ox, v.oy)
+    gl.uniform2f(u.uLat, v.L, v.T)
+    gl.uniform2i(u.uGridMax, v.nx - 1, v.ny - 1)
+    gl.uniform2i(u.uTileMax, v.tx - 1, v.ty - 1)
   }
 
   // t: clock time; pw x ph: the canvas's pixels; view: the stage (w x h px) the canvas covers and
@@ -578,28 +715,50 @@ export class AuroraRenderer {
     v.tileMask.fill(0)
     let n = ribbonsAt(v, a, 1 - xs, 0)
     n = ribbonsAt(v, a - (LOOP_B - LOOP_A), xs, n)
-    gl.viewport(0, 0, pw, ph)
-    gl.useProgram(this.prog)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, this.tex)
     if (g) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, v.nx, v.ny, gl.RGB, gl.FLOAT, g)
-    gl.uniform1i(this.u.uGrid, 0)
     gl.activeTexture(gl.TEXTURE1)
     gl.bindTexture(gl.TEXTURE_2D, this.ribTex)
     if (n) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, KX + 1, n, gl.RGBA, gl.FLOAT, ribTex.subarray(0, (KX + 1) * n * 4))
-    gl.uniform1i(this.u.uRib, 1)
     gl.activeTexture(gl.TEXTURE2)
     gl.bindTexture(gl.TEXTURE_2D, this.tileTex)
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, v.tx, v.ty, gl.RGBA_INTEGER, gl.UNSIGNED_INT, v.tileMask)
-    gl.uniform1i(this.u.uTiles, 2)
-    gl.uniform1i(this.u.uCount, n)
-    gl.uniform1f(this.u.uDim, g ? 1 : 0)
-    gl.uniform2f(this.u.uSize, v.w, v.h)
-    gl.uniform2f(this.u.uOff, v.ox, v.oy)
-    gl.uniform2f(this.u.uLat, v.L, v.T)
-    gl.uniform2i(this.u.uGridMax, v.nx - 1, v.ny - 1)
-    gl.uniform2i(this.u.uTileMax, v.tx - 1, v.ty - 1)
     gl.bindVertexArray(this.vao)
+    const fb = this.two ? this.columns(pw, v.ny) : null
+    if (fb) {
+      // pass 1: the ribbons in use and the lattice rows, per canvas column
+      gl.activeTexture(gl.TEXTURE3)
+      gl.bindTexture(gl.TEXTURE_2D, null)
+      gl.activeTexture(gl.TEXTURE4)
+      gl.bindTexture(gl.TEXTURE_2D, null)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.fbo)
+      gl.viewport(0, 0, pw, fb.h)
+      gl.useProgram(this.cols.prog)
+      this.uniforms(this.cols, v, g)
+      gl.enable(gl.SCISSOR_TEST)
+      if (n) {
+        gl.scissor(0, 0, pw, n)
+        gl.drawArrays(gl.TRIANGLES, 0, 3)
+      }
+      gl.scissor(0, MAXR, pw, v.ny)
+      gl.drawArrays(gl.TRIANGLES, 0, 3)
+      gl.disable(gl.SCISSOR_TEST)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+      // pass 2: the picture
+      gl.activeTexture(gl.TEXTURE3)
+      gl.bindTexture(gl.TEXTURE_2D, fb.col0)
+      gl.activeTexture(gl.TEXTURE4)
+      gl.bindTexture(gl.TEXTURE_2D, fb.col1)
+      gl.viewport(0, 0, pw, ph)
+      gl.useProgram(this.main.prog)
+      this.uniforms(this.main, v, g)
+    } else {
+      if (!this.one) this.one = program(gl, compile(gl, gl.VERTEX_SHADER, VS), FS_ONE)
+      gl.viewport(0, 0, pw, ph)
+      gl.useProgram(this.one.prog)
+      this.uniforms(this.one, v, g)
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3)
   }
 }
