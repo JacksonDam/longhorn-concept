@@ -1,7 +1,7 @@
 // Like gl/Slab3D, but driven by an explicit time `t` (so each motion-blur copy of the
 // window can render its own sub-frame pose) and without reading the clock itself.
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { useStageScale } from '../../core/Stage.jsx'
+import { useStageScale, deviceScale } from '../../core/Stage.jsx'
 import { renderSlabs, SlabScene, texturesReady, textureReady, acquireSlabScene, releaseSlabScene, warmTextures } from '../../gl/slab.js'
 
 // cacheKey: canvases rendering the same image in one frame (e.g. the blur copies of the window in
@@ -75,8 +75,9 @@ export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, 
   const scene = useMemo(() => acquireSlabScene(), [])
   useEffect(() => () => releaseSlabScene(scene), [scene])
   const { s } = useStageScale()
-  // (device px per stage px: devicePixelRatio as is, it includes a phone's page zoom)
-  const scale = Math.min(3, s * (window.devicePixelRatio || 1))
+  // (device px per stage px: devicePixelRatio as is, it includes a phone's page zoom; capped,
+  // core/Stage.jsx deviceScale)
+  const scale = deviceScale(s)
   useLayoutEffect(() => {
     const c = takeCanvas()
     c.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%'

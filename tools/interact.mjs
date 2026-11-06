@@ -2,7 +2,7 @@
 // speed, screenshot each step and report page errors and frame-time stats per step.
 //
 // usage: node tools/interact.mjs [--out out/interact] [--url http://127.0.0.1:5299/longhorn-concept/]
-//        [--size 1280x960] [--dpr 1] [--uncapped]
+//        [--size 1280x960] [--dpr 1] [--uncapped] [--anchor frame]
 // --uncapped: vsync and the frame-rate limit off (like bench.mjs), so each step's frame times
 // are the frames' costs rather than the display's interval
 // --size: the window's CSS size (default 1280x960, the frame's 4:3: the stage is the frame). At
@@ -10,7 +10,8 @@
 // frame coordinates move with what they hit: window buttons are found by their data-hit (the
 // window's other targets move with it), the taskbar's My Music button by its text, the sidebar
 // and its flyout follow the right edge (x + dw), the login screen is taken as centred
-// (+ dw / 2, + dh / 2). The stage's geometry comes from #stage's data-s/x/y/w/h.
+// (+ dw / 2, + dh / 2). The stage's geometry comes from #stage's data-s/x/y/w/h. --anchor frame
+// keeps the frame coordinates (a build whose shell and login still sit at the frame's left).
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -27,6 +28,7 @@ mkdirSync(out, { recursive: true })
 const [VW, VH] = opt('--size', '1280x960').split('x').map(Number)
 const DPR = +opt('--dpr', 1)
 const UNCAPPED = args.includes('--uncapped')
+const FRAME_ANCHOR = opt('--anchor', 'shape') === 'frame'
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const port = 9300 + Math.floor(Math.random() * 400)
@@ -69,7 +71,7 @@ let rect
 const toClient = (x, y) => ({ x: rect.x + x * rect.s, y: rect.y + y * rect.s })
 const RIGHT = [1, 0], CENTRE = [0.5, 0.5]
 async function at(x, y, how) {
-  if (!how || (!rect.dw && !rect.dh)) return [x, y]
+  if (!how || FRAME_ANCHOR || (!rect.dw && !rect.dh)) return [x, y]
   if (Array.isArray(how)) return [x + how[0] * rect.dw, y + how[1] * rect.dh]
   const p = await evaluate(`(${how})()`)
   if (p) return [p.x + (x - p.fx), p.y + (y - p.fy)]

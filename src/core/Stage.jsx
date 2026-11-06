@@ -99,6 +99,11 @@ export const seam = (v) => {
   const d = current.s * (window.devicePixelRatio || 1)
   return Math.round(v * d) / d
 }
+// Device px per stage px for sizing a canvas drawn at the stage scale s (useStageScale().s): the
+// screen's density, capped for memory at 3 on phones (DPR 3 at a page zoom of ~1) and at 4 on
+// desktops (a 5K display's full screen; a 6K one draws at 85%). devicePixelRatio includes a
+// phone's page zoom (index.html): never multiply visualViewport.scale in as well.
+export const deviceScale = (s) => Math.min(coarse ? 3 : 4, s * (window.devicePixelRatio || 1))
 
 export function Stage({ children }) {
   const [f, setF] = useState(fit)

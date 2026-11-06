@@ -136,8 +136,9 @@ did that on iPhones at boot, with my Music open and with many windows open. Budg
   the settled desktop's layers went from 63 to 25 MB (one buffer each). A hidden subtree that
   stays mounted skips rendering (`content-visibility: hidden`, the login scene under the desktop).
 - Canvas sizes: devicePixelRatio already includes the page zoom on a phone (index.html), so
-  size canvases by `stage scale x devicePixelRatio` and never multiply by
-  `visualViewport.scale` as well (that drew the my Music slabs at 0.17 of their shown pixels).
+  size canvases by `stage scale x devicePixelRatio` (`core/Stage.jsx deviceScale(s)`: capped at 3
+  on phones, 4 on desktops) and never multiply by `visualViewport.scale` as well (that drew the
+  my Music slabs at 0.17 of their shown pixels).
 - No rehearsal on WebKit (ARCHITECTURE.md, Boot): its long frames per phase were the same with
   a full, a video or no rehearsal (Playwright WebKit and the simulator), and a full one ran to
   the 10 s deadline on the simulator. Chrome keeps it (its GPU pipeline compiles are what the
