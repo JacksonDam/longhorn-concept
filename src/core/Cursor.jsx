@@ -12,21 +12,14 @@ import { lastOfType } from '../os/logIndex.js'
 let live = { x: -100, y: -100 }
 export const pointer = () => live
 
-// The pointer as input to visuals that follow it (my Music's slabs tilt towards it): a pure
-// function of (t, log) like everything else. Under ?demo / ?capture it is the cursor's path (the
-// video's, demo/cursor.js); in real time, 'ptr' events logged from the pointer's moves while
-// something wants them (wantPointer), one a frame at the frame's time.
-let currentPath = null
+// The pointer as input to visuals that follow it (my Music's slabs turn toward it): 'ptr' events
+// { x, y } (stage px) or { hidden }, logged from the real pointer's moves while something wants
+// them (wantPointer), one a frame at the frame's time. Never under ?demo / ?capture (the cursor
+// follows a path there and nothing is logged): those draw the video's input only.
 let wanted = 0
 export function wantPointer() {
   wanted++
   return () => wanted--
-}
-// -> { x, y } (stage px) or { hidden: true }
-export function pointerAt(t) {
-  if (currentPath) return currentPath(t) || { hidden: true }
-  const e = lastOfType(t, 'ptr')
-  return !e || e.hidden ? { hidden: true } : { x: e.x, y: e.y }
 }
 let queued = false
 function logPointer(p) {
@@ -69,13 +62,14 @@ const SHUTTER = 0.75 / FPS
 export function Cursor({ path }) {
   const t = useTime()
   const [, force] = useState(0)
-  currentPath = path || null
   useEffect(() => {
     if (path) return
     const on = (e) => {
       live = toStage(e.clientX, e.clientY)
       force((n) => n + 1)
-      logPointer(live)
+      // (not while a button is down: a drag or a resize carries the pointer with the window, the
+      // slabs it feeds don't turn, and a log event a frame would cost the drag)
+      if (!e.buttons) logPointer(live)
     }
     const out = () => logPointer({ hidden: true })
     addEventListener('pointermove', on)

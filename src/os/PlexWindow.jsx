@@ -724,7 +724,11 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   // per copy index: { el } of its React-rendered body (copy 1 is the source copies clone)
   const slots = useRef(null)
   if (!slots.current) slots.current = []
-  const deferContent = !contentMounted.current && win.lastAction === 'open' && toRel(t, win.openedAt) < 1 - 1e-6
+  // (so does a hidden window's live layer when it mounts for a restore or a prepare: frame and
+  // chrome on the need's first step, the content a frame later, while the window is still at the
+  // dock or resting invisible, so no frame mounts a whole window)
+  const need = restingLayers(win) === 0 ? needFrom(win, t) : null
+  const deferContent = !contentMounted.current && (win.lastAction === 'open' ? toRel(t, win.openedAt) < 1 - 1e-6 : need != null && toRel(t, need) < 1 - 1e-6)
   if (!deferContent) contentMounted.current = true
   if (mounted === 0) {
     contentMounted.current = false

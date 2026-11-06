@@ -4,7 +4,7 @@
 import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, hoverKeys, pt, find, selectionOf, C, FONT, HEAVY } from '../../ui/index.js'
+import { scoped, wid, valueOf, hoverKeys, pt, find, selectionOf, ScrollView, C, FONT, HEAVY } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl } from '../lib/common.js'
 import { getWindow } from '../../os/wm.js'
@@ -85,7 +85,12 @@ const Pane = memo(function Pane({ classic, onClassic, fold, onFold }) {
   return out
 })
 
-function Control({ win, t, h, live }) {
+// The applets scroll in a view between the heading and the status bar ("8 objects"), so a short
+// window clips them above it instead of drawing them under it.
+const VIEW_X = 192
+const VIEW_Y = 46
+const STATUS_H = 20
+function Control({ win, t, w, h, live }) {
   const id = wid(win, 'tiles')
   const lit = hoverKeys(t, id + ':h')
   const sel = selectionOf(t, id)[0]
@@ -98,18 +103,20 @@ function Control({ win, t, h, live }) {
       <div style={{ position: 'absolute', left: 200, top: 18, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'classic'), value: !classic })}>
         {classic ? 'all' : 'pick a'} <span style={{ fontWeight: 500, color: C.heading }}>{classic ? 'applets' : 'category'}</span>
       </div>
-      {APPLETS.map((a, i) => (
-        <div
-          key={a.key}
-          style={classic ? { position: 'absolute', left: 200 + (i % 6) * 86, top: 52 + Math.floor(i / 6) * 84, width: 80, height: 76 } : { position: 'absolute', left: 196 + (i % 2) * 262, top: 50 + Math.floor(i / 2) * 66 }}
-          onPointerEnter={(e) => emit('hover', { id: id + ':h', key: a.key, on: true, ...pt(e) })}
-          onPointerLeave={() => emit('hover', { id: id + ':h', key: a.key, on: false })}
-          onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id + ':sel', value: { keys: [a.key], anchor: a.key } })}
-          onClick={() => openApplet(a.key)}
-        >
-          {classic ? <Icon a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} /> : <Tile a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} />}
-        </div>
-      ))}
+      <ScrollView id={wid(win, 'view')} x={VIEW_X} y={VIEW_Y} w={w - VIEW_X - 4} h={h - VIEW_Y - STATUS_H - 2} contentH={classic ? 6 + Math.ceil(APPLETS.length / 6) * 84 : 4 + Math.ceil(APPLETS.length / 2) * 66}>
+        {APPLETS.map((a, i) => (
+          <div
+            key={a.key}
+            style={classic ? { position: 'absolute', left: 8 + (i % 6) * 86, top: 6 + Math.floor(i / 6) * 84, width: 80, height: 76 } : { position: 'absolute', left: 4 + (i % 2) * 258, top: 4 + Math.floor(i / 2) * 66 }}
+            onPointerEnter={(e) => emit('hover', { id: id + ':h', key: a.key, on: true, ...pt(e) })}
+            onPointerLeave={() => emit('hover', { id: id + ':h', key: a.key, on: false })}
+            onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id + ':sel', value: { keys: [a.key], anchor: a.key } })}
+            onClick={() => openApplet(a.key)}
+          >
+            {classic ? <Icon a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} /> : <Tile a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} />}
+          </div>
+        ))}
+      </ScrollView>
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - 20, height: 20, lineHeight: '20px', textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>{APPLETS.length} objects</div>
     </div>
   )

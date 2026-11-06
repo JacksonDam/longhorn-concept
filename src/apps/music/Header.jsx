@@ -8,7 +8,7 @@ import * as I from '../../os/icons.jsx'
 import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel, DEVICE_REST, ALBUM_REST } from './timeline.js'
-import { tiltAt, tiltMoving } from './tilt.js'
+import { slabTilt, applyTilt, drifting } from './tilt.js'
 import { TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
 import { FPS, frameTime } from '../../core/clock.js'
@@ -395,24 +395,32 @@ function albumSlabFor(album) {
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
 // window's overlay layer). track / trackHover / playing: the page's track list state.
-// rect: the window's rect (stage px), for the slabs' pointer tilt (none: no tilt)
+// rect: the window's rect at a time (t => { x, y, w, h }, stage px), for the slabs' pointer tilt
+// (none: no tilt)
 export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, rect = null, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
-  // the slab's settled pose tilted towards the pointer (tilt.js), eased in after `rest` frames
-  const tilted = (pose, tt, r, rest) => {
-    const k = rect ? smoothRamp(r, rest, rest + 12) : 0
-    if (k <= 0) return pose
-    const [rx, ry] = tiltAt(tt, rect.x + SC.x + pose.x, rect.y + SC.y + pose.y, rect)
-    return { ...pose, rx: pose.rx + rx * k, ry: pose.ry + ry * k }
+  // after its spin-in has settled (`rest` frames from `t0`), a slab turns toward the pointer
+  // (tilt.js); the video's idle drift plays only when the log asks for it, fading out once the
+  // pointer is there. -> the pose at tt
+  const drift = drifting(t)
+  const settled = (poseAt, tt, t0, rest) => {
+    const from = t0 + rest / FPS
+    const base = poseAt(rest)
+    const tilt = rect ? slabTilt(tt, from, { x: SC.x + base.x, y: SC.y + base.y }, DEV.w / 2, DEV.h / 2, rect) : null
+    return applyTilt(poseAt(toRel(tt, t0), drift ? (tilt ? tilt.drift : 1) : 0), tilt)
   }
   // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate with
   // a multi-sample blur, and so does a tilt that is moving; at rest the slab holds still (its
   // canvases don't re-render), its slow settle stepping on the video's frame grid (the grid holds
   // the capture frames themselves: ?capture draws the same)
   const spin = rel < 24 || (hrel > 0 && hrel < 21)
-  const restPose = page == null || page.album == null ? devicePoseRel(DEVICE_REST) : albumPoseRel(ALBUM_REST)
-  const moving = rect && tiltMoving(slabT0, rect.x + SC.x + restPose.x, rect.y + SC.y + restPose.y, rect)
+  const onDevice = page == null || page.album == null
+  const sample = (tt) => (onDevice ? settled(devicePoseRel, tt, openT, DEVICE_REST) : settled(albumPoseRel, tt, page.t, ALBUM_REST))
+  const moving = !spin && rect && (() => {
+    const a = sample(slabT0), b = sample(slabT0 - 0.5 / FPS)
+    return Math.abs(a.ry - b.ry) + Math.abs(a.rx - b.rx) > 1e-5
+  })()
   const fast = spin || moving
   const slabT = fast ? slabT0 : onFrameGrid(slabT0)
   const toDevice = page != null && page.album == null
@@ -426,14 +434,11 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   }
   const spinIn = (tt) => {
     const h = toRel(tt, page.t)
-    const p = page.album ? tilted(albumPoseRel(h), tt, h, ALBUM_REST) : albumPoseRel(h)
+    const p = page.album ? settled(albumPoseRel, tt, page.t, ALBUM_REST) : albumPoseRel(h, drift ? 1 : 0)
     return { ...p, opacity: ramp(h, 4, 5) }
   }
   const items = []
-  const device = (tt) => {
-    const r = toRel(tt, openT)
-    return tilted(devicePoseRel(r), tt, r, DEVICE_REST)
-  }
+  const device = (tt) => settled(devicePoseRel, tt, openT, DEVICE_REST)
   // (only a header that draws the slabs builds them: the device's equaliser canvas is one shared
   // canvas, drawn here for this header's slab time, so a header without slabs (the window
   // content's, at its own content time) mustn't redraw it under the slab overlay)
@@ -445,8 +450,8 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
     // outgoing (until it has turned away)
     if (hrel < 5.2) {
       if (page.prev == null) {
-        if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: (tt) => spinAway(page.prevSince == null ? device(tt) : albumPoseRel(toRel(tt, page.prevSince)), tt) })
-      } else items.push({ slab: albumSlabFor(page.prev), pose: (tt) => spinAway(albumPoseRel(toRel(tt, page.prevSince)), tt) })
+        if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: (tt) => spinAway(page.prevSince == null ? device(tt) : albumPoseRel(toRel(tt, page.prevSince), drift ? 1 : 0), tt) })
+      } else items.push({ slab: albumSlabFor(page.prev), pose: (tt) => spinAway(albumPoseRel(toRel(tt, page.prevSince), drift ? 1 : 0), tt) })
     }
     // incoming
     if (hrel > 3.8) items.push({ slab: page.album ? albumSlabFor(page.album) : deviceSlab(drawDevice(slabT)), pose: spinIn })
