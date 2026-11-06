@@ -6,11 +6,15 @@ import { AuroraRenderer, keysReady } from './aurora.js'
 
 const RES = 0.5
 
-// paused: keep the canvas and its GL context (so coming back is instant) but draw nothing
-export function Aurora({ style, paused = false }) {
+// paused: draw nothing. keep: hold a GL context (false: release it, its GPU memory with it; a
+// WebGL context's is tens of MB on a phone). The login scene keeps it while it shows and while the
+// Start menu is open on the desktop (log off and shut down are there), so the context is created
+// and its program compiled, with one frame drawn unseen, before the login screen comes back.
+export function Aurora({ style, paused = false, keep = true }) {
   const t = useTime()
   const ref = useRef(null)
   const r = useRef(null)
+  const [gen, setGen] = useState(0) // a released context can't come back: a new canvas
   const [, setReady] = useState(false)
   useEffect(() => {
     keysReady.then(() => setReady(true))
@@ -23,8 +27,17 @@ export function Aurora({ style, paused = false }) {
   const k = Math.min(2, s * (window.devicePixelRatio || 1)) * RES
   useLayoutEffect(() => {
     if (!ref.current) return
-    if (!r.current) r.current = new AuroraRenderer(ref.current)
-    if (!paused) r.current.render(t, Math.round(960 * k), Math.round(720 * k))
+    if (!keep) {
+      if (r.current) {
+        r.current.dispose()
+        r.current = null
+        setGen((g) => g + 1)
+      }
+      return
+    }
+    const fresh = !r.current
+    if (fresh) r.current = new AuroraRenderer(ref.current)
+    if (!paused || fresh) r.current.render(t, Math.round(960 * k), Math.round(720 * k))
   })
-  return <canvas ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, ...style }} />
+  return <canvas key={gen} ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, ...style }} />
 }

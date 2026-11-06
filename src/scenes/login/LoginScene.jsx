@@ -19,6 +19,7 @@ import { logoffReverse, screen } from '../../os/session.js'
 import { asset } from '../../core/preload.js'
 import { clamp } from '../../core/anim.js'
 import { toStage } from '../../core/Stage.jsx'
+import { popupState } from '../desktop/shellState.js'
 
 export { LOGIN_EXIT }
 
@@ -112,7 +113,7 @@ export function LoginScene({ visible = true }) {
   // hidden subtree backed (a phone kept ~10 MB of login layers under the desktop).
   return (
     <div style={{ position: 'absolute', inset: 0, visibility: visible ? 'visible' : 'hidden', contentVisibility: visible ? 'visible' : 'hidden', pointerEvents: visible ? 'auto' : 'none' }}>
-      <LoginContent t={visible ? t : 0} visible={visible} />
+      <LoginContent t={visible ? t : 0} visible={visible} glKeep={visible || popupState(t, 'start').open} />
     </div>
   )
 }
@@ -153,7 +154,7 @@ const ShuttingDown = memo(function ShuttingDown({ o }) {
   )
 })
 
-const LoginContent = memo(function LoginContent({ t, visible }) {
+const LoginContent = memo(function LoginContent({ t, visible, glKeep }) {
   const submit = submitEvent(t)
   // the exit clock: seconds since the submit; after a log off it unwinds instead (the login
   // transition in reverse, os/session.js logoffReverse), k from the exit's end down to 0
@@ -182,7 +183,7 @@ const LoginContent = memo(function LoginContent({ t, visible }) {
       {REFBG ? (
         <img src={refFrame(t)} alt="" style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720 }} />
       ) : (
-        <Aurora paused={!visible} />
+        <Aurora paused={!visible} keep={glKeep} />
       )}
       {/* (static, so it adds no layer: an opacity group only while shutting down) */}
       <div style={{ opacity: ui, visibility: ui > 0 ? undefined : 'hidden' }}>

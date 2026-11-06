@@ -407,6 +407,12 @@ export class AuroraRenderer {
     for (const n of ['uGrid', 'uRib', 'uTiles', 'uCount', 'uDim']) this.u[n] = gl.getUniformLocation(prog, n)
   }
 
+  // the context's GPU memory goes now (Aurora.jsx: while the login screen is away)
+  dispose() {
+    this.gl.getExtension('WEBGL_lose_context')?.loseContext()
+    this.gl = null
+  }
+
   render(t, w, h) {
     const { gl, canvas } = this
     if (canvas.width !== w || canvas.height !== h) {
