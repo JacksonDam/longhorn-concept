@@ -99,6 +99,33 @@ Row pitches were fitted by template alignment (all labels within +-0.75 px).
   17.4 -> 13.0, My Music 23.3 -> 16.9, Word 44.5 -> 15.5, Winamp 22.4 -> 19.0, flyout note
   13.5 -> 11.0, flyout title buttons 10.9 -> 7.3, footer arrow 15.3 -> 14.9.
 
+## XP icon art (2026-11-06; os/xp.jsx, os/xpSheet.js, public/img/xp, tools/icons/xpicons.py)
+Everything the video doesn't show is real Windows XP (SP3) or Office 2003 icon art, read out of
+the binaries (assets-src/SOURCES.md section 13) by `python3 -I tools/icons/xpicons.py` into one
+sprite per size design (xp16/24/32/48.webp, lossless, cells of size + 4 px) and an index
+(`src/os/xpSheet.js`, generated). `<XpIcon name size />` draws the design nearest the drawn size by
+ratio (14-19 px: 16, 20-27: 24, 28-39: 32, 40+: 48) scaled to the box; `crisp` keeps 16-colour
+pixel art hard-edged. To add an icon: add it to the manifest in xpicons.py (icon group, toolbar
+strip cell or bitmap), rebuild, use its name.
+- Users: apps' `<Ico kind>` (apps/lib/icons.jsx maps each kind to an XP name: files, folders,
+  drives, places, applets, the IE6 / Explorer / Outlook Express toolbars, the Picture and Fax
+  Viewer tools; the Winamp transport, Messenger and format-bar letter glyphs stay SVG), the
+  explorer task panes (XP's own task icons: Make a new folder 319, Publish to the Web 244, View
+  as a slide show 249, Order prints 251, Print pictures 252, ...), the Start menu (pinned 32 px,
+  MFU 16 px, right column 24 px as in XP, shut down / log off = shell32 28 / 45 at 24 px),
+  Control Panel (category view: shell32 270-279 category art; classic view: each .cpl's own
+  icon), Paint's tool box (mspaint.exe bitmap 859, 16 px at 16 px, crisp), message boxes
+  (user32 101-104), Outlook's folder list and message icons (Office 2003 outllib.dll), the
+  taskbar buttons of windows the video doesn't show (scenes/desktop/appIcons.jsx).
+- The video's own taskbar icons keep their fitted 16 px images: scored against the median of
+  frames 1200-1395 (24 x 22 crop, 1 px blur), XP's real 16 px IE6 icon is 19.2 against the
+  redraw's 12.5 (the video's is washed out), and Office 2003's Outlook icon, even colour-mapped
+  by least squares, 17.9 against 18.6 with a wild map. Above 20 px (Start menu) IE, Word and
+  Outlook use XP's / Office 2003's own 32 px designs (the video's blue Outlook is a pre-release
+  colouring; its 32 px design isn't available).
+- my Pictures task pane: the second reference's icons, matched with WMP 9 library art (wmploc 601
+  album, 605 burn, 504 video) and shell32 249 (slide show).
+
 ## Entrance (absolute frames; each tile fades in over ~1 frame)
 Measured by projecting each tile's pixels onto (final - glass): every tile reads 0.5 on its
 first frame and 1.0 on the next.

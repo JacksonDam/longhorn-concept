@@ -1,5 +1,5 @@
 // App icons: <Ico kind size />. Real Windows XP art wherever XP has the icon (os/xp.jsx, sprites
-// built from the XP SP3 binaries; assets-src/SOURCES.md section 11): files, folders, drives,
+// built from the XP SP3 binaries; assets-src/SOURCES.md section 13): files, folders, drives,
 // places, Control Panel applets and categories, the IE6, Explorer and Outlook Express toolbar
 // images and the Picture and Fax Viewer tools; Office 2003's Word document. Each kind maps to an
 // XP icon name (an XP name may also be passed as the kind). What has no such art stays an SVG

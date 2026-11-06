@@ -1,9 +1,9 @@
-// Real Windows XP icon art (assets-src/SOURCES.md section 11): icons and toolbar images read out
-// of the XP SP3 binaries by tools/icons/xpicons.py into one sprite per size design
-// (public/img/xp/xp16/24/32/48.webp, index in ./xpSheet.js). <XpIcon name size /> draws the design
-// nearest the drawn size (XP's 16 px designs are not shrunk 32 px ones, so a 16-18 px icon uses the
-// 16 px art), scaled to the box. `crisp` keeps 16-colour pixel art (Paint's tools, WordPad's format
-// bar) hard-edged when the stage scales it.
+// Real Windows XP / Office 2003 icon art (assets-src/SOURCES.md section 13): icons and toolbar
+// images read out of the XP SP3 and Office 2003 binaries by tools/icons/xpicons.py into one sprite
+// per size design (public/img/xp/xp16/24/32/48.webp, index in ./xpSheet.js). <XpIcon name size />
+// draws the design nearest the drawn size (XP's 16 px designs are not shrunk 32 px ones, so a
+// 16-18 px icon uses the 16 px art), scaled to the box. `crisp` keeps 16-colour pixel art (Paint's
+// tools) hard-edged when the stage scales it.
 import { memo } from 'react'
 import { asset, preload } from '../core/preload.js'
 import { COLS, PAD, SHEETS, ICONS } from './xpSheet.js'

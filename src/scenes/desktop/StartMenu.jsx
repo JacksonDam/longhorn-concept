@@ -70,7 +70,7 @@ function buildRows() {
       y += 10
       return
     }
-    out.push({ ...it, id: 'sm.r' + i, x: SPLIT + 2, y, w: START.w - SPLIT - 6, h: 25 })
+    out.push({ ...it, id: 'sm.r' + i, x: SPLIT + 2, y, w: START.w - SPLIT - 6, h: 25, right: true })
     y += 26
   })
   out.push({ label: 'switch user', id: 'sm.switch', x: 70, y: 40, w: 70, h: 16, go: () => emit('session.switch'), plain: true })
@@ -135,7 +135,7 @@ const Panel = memo(function Panel({ user, list }) {
             </div>
           ) : (
             <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
-              {r.Icon && <r.Icon x={7} y={4} size={16} />}
+              {r.Icon && (r.right ? <r.Icon x={4} y={0} size={24} /> : <r.Icon x={7} y={4} size={16} />)}
               <Text x={r.all ? 6 : 32} y={4} size={10.5} bold={r.bold}>
                 {r.label}
               </Text>

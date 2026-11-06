@@ -1,6 +1,6 @@
 // App icons for the taskbar, Start menu and menus. The video's taskbar icons (IE, Word, my Music,
 // Outlook, Winamp) are the fitted images in public/img/desktop/icons at 16 px; every other icon,
-// and the larger sizes, is real Windows XP art (os/xp.jsx; assets-src/SOURCES.md section 11),
+// and the larger sizes, is real Windows XP art (os/xp.jsx; assets-src/SOURCES.md section 13),
 // each drawn from its own size design. Components take { x, y, size }.
 import { asset, preload } from '../../core/preload.js'
 import { XpIcon } from '../../os/xp.jsx'

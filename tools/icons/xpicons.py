@@ -4,7 +4,7 @@
 # Reads the XP SP3 PE files in assets-src/icons/xp-sp3-iso/*.bin (shell32 from
 # assets-src/icons/xp-shell32-sp3/shell32.dll.bin, Office 2003's Outlook and Word from
 # assets-src/icons/office-2003/*.bin) as data: a small PE resource reader, nothing is
-# loaded or run (assets-src/SOURCES.md section 11). Every icon keeps its own size designs: an icon
+# loaded or run (assets-src/SOURCES.md section 13). Every icon keeps its own size designs: an icon
 # group gives its 16, 24, 32 and 48 px images (32-bit with alpha), a toolbar strip one cell per
 # size. Writes one sprite per size, public/img/xp/xp<size>.webp (lossless; cells of size + 4 px, the
 # icon at +2, 16 columns), and src/os/xpSheet.js (name -> cell index per size).
@@ -51,11 +51,10 @@ ICONS = {
     # Control Panel category view
     'cat-appearance': ('shell32.dll', 270), 'cat-addremove': ('shell32.dll', 271),
     'cat-hardware': ('shell32.dll', 272), 'cat-network': ('shell32.dll', 273),
-    'cat-perf': ('shell32.dll', 275), 'cat-datetime': ('shell32.dll', 276),
-    'cat-sound': ('shell32.dll', 277), 'cat-users': ('shell32.dll', 279), 'cat-access': ('shell32.dll', 268),
+    'cat-datetime': ('shell32.dll', 276), 'cat-sound': ('shell32.dll', 277), 'cat-users': ('shell32.dll', 279),
     # programs
     'calc': ('calc.exe', 'SC'), 'charmap': ('charmap.exe', 111), 'solitaire': ('sol.exe', 500),
-    'paint': ('mspaint.exe', 2), 'notepad': ('notepad.exe', 2), 'wordpad': ('wordpad.exe', 128),
+    'paint': ('mspaint.exe', 2), 'notepad': ('notepad.exe', 2),
     # task-pane tasks
     'newfolder': ('shell32.dll', 319), 'publish': ('shell32.dll', 244), 'slideshow': ('shell32.dll', 249),
     'orderprints': ('shell32.dll', 251), 'printpics': ('shell32.dll', 252), 'playall': ('shell32.dll', 292),
@@ -71,32 +70,29 @@ ICONS = {
     'ol-drafts': ('outllibr.dll', 9617), 'ol-search': ('outllibr.dll', 9618), 'ol-junk': ('outllibr.dll', 9622),
     'ol-unread': ('outllibr.dll', 9403), 'ol-read': ('outllibr.dll', 9704),
 }
-# toolbar strips: (binary, bitmap id per size, cell size per size, transparent key or None, cells)
+# drawn at 20 px or less only (task-pane links, list rows, status bars): no 32 / 48 px cells
+SMALL = {'newfolder', 'publish', 'orderprints', 'printpics', 'playall', 'setting', 'sysinfo', 'winupdate',
+         'webpage', 'internet', 'wmp-album', 'wmp-burn', 'wmp-video', 'cdr', 'app', 'logoff', 'shutdown',
+         'ol-folder', 'ol-root', 'ol-inbox', 'ol-sent', 'ol-outbox', 'ol-deleted', 'ol-drafts', 'ol-search',
+         'ol-junk', 'ol-unread', 'ol-read'}
+# toolbar strips: (binary, bitmap id per size, transparent key or None, cells)
 STRIPS = [
     # IE6 (XP) toolbar: shell32 204 (24 px) / 206 (16 px)
     ('shell32.dll', {24: 204, 16: 206}, None, {
         'tb-back': 0, 'tb-forward': 1, 'tb-stop': 2, 'tb-refresh': 3, 'tb-home': 4, 'tb-search': 5,
-        'tb-favorites': 6, 'tb-print': 7, 'tb-media': 11, 'tb-history': 12, 'tb-mail': 13}),
+        'tb-favorites': 6, 'tb-print': 7, 'tb-history': 12, 'tb-mail': 13}),
     # Explorer toolbar: shell32 214 (24 px) / 216 (16 px)
     ('shell32.dll', {24: 214, 16: 216}, None, {
-        'tb-cut': 5, 'tb-copy': 6, 'tb-paste': 7, 'tb-undo': 8, 'tb-redo': 9, 'tb-delete': 10,
-        'tb-new': 11, 'tb-open': 12, 'tb-save': 13, 'tb-props': 15, 'tb-find': 17, 'tb-up': 28,
-        'tb-folders': 43}),
+        'tb-cut': 5, 'tb-copy': 6, 'tb-paste': 7, 'tb-undo': 8, 'tb-redo': 9, 'tb-new': 11,
+        'tb-open': 12, 'tb-save': 13, 'tb-find': 17, 'tb-up': 28, 'tb-folders': 43}),
     # Outlook Express 6 toolbar: msoeres 74 (24 px) / 73 (16 px)
     ('msoeres.dll', {24: 74, 16: 73}, None, {
-        'oe-addresses': 0, 'oe-delete': 5, 'oe-find': 7, 'oe-sendrecv': 10, 'oe-newmail': 11,
-        'oe-print': 29, 'oe-reply': 32, 'oe-replyall': 33, 'oe-forward': 34, 'oe-send': 47,
-        'oe-attach': 49}),
+        'oe-delete': 5, 'oe-find': 7, 'oe-sendrecv': 10, 'oe-newmail': 11, 'oe-print': 29,
+        'oe-reply': 32, 'oe-replyall': 33, 'oe-forward': 34, 'oe-send': 47, 'oe-attach': 49}),
     # Windows Picture and Fax Viewer toolbar (16 px): shimgvw 105
-    ('shimgvw.dll', {16: 105}, None, {
-        'pv-prev': 0, 'pv-next': 1, 'pv-zoomin': 2, 'pv-zoomout': 3, 'pv-bestfit': 5, 'pv-actual': 6,
-        'pv-slideshow': 8, 'pv-rotccw': 11, 'pv-rotcw': 12, 'pv-print': 20, 'pv-delete': 25,
-        'pv-edit': 26}),
+    ('shimgvw.dll', {16: 105}, None, {'pv-zoomin': 2, 'pv-zoomout': 3, 'pv-rotcw': 12}),
     # Paint tool box (16 px, 16 colours on a red key)
-    ('mspaint.exe', {16: 859}, (255, 0, 0), {
-        'pt-freeselect': 0, 'pt-select': 1, 'pt-eraser': 2, 'pt-fill': 3, 'pt-pick': 4, 'pt-zoom': 5,
-        'pt-pencil': 6, 'pt-brush': 7, 'pt-airbrush': 8, 'pt-text': 9, 'pt-line': 10, 'pt-curve': 11,
-        'pt-rect': 12, 'pt-polygon': 13, 'pt-ellipse': 14, 'pt-roundrect': 15}),
+    ('mspaint.exe', {16: 859}, (255, 0, 0), {'pt-eraser': 2, 'pt-pencil': 6, 'pt-brush': 7}),
 ]
 # single bitmaps: name -> (binary, bitmap id, size it is filed under)
 BITMAPS = {
@@ -225,7 +221,7 @@ def main():
     for name, (b, gid) in ICONS.items():
         imgs = group_images(b, gid)
         for s in SIZES:
-            if s in imgs:
+            if s in imgs and not (name in SMALL and s > 24):
                 cells[s].append((name, imgs[s]))
     for b, ids, key, names in STRIPS:
         for s, bid in ids.items():
@@ -250,7 +246,7 @@ def main():
         sheet.save(os.path.join(out, f'xp{s}.webp'), lossless=True, quality=100, method=6, exact=True)
         print(f'xp{s}.webp', sheet.size, len(cells[s]), 'cells', os.path.getsize(os.path.join(out, f'xp{s}.webp')), 'bytes')
     dims = {s: [COLS * (s + 2 * PAD), ((len(cells[s]) + COLS - 1) // COLS) * (s + 2 * PAD)] for s in SIZES}
-    js = ('// generated by tools/icons/xpicons.py: Windows XP icon art (assets-src/SOURCES.md section 11).\n'
+    js = ('// generated by tools/icons/xpicons.py: Windows XP icon art (assets-src/SOURCES.md section 13).\n'
           '// SHEETS: size -> [width, height] of public/img/xp/xp<size>.webp (cells of size + 4 px, the icon\n'
           f'// at +2, {COLS} columns); ICONS: name -> {{ size: cell index }}\n'
           f'export const COLS = {COLS}\nexport const PAD = {PAD}\n'
