@@ -61,16 +61,35 @@ await Promise.all(
     }
   }),
 )
+// a capture that failed (a busy machine: Chrome slow to start) is tried again, one at a time
+const failed = errors.splice(0)
+for (const f of failed) {
+  const [way, n] = f.split(' ')
+  const j = jobs.find((x) => x.way === way && String(x.n) === n.replace(':', ''))
+  const e = j && (await capture(j.list, join(out, `${j.way}-${j.n}`)))
+  if (!j || e) errors.push(f)
+}
 if (errors.length) console.log('capture errors:\n  ' + errors.join('\n  '))
 
-const load = (way, n) => PNG.decode(readFileSync(join(out, `${way}-${n}`, `f${String(n).padStart(5, '0')}.png`)))
+const load = (way, n) => {
+  try {
+    return PNG.decode(readFileSync(join(out, `${way}-${n}`, `f${String(n).padStart(5, '0')}.png`)))
+  } catch {
+    return null
+  }
+}
 let bad = 0
 for (const n of frames) {
   const a = load('alone', n)
   const ways = ['run', ...(back ? ['back'] : [])]
   const notes = []
-  for (const w of ways) {
+  if (!a) notes.push('alone: no capture')
+  for (const w of a ? ways : []) {
     const b = load(w, n)
+    if (!b) {
+      notes.push(w + ': no capture')
+      continue
+    }
     let max = 0, count = 0, x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1
     for (let i = 0; i < a.data.length; i += 4) {
       const d = Math.max(Math.abs(a.data[i] - b.data[i]), Math.abs(a.data[i + 1] - b.data[i + 1]), Math.abs(a.data[i + 2] - b.data[i + 2]))
