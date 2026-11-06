@@ -38,7 +38,8 @@ const label = { size: 11, w: 400, f: HEAVY, sx: 1, c: '#e4f4ff', style: { filter
 
 const ie = (url) => () => emit('win.open', { id: 'ie', app: 'ie', props: { url } })
 
-// the toolbar's link buttons (icon box, label x); Favorites only on windows at least 760 px wide
+// the toolbar's link buttons (icon box, label x); a narrower window shows the ones whose label
+// ends 14 px inside its right edge (Favorites only from 760 px, as the video's 777 px window)
 const TOOLS = [
   { ix: 90, iy: 22, iw: 34, ih: 36, tx: 133, text: 'Home', Icon: I.HomeIcon, onClick: ie('www.msn.com') },
   { ix: 149, iy: 29, iw: 50, ih: 26, tx: 209, text: 'Search', Icon: I.SearchIcon, onClick: () => emit('win.open', { id: 'search', app: 'search' }) },
@@ -49,7 +50,12 @@ const TOOLS = [
   { ix: 659, iy: 25, iw: 30, ih: 30, tx: 695, text: 'Favorites', Icon: I.StarIcon, fav: true },
 ]
 const BF = { x: 10, y: 19 }
-const toolsFor = (w) => TOOLS.filter((it) => !it.fav || w >= 760)
+const fits = (it, w) => it.tx + textWidth(it.text, { size: label.size, w: label.w, f: label.f, sx: label.sx }) <= w - 14 && (!it.fav || w >= 760)
+function toolsFor(w) {
+  let n = 0
+  while (n < TOOLS.length && fits(TOOLS[n], w)) n++
+  return TOOLS.slice(0, n)
+}
 
 // The toolbar's icons (back / forward and the link icons with their reflections, as I.Reflected
 // draws them) are one SVG image, made on first use: an image is rasterised once and shared by
@@ -77,8 +83,8 @@ function iconMarkup(node) {
   }
   return `<${type}${attrs}>${iconMarkup(props.children)}</${type}>`
 }
-function toolbarImage(fav) {
-  const items = TOOLS.filter((it) => fav || !it.fav)
+function toolbarImage(n) {
+  const items = TOOLS.slice(0, n)
   const w = Math.max(...items.map((it) => it.ix + it.iw)) + 4
   const defs = [`<g id="bf">${iconMarkup(<I.BackForward />)}</g>`]
   const body = [`<use href="#bf" x="${BF.x}" y="${BF.y}"/>`]
@@ -93,10 +99,11 @@ function toolbarImage(fav) {
   const doc = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${TOOL_IMG_H}" viewBox="0 0 ${w} ${TOOL_IMG_H}"><defs>${defs.join('')}</defs>${body.join('')}</svg>`
   return { src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(doc), w }
 }
-let toolImgs = null
-const toolImg = (fav) => {
-  toolImgs ??= [toolbarImage(false), toolbarImage(true)]
-  return toolImgs[fav ? 1 : 0]
+// (one image per number of link buttons shown, made on first use)
+const toolImgs = []
+const toolImg = (n) => {
+  toolImgs[n] ??= toolbarImage(n)
+  return toolImgs[n]
 }
 
 const DEFAULT_COMMANDS = [
@@ -169,6 +176,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
   const menus = menus0.Favorites ? menus0 : { ...menus0, Favorites: FAVORITES }
   const crumbMenus = val(cfg.crumbMenus, win, t, null) || [PLACES, PLACES]
   const L = crumbLayout(crumbs[0] ?? '', crumbs[1])
+  const tools = toolsFor(w)
+  const img = toolImg(tools.length)
   const menuId = (m) => wid(win, 'xmenu.' + m)
   const menu = (m) => (e) => {
     e.stopPropagation()
@@ -190,12 +199,12 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 64px, rgba(255,255,255,0.06) 68px, rgba(255,255,255,0.1) 70px, rgba(0,0,0,0) 72px)',
         })}
       />
-      <img alt="" src={toolImg(w >= 760).src} width={toolImg(w >= 760).w} height={TOOL_IMG_H} style={abs(0, 0, toolImg(w >= 760).w, TOOL_IMG_H)} />
+      <img alt="" src={img.src} width={img.w} height={TOOL_IMG_H} style={abs(0, 0, img.w, TOOL_IMG_H)} />
       {!copy && <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />}
       {!copy && <div data-hit="nav:forward" style={abs(50, 32, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
-      <Texts style={label.style} items={toolsFor(w).map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
+      <Texts style={label.style} items={tools.map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
       {!copy &&
-        toolsFor(w).map((it) => (
+        tools.map((it) => (
           <div key={it.text} data-hit={'tool:' + it.text} style={abs(it.ix - 2, 22, it.tx - it.ix + it.text.length * 6.5 + 4, 40, { cursor: 'default' })} onClick={it.fav ? menu('Favorites') : it.onClick} />
         ))}
 

@@ -62,7 +62,23 @@ const Clock = memo(function Clock({ h, m, s }) {
 // land picked out. One static SVG (gradients, no filters).
 const ZONE = { offset: -8 } // (GMT-08:00) Pacific Time
 const SIZE = { w: 420, h: 330 }
-const SIZE_DT = { w: 420, h: 350 }
+const SIZE_DT = { w: 420, h: 360 }
+// The Time Zone tab inside its panel (pw x ph): the zone field (14-34), the map 10 px under it
+// across the panel's width at the projection's aspect (smaller and centred if the panel is too
+// short), the daylight saving checkbox (16 px) 12 px under the map, and at least 16 px of panel
+// under the checkbox.
+const TZ_MAP_Y = 44
+function tzLayout(pw, ph) {
+  const maxW = pw - 28
+  const maxH = ph - TZ_MAP_Y - 12 - 16 - 16
+  let mw = maxW
+  let mh = Math.round((mw * MAP_H) / MAP_W)
+  if (mh > maxH) {
+    mh = maxH
+    mw = Math.round((mh * MAP_W) / MAP_H)
+  }
+  return { x: Math.round((maxW - mw) / 2), w: mw, h: mh, check: TZ_MAP_Y + mh + 12 }
+}
 const WorldMap = memo(function WorldMap({ w, h, offset }) {
   const cx = 180 + offset * 15 // the zone's centre meridian, map x
   const vx = cx - MAP_W / 2
@@ -116,6 +132,7 @@ function DateTime({ win, t, w, h }) {
   const c = clockAt(t, win)
   const day = valueOf(t, id('day'), 5)
   const dst = valueOf(t, id('dst'), true)
+  const tz = tzLayout(w - 20, h - 74)
   return (
     <>
       <Tabs id={id('tab')} tabs={[{ key: 'dt', label: 'Date & Time' }, { key: 'tz', label: 'Time Zone' }]} x={10} y={8} w={w - 20} def="dt" />
@@ -156,11 +173,10 @@ function DateTime({ win, t, w, h }) {
         ) : (
           <>
             <div style={{ position: 'absolute', left: 14, top: 14, right: 14, height: 20, borderRadius: 3, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, ...txt, lineHeight: '20px', paddingLeft: 6 }}>(GMT-08:00) Pacific Time (US &amp; Canada); Tijuana</div>
-            {/* the map fills the panel's width at the projection's own aspect */}
-            <div style={{ position: 'absolute', left: 14, top: 42, width: w - 48, height: Math.round(((w - 48) * MAP_H) / MAP_W), borderRadius: 3, overflow: 'hidden', boxShadow: `0 0 0 1px ${C.border}` }}>
-              <WorldMap w={w - 48} h={Math.round(((w - 48) * MAP_H) / MAP_W)} offset={ZONE.offset} />
+            <div style={{ position: 'absolute', left: 14 + tz.x, top: TZ_MAP_Y, width: tz.w, height: tz.h, borderRadius: 3, overflow: 'hidden', boxShadow: `0 0 0 1px ${C.border}` }}>
+              <WorldMap w={tz.w} h={tz.h} offset={ZONE.offset} />
             </div>
-            <Checkbox id={id('dst')} label="Automatically adjust clock for daylight saving changes" x={14} y={52 + Math.round(((w - 48) * MAP_H) / MAP_W)} def checked={dst} onChange={(v) => emit('ui.value', { id: id('dst'), value: v })} />
+            <Checkbox id={id('dst')} label="Automatically adjust clock for daylight saving changes" x={14} y={tz.check} def checked={dst} onChange={(v) => emit('ui.value', { id: id('dst'), value: v })} />
           </>
         )}
       </TabPanel>
