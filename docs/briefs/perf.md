@@ -23,8 +23,8 @@ draws exactly what `?capture` draws for the same time.
   capture path one video frame per animation frame with vsync off at 1440x1080 and prints
   per-segment p50/p95/max frame cost and the frames over 6.94 ms. Use all frames of your segments
   (e.g. `694-716,1353-1415`), not every 3rd. The bench pins the frame at scale 1; `--scaled` fits it
-  to the window instead (s = 1.5 at 1440x1080, under the stage's zoom), `--query stage=transform`
-  compares the old scale transform.
+  to the window instead (s = 1.5 at 1440x1080), `--query stage=zoom` measures Safari's zoom
+  (ARCHITECTURE.md Stage) in Chrome.
 - `UNCAPPED=1 node tools/perf.mjs <base url>` plays `?demo` in real time with vsync off.
 - Interactive features (new windows, menus, drags) must be benched too: add a short scripted
   input to the bench (or a demo-like event list behind a URL flag) for what you build, so its

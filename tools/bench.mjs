@@ -4,9 +4,10 @@
 // size; each frame's interval is its cost. 144 Hz needs every frame under 6.94 ms.
 //
 // usage: node tools/bench.mjs [frames, default 1-1529] [--size 1440x1080] [--dpr 1] [--url base]
-//        [--repeat 2] [--json out.json] [--scaled] [--query stage=transform]
+//        [--repeat 2] [--json out.json] [--scaled] [--query stage=zoom]
 // --scaled: the frame fitted to the window (s = 1.5 at 1440x1080) instead of pinned at scale 1,
-// to measure the stage's scaling (?bench&scaled, core/Stage.jsx); --query adds to the page's URL.
+// to measure the stage's scaling (?bench&scaled, core/Stage.jsx: Chrome scales by a transform,
+// --query stage=zoom measures Safari's zoom in Chrome); --query adds to the page's URL.
 // Prints per-segment p50 / p95 / max and the worst frames. Each frame is measured `repeat` times
 // (after a warm-up pass over the range) and the minimum is kept, to filter scheduler noise.
 // Also prints the peak memory (physical footprint of the renderer + GPU processes, tools/lib/
