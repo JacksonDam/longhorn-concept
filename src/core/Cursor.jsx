@@ -67,7 +67,9 @@ export function Cursor({ path }) {
     const on = (e) => {
       live = toStage(e.clientX, e.clientY)
       force((n) => n + 1)
-      logPointer(live)
+      // (not while a button is down: a drag or a resize carries the pointer with the window, the
+      // slabs it feeds don't turn, and a log event a frame would cost the drag)
+      if (!e.buttons) logPointer(live)
     }
     const out = () => logPointer({ hidden: true })
     addEventListener('pointermove', on)

@@ -51,7 +51,10 @@ export function slabTilt(tt, from, o, hw, hh, rAt) {
     return { x: r.x + o.x, y: r.y + o.y, hw, hh }
   })
   const u = Math.max(0, Math.min(1, (tt - s[0].t) / DRIFT_OUT))
-  return { yaw, pitch, drift: 1 - u * u * (3 - 2 * u) }
+  // (to 0.01 deg: a settling spring stops changing the slab's image, and its canvas redraws, once
+  // it is within that of its target)
+  const q = (v) => Math.round(v * 100) / 100
+  return { yaw: q(yaw), pitch: q(pitch), drift: 1 - u * u * (3 - 2 * u) }
 }
 
 // the pose with the tilt applied (the slab renderer's ry / rx turn the other way: ry -= yaw)
