@@ -27,7 +27,7 @@ import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
 import { dockPoint } from './taskbar.js'
 import { WindowShadow } from './shadow.jsx'
 import { LookLayer, INACTIVE_SHADOW } from './look.jsx'
-import { RADIUS_TOP, RADIUS_BOTTOM, radiiAt } from './frame.js'
+import { RADIUS_TOP, RADIUS_BOTTOM, radiiAt, BODY_TOP, WORK, MAX_RECT, titleBaseline } from './frame.js'
 import {
   OPEN_DELAY, RESTORE_DELAY, OPEN_END, openPose, openMoving, openLight, poseCss, openBlur,
   MIN_END, RESTORE_END, minimizePoseFor, restorePoseFor, minimizeBlur, restoreBlur,
@@ -35,14 +35,15 @@ import {
 } from './windowAnim.js'
 
 export const TITLE_H = 24 // plain windows: title bar height
-export const WORK = { x: 0, y: 0, w: 858, h: 698 } // the area a maximised window fills (left of the sidebar, above the taskbar)
+export { WORK } // the area a maximised window's body fills (os/frame.js: left of the sidebar, above the taskbar)
 const toRel = (t, t0) => (t - t0) * FPS
 
 // ---------------------------------------------------------------- window rect
-// win.x / win.y (dragged) or the app's default position; maximised: WORK
+// win.x / win.y (dragged) or the app's default position; maximised: MAX_RECT (the body fills WORK)
+// (app.size / app.position may be functions of the window's props: a message box sizes to its text)
 export function normalRect(win, app) {
-  const s = app.size || { w: 420, h: 300 }
-  const p = app.position || { x: 120, y: 80 }
+  const s = (typeof app.size === 'function' ? app.size(win.props || {}) : app.size) || { w: 420, h: 300 }
+  const p = (typeof app.position === 'function' ? app.position(win.props || {}, s) : app.position) || { x: 120, y: 80 }
   return { x: win.x ?? p.x, y: win.y ?? p.y, w: win.w ?? s.w, h: win.h ?? s.h }
 }
 
@@ -98,18 +99,31 @@ function OpenLight({ rel, w, h, topH, rt = RADIUS_TOP, rb = RADIUS_BOTTOM }) {
 // ---------------------------------------------------------------- frame parts
 // window rim (f800): a 2 px light top edge, 2 px dark translucent sides along the top block
 // (the title bar and the glass and bands below it, as far as the explorer chrome reaches); its
-// outer corners concentric with the body's (r + 2: it starts 2 px above the body)
-const Rim = memo(function Rim({ w, topH, r = RADIUS_TOP }) {
-  const rim = 'rgba(90,108,150,0.5)'
+// outer corners concentric with the body's (r + 2: it starts 2 px above the body). Layer px: the
+// rim covers x -1..1 and w..w + 2, y 1..3, so its centre line runs at x 0 / w + 1, y 2, radius
+// r + 1. One stroke whose colour turns from the light top to the dark sides along the corner
+// arcs (RIM_FADE of the way down them), where a CSS border's two colours would meet in a hard
+// diagonal join. op: faded out as the window maximises (its sides would show along the screen
+// edge and the sidebar; the top lies off-screen).
+const RIM_LIGHT = 'rgba(185,215,255,0.65)'
+const RIM_SIDE = 'rgba(90,108,150,0.5)'
+const RIM_FADE = 1
+const Rim = memo(function Rim({ w, topH, r = RADIUS_TOP, op = 1 }) {
+  if (op <= 0) return null
+  const R = Math.max(0, r + 1)
+  const x0 = 1, x1 = w + 2, y0 = 2, yb = 1 + topH // svg px (the svg sits at layer x -1)
+  const d = `M${x0} ${yb} V${y0 + R} A${R} ${R} 0 0 1 ${x0 + R} ${y0} H${x1 - R} A${R} ${R} 0 0 1 ${x1} ${y0 + R} V${yb}`
+  const gid = 'lh-rim-' + String(R).replace('.', '_')
   return (
-    <div
-      style={{
-        position: 'absolute', left: -1, top: 1, width: w + 3, height: topH, boxSizing: 'border-box',
-        borderStyle: 'solid', borderWidth: '2px 2px 0 2px',
-        borderColor: `rgba(185,215,255,0.65) ${rim} transparent ${rim}`,
-        borderRadius: r > 0 ? `${r + 2}px ${r + 2}px 0 0` : 0, pointerEvents: 'none',
-      }}
-    />
+    <svg width={w + 3} height={topH + 1} style={{ position: 'absolute', left: -1, top: 0, overflow: 'visible', pointerEvents: 'none', opacity: op < 1 ? op : undefined }}>
+      <defs>
+        <linearGradient id={gid} gradientUnits="userSpaceOnUse" x1="0" y1={y0 + 1} x2="0" y2={y0 + 1 + Math.max(1, R * RIM_FADE)}>
+          <stop offset="0" stopColor={RIM_LIGHT} />
+          <stop offset="1" stopColor={RIM_SIDE} />
+        </linearGradient>
+      </defs>
+      <path d={d} fill="none" stroke={`url(#${gid})`} strokeWidth="2" />
+    </svg>
   )
 })
 
@@ -142,11 +156,13 @@ const WinButtonsIcon = () => (
 )
 
 // title text: app.TitleContent (custom, e.g. my Music's equaliser glyph + "my Music") or the
-// app title centred in the bar (one colour: an inactive window's wash dims it, os/look.jsx)
+// app title centred in the bar (one colour: an inactive window's wash dims it, os/look.jsx),
+// vertically centred on the window buttons by its cap height (os/frame.js titleBaseline)
+const TITLE_Y = titleBaseline(13.5)
 const Title = memo(function Title({ w, title, TitleContent, active, props }) {
   if (TitleContent) return <TitleContent w={w} active={active} props={props} />
   return (
-    <Txt x={w / 2} y={13.5} anchor="middle" size={13.5} w={600} f={HEAVY} sx={1} c="#e3f3ff">
+    <Txt x={w / 2} y={TITLE_Y} anchor="middle" size={13.5} w={600} f={HEAVY} sx={1} c="#e3f3ff">
       {title}
     </Txt>
   )
@@ -218,7 +234,7 @@ function bodyClip(w, h, rt, rb, cut) {
   const key = `${w}|${h}|${rt}|${rb}|${cut}`
   let v = clipCache.get(key)
   if (v) return v
-  const T = 3
+  const T = BODY_TOP
   if (!cut) v = `inset(${T}px 0px 0px 0px round ${rt}px ${rt}px 0 0)`
   else {
     const L = 1
@@ -341,10 +357,10 @@ function motion(win, app, t) {
   const r0 = normalRect(win, app)
   const dock = dockPoint(win.id, t)
   const max = (tt) => {
-    // maximise / restore-down tween between the normal rect and WORK
+    // maximise / restore-down tween between the normal rect and MAX_RECT
     const k = win.maximizedAt == null ? (win.maximized ? 1 : 0) : maxEase(toRel(tt, win.maximizedAt) / MAX_FRAMES)
-    const from = win.maximized ? rectAt(win, app, tt) : WORK
-    const to = win.maximized ? WORK : rectAt(win, app, tt)
+    const from = win.maximized ? rectAt(win, app, tt) : MAX_RECT
+    const to = win.maximized ? MAX_RECT : rectAt(win, app, tt)
     const kk = win.maximizedAt == null ? 1 : k
     return {
       x: from.x + (to.x - from.x) * kk, y: from.y + (to.y - from.y) * kk,
@@ -685,7 +701,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={false} hidden={false} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
-        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius.top} /> : null}
+        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius.top} op={1 - mk} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
       </div>,
     )
