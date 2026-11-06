@@ -505,8 +505,8 @@ const PREP_HOLD = 1.5 // s: how long a prepare keeps them after the pointer has 
 
 // How many layers (live + copies) a window may have while it blurs: the app's (the video's) count
 // under ?capture / ?bench; in real time what the device's budget for one blurring window allows
-// (every engine backs a layer at its own size x (devicePixelRatio x page zoom)^2, whatever the
-// stage's scale transform)
+// (every engine backs a layer at its own size x devicePixelRatio^2, whatever the stage's scale
+// transform; on a phone devicePixelRatio includes the page zoom, index.html)
 let budgetMB = null
 function copyBudgetMB() {
   if (budgetMB != null) return budgetMB
@@ -519,7 +519,7 @@ function copyBudgetMB() {
 export function copyCount(app, r) {
   const N = app.copies ?? DEFAULT_COPIES
   if (CAPTURE) return N
-  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) * (window.visualViewport?.scale || 1) : 1
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
   const perCopy = (r.w * r.h * dpr * dpr * 4) / 1048576
   return Math.max(2, Math.min(N, Math.floor(copyBudgetMB() / perCopy)))
 }

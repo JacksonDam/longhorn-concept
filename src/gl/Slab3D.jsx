@@ -27,10 +27,10 @@ export function Slab3D({
   const ref = useRef(null)
   const scene = useMemo(() => new SlabScene(), [])
   const { s } = useStageScale()
-  // device px per stage px: the stage's scale, the device pixel ratio and the page zoom (phones lay
-  // the page out 960 wide and zoom it out: rendering at the bare devicePixelRatio there would
-  // draw ~6x the pixels the canvas shows)
-  const scale = Math.min(3, s * (window.devicePixelRatio || 1) * (window.visualViewport?.scale || 1))
+  // device px per stage px: the stage's scale times the device pixel ratio (on a phone, whose page
+  // is laid out 960 wide and zoomed out, index.html has devicePixelRatio include the page zoom:
+  // it is the device px per CSS px actually shown)
+  const scale = Math.min(3, s * (window.devicePixelRatio || 1))
   useLayoutEffect(() => {
     const c = ref.current
     if (!c) return

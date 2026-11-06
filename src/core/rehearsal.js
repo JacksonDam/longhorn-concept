@@ -62,7 +62,8 @@ const BATCH = 3
 
 // The window warm-up, kept apart so other window warm-ups (e.g. pre-building each app's
 // motion-blur copy trees) can join it: every registered app, a batch at a time, opened and drawn
-// settled (the open and close motions themselves are the shell part's window's), then closed,
+// settled, one frame (the open and close motions themselves are the shell part's window's; a
+// second settled frame measured no fewer first-open hitches, tools/coldstart.mjs), then closed,
 // each batch's windows gone before the next opens. That is the first run of each app's code and
 // its first style, layout and raster (the windows running since login are among them: Outlook,
 // Word). Appends to the log `ev` and the frames to draw from video frame `f` on; returns the
@@ -72,7 +73,7 @@ export function rehearseWindows(f, ev, frames) {
   for (let i = 0; i < apps.length; i += BATCH) {
     const batch = apps.slice(i, i + BATCH)
     for (const a of batch) ev.push({ type: 'win.open', id: ID[a.id] || 'warm.' + a.id, app: a.id, ...(PROPS[a.id] ? { props: PROPS[a.id] } : {}), t: frameTime(f) })
-    frames.add(f + 40).add(f + 41)
+    frames.add(f + 40)
     for (const a of batch) ev.push({ type: 'win.close', id: ID[a.id] || 'warm.' + a.id, t: frameTime(f + 42) })
     f += 72
   }
