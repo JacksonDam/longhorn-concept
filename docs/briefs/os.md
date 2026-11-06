@@ -45,6 +45,9 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
   measure equal to the SVG / HTML text) with a 6 px gap: the explorer breadcrumbs, my Music's
   Group / Arrange / View bar; flex rows in the ui kit already flow. Combo fields keep their arrow
   at the right edge and clip the text before it.
+- **Narrow explorer windows** show only the toolbar links whose label ends 14 px inside the
+  window (ExplorerChrome `toolsFor`; Favorites from 760 px), so nothing in the header runs past
+  the window at an app's minimum width.
 - **Shadow.** Every window casts the video's soft drop shadow (os/shadow.jsx, fitted on the my
   Music window: black, offset 9 px down, sigma 8, spread -1, alpha 0.33; nothing above the
   window; the second video, ref2 f01490, shows the same kind of shadow). It is one layer per
