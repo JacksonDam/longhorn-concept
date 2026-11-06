@@ -17,6 +17,7 @@ import {
   Thumb,
 } from './icons.jsx'
 import { GLASS_BLUR, GLASS_K } from './glassFit.js'
+import { POINT } from '../../core/point.js'
 
 export const PANEL = { x: 858, y: 0, w: 102, h: 700 }
 const L = PANEL.x // panel left, all coordinates below are absolute stage px
@@ -263,20 +264,21 @@ const Glass = memo(function Glass({ top, height, o, dx = 0 }) {
   )
 })
 
-const show = (o) => ({ position: 'absolute', inset: 0, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' })
+// (wrappers are points, not full-stage boxes: core/point.js)
+const show = (o) => ({ ...POINT, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' })
 
 // opacity: { panel, header, name, seattle, ... } in 0..1; media: { title, playing, scroll };
 // slide: px the panel is pushed right (chevron), 0..102
 export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, live, hits, mail }) {
   const hl = mediaHL?.hover ?? 0
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+    <div style={{ ...POINT, pointerEvents: 'none' }}>
       {/* the clock foot stays; the panel moves when the chevron hides the sidebar. The panel's
           glass slides by its own transform: the tile wrapper's transform makes it a stacking
           context, which would isolate the tint's blend from the backdrop. */}
       <Glass top={PANEL.h} height={720 - PANEL.h} o={opacity.panel} />
       <Glass top={0} height={PANEL.h} o={slide >= PANEL.w ? 0 : opacity.panel} dx={slide} />
-      <div style={{ position: 'absolute', inset: 0, transform: slide ? `translateX(${slide}px)` : undefined, visibility: slide >= PANEL.w ? 'hidden' : 'visible' }}>
+      <div style={{ ...POINT, transform: slide ? `translateX(${slide}px)` : undefined, visibility: slide >= PANEL.w ? 'hidden' : 'visible' }}>
         <div
           style={{
             position: 'absolute',
@@ -312,7 +314,7 @@ export function Sidebar({ opacity, haze = 0, mediaHL, user, media, slide = 0, li
           <MediaTitle title={media.title} scroll={media.scroll} />
           <PlayButton x={865} y={278} playing={media.playing} />
         </div>
-        <div style={{ position: 'absolute', inset: 0, visibility: opacity.thumbs > 0 ? 'visible' : 'hidden' }}>{hits}</div>
+        <div style={{ ...POINT, visibility: opacity.thumbs > 0 ? 'visible' : 'hidden' }}>{hits}</div>
       </div>
     </div>
   )

@@ -151,6 +151,10 @@ export async function boot(startLog) {
   })()
   const done = await Promise.race([work, sleep(LIMIT + 500).then(() => false)])
   aborted = true
+  // the fence's context goes with the boot (a WebGL context holds GPU memory of its own)
+  // (false, not null: a rehearsal step still in flight then fences nothing)
+  if (fenceGl) fenceGl.getExtension('WEBGL_lose_context')?.loseContext()
+  fenceGl = false
   bootStats.timedOut = !done
   if (done && lvl === 'all') remember()
   setLog(startLog)

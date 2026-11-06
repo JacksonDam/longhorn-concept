@@ -6,6 +6,7 @@ import { emit } from '../../core/events.js'
 import { scoped, wid, valueOf, find, pt, stageRect, ToolButton, Tooltip, DropMenu, dropBelow, C } from '../../ui/index.js'
 import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { closeWin, messageBox, openWin } from '../lib/common.js'
+import { XpIcon } from '../../os/xp.jsx'
 
 const COLORS = ['#000000', '#808080', '#c0272d', '#e67e22', '#f5c542', '#4dbb3a', '#2e7d32', '#38b6d8', '#2c6cc4', '#1f3f7a', '#8e44ad', '#d85fa4', '#8a5a2b', '#ffffff']
 const TOOLS = [
@@ -86,7 +87,7 @@ function Paint({ win, t, w, h, live }) {
       <div style={{ position: 'absolute', left: 6, top: top + 8, width: 52, height: 4 * 30 + 8, borderRadius: 6, background: C.body, boxShadow: `inset 0 0 0 1px ${C.border}` }} />
       {TOOLS.map(([k, label], i) => (
         <span key={k}>
-          <ToolButton id={id('t.' + k)} x={12} y={top + 12 + i * 30} w={40} h={26} icon={<ToolGlyph kind={k} />} active={tool === k} onClick={() => emit('ui.value', { id: id('tool'), value: k })} />
+          <ToolButton id={id('t.' + k)} x={12} y={top + 12 + i * 30} w={40} h={26} icon={<XpIcon name={TOOL_ICON[k]} size={16} crisp />} iconSize={16} active={tool === k} onClick={() => emit('ui.value', { id: id('tool'), value: k })} />
           <Tooltip forId={id('t.' + k)} text={label} />
         </span>
       ))}
@@ -126,14 +127,9 @@ function Paint({ win, t, w, h, live }) {
   )
 }
 
-const ToolGlyph = ({ kind }) => (
-  <svg width="18" height="18" viewBox="0 0 18 18">
-    {kind === 'pencil' && <path d="M3 15 L4 11 L12 3 L15 6 L7 14 Z M3 15 L7 14" fill="#f5c542" stroke="#eaf5ff" strokeWidth="1" />}
-    {kind === 'brush' && <path d="M14 2 L16 4 L9 11 L7 9 Z M7 9 C4 9 3 12 2 16 C6 15 9 14 9 11" fill="#eaf5ff" />}
-    {kind === 'big' && <circle cx="9" cy="9" r="6" fill="#eaf5ff" />}
-    {kind === 'eraser' && <path d="M2 12 L8 6 L14 12 L10 16 H6 Z" fill="#ffd0d0" stroke="#eaf5ff" strokeWidth="1" />}
-  </svg>
-)
+// XP mspaint.exe's tool box art (16 px, 16 colours), drawn crisp at its own size; XP has one Brush
+// tool (its size is an option), so Brush and Big Brush share its icon
+const TOOL_ICON = { pencil: 'pt-pencil', brush: 'pt-brush', big: 'pt-brush', eraser: 'pt-eraser' }
 
 export default {
   id: 'paint',

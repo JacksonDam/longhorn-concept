@@ -53,7 +53,7 @@ search icons from `assets-src/icons` (`public/img/music/folder.png`, `find.png`)
 | my Pictures & Videos header photo frame | a desert mesa photo in a 3D frame | one of the generated mountain scenes in a CSS 3D frame |
 | Edit Pictures, Identify person | a face box on a photo of a person | the same yellow box placed on a landscape wherever the user clicks; the video's Recent Contacts names are kept |
 | Solitaire cards | (Microsoft's own card art is not used) | original cards: drawn ranks and suit symbols, a Plex-blue patterned back |
-| App icons (toolbars, files, applets, program categories) | Windows XP / Office icons | original SVG glyphs in the Plex palette (`src/apps/lib/icons.jsx`) |
+| Winamp transport, Messenger emoticon / block buttons, format-bar letters | Nullsoft / Messenger / Office glyphs | original SVG glyphs in the Plex palette (`src/apps/lib/icons.jsx`); every other app icon is the real Windows XP / Office 2003 art (assets-src/SOURCES.md section 13) |
 
 Not substitutions: Internet Explorer shows IE6's own offline page text ("The page cannot be
 displayed") for every address; Microsoft product names (Outlook, Word, Internet Explorer, Windows)

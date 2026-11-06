@@ -86,13 +86,19 @@ function script(name) {
 }
 
 // A user's pointer reaches the minimise, close or taskbar button before it clicks: each scripted
-// minimise, restore and close gets the 'win.prepare' that pointer would make, PREP frames before
-// (os/PlexWindow residency: the window's motion-blur copies mount from it)
-const PREP = 10
+// minimise, restore and close gets the 'win.prepare' that pointer would make, PREP frames before,
+// or as soon as the window's previous animation has played (os/PlexWindow residency: the
+// window's motion-blur copies grow from it, three steps a copy, a step a frame)
+const PREP = 32
 const PREPARED = new Set(['win.minimize', 'win.restore', 'win.close'])
+const PLAYS = { 'win.open': 26, 'win.minimize': 11, 'win.restore': 11, 'win.close': 15 } // frames (incl. delays)
 export function withPrepares(ev, at = 'f') {
   const out = [...ev]
-  for (const e of ev) if (PREPARED.has(e.type)) out.push({ [at]: e[at] - PREP, type: 'win.prepare', id: e.id })
+  const last = new Map() // window id -> end of its latest animation (frame)
+  for (const e of [...ev].sort((a, b) => a[at] - b[at])) {
+    if (PREPARED.has(e.type)) out.push({ [at]: Math.max(e[at] - PREP, (last.get(e.id) ?? -Infinity) + 0.5), type: 'win.prepare', id: e.id })
+    if (PLAYS[e.type]) last.set(e.id, e[at] + PLAYS[e.type])
+  }
   return out.sort((a, b) => a[at] - b[at])
 }
 

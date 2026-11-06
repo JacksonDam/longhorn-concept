@@ -11,13 +11,13 @@ import { useChromeCommands, chromeToggled } from '../lib/Explorer.jsx'
 
 const P = (name, icon, go) => ({ name, icon, go })
 export const CATEGORIES = [
-  { key: 'accessories', label: 'Accessories', color: ['#e9f3ff', '#7fb2ec', '#2f62ad'], glyph: 'programs', items: [P('Calculator', 'calc', () => openWin('calc', 'calc')), P('Notepad', 'text', () => openWin('notepad', 'notepad')), P('Character Map', 'charmap', () => openWin('charmap', 'charmap')), P('Run...', 'run', () => openWin('run', 'run')), P('Search', 'search32', () => openWin('search', 'search'))] },
-  { key: 'communications', label: 'Communications', color: ['#e9fbff', '#6cc6e8', '#1f7aa6'], glyph: 'mailbig', items: [P('Outlook', 'mailbig', () => openWin('inbox', 'outlook')), P('Messenger', 'users', () => openWin('im:Hank', 'im', { buddy: 'Hank' })), P('Network Connections', 'network', () => openWin('cpl:network', 'applet', { applet: 'network' }))] },
-  { key: 'entertainment', label: 'Entertainment', color: ['#f6eaff', '#b98ae8', '#6a3aa8'], glyph: 'music', items: [P('Winamp3', 'sound', () => openWin('winamp', 'winamp')), P('my Music', 'music', () => openMusic()), P('Slide Show', 'display', () => openWin('slideshow', 'slideshow', { auto: true }))] },
+  { key: 'accessories', label: 'Accessories', color: ['#e9f3ff', '#7fb2ec', '#2f62ad'], glyph: 'programs', items: [P('Calculator', 'calc', () => openWin('calc', 'calc')), P('Notepad', 'notepad', () => openWin('notepad', 'notepad')), P('Character Map', 'charmap', () => openWin('charmap', 'charmap')), P('Run...', 'run', () => openWin('run', 'run')), P('Search', 'search32', () => openWin('search', 'search'))] },
+  { key: 'communications', label: 'Communications', color: ['#e9fbff', '#6cc6e8', '#1f7aa6'], glyph: 'mailbig', items: [P('Outlook', 'outlook', () => openWin('inbox', 'outlook')), P('Messenger', 'users', () => openWin('im:Hank', 'im', { buddy: 'Hank' })), P('Network Connections', 'network', () => openWin('cpl:network', 'applet', { applet: 'network' }))] },
+  { key: 'entertainment', label: 'Entertainment', color: ['#f6eaff', '#b98ae8', '#6a3aa8'], glyph: 'music', items: [P('Winamp3', 'sound', () => openWin('winamp', 'winamp')), P('my Music', 'mymusic', () => openMusic()), P('Slide Show', 'slideshow', () => openWin('slideshow', 'slideshow', { auto: true }))] },
   { key: 'games', label: 'Games', color: ['#ecffe6', '#7ccf62', '#2e8a1f'], glyph: 'cards', items: [P('Solitaire', 'cards', () => openWin('solitaire', 'solitaire'))] },
-  { key: 'imaging', label: 'Imaging', color: ['#fff4e2', '#f2b45a', '#b8700f'], glyph: 'picture', items: [P('Paint', 'paint', () => openWin('paint', 'paint')), P('my Pictures & Videos', 'picture', () => openWin('pictures', 'pictures')), P('Create an Album', 'folder', () => openWin('album', 'album'))] },
-  { key: 'internet', label: 'Internet', color: ['#e9f3ff', '#5fa8ee', '#1d5cb0'], glyph: 'ie', items: [P('Internet Explorer', 'ie', () => openUrl('www.msn.com')), P('MSN', 'ie', () => openUrl('www.msn.com')), P('Windows Update', 'ie', () => openUrl('windowsupdate.microsoft.com'))] },
-  { key: 'productivity', label: 'Productivity', color: ['#eef3ff', '#8ea6e0', '#3a52a0'], glyph: 'doc', items: [P('Word', 'doc', () => openWin('doc1', 'word')), P('my Documents', 'folder', () => openWin('documents', 'documents')), P('Notepad', 'text', () => openWin('notepad', 'notepad'))] },
+  { key: 'imaging', label: 'Imaging', color: ['#fff4e2', '#f2b45a', '#b8700f'], glyph: 'picture', items: [P('Paint', 'paint', () => openWin('paint', 'paint')), P('my Pictures & Videos', 'mypics', () => openWin('pictures', 'pictures')), P('Create an Album', 'wmp-album', () => openWin('album', 'album'))] },
+  { key: 'internet', label: 'Internet', color: ['#e9f3ff', '#5fa8ee', '#1d5cb0'], glyph: 'ie', items: [P('Internet Explorer', 'ie', () => openUrl('www.msn.com')), P('MSN', 'ie', () => openUrl('www.msn.com')), P('Windows Update', 'winupdate', () => openUrl('windowsupdate.microsoft.com'))] },
+  { key: 'productivity', label: 'Productivity', color: ['#eef3ff', '#8ea6e0', '#3a52a0'], glyph: 'doc', items: [P('Word', 'word', () => openWin('doc1', 'word')), P('my Documents', 'mydocs', () => openWin('documents', 'documents')), P('Notepad', 'notepad', () => openWin('notepad', 'notepad'))] },
 ]
 
 // a big glass tile icon (ref3): a pale blue glass slab turned towards the text, the glyph on its
@@ -97,17 +97,17 @@ const TaskPane = memo(function TaskPane({ fold, onFold }) {
   if (!fold.pt) {
     out.push(link('add', 'Add new programs', 'programs', () => messageBox({ title: 'Add New Programs', icon: 'info', text: 'There are no new programs available to add from your network or from a CD.\nInsert a program CD into the DVD-RW Drive (D:) to install from it.' }), y))
     out.push(link('cfg', 'Configure a program', 'display', () => openWin('control', 'control'), y + 20))
-    out.push(link('rm', 'Remove a program', 'recycle', () => openWin('cpl:programs', 'applet', { applet: 'programs' }), y + 40))
-    out.push(link('upd', 'Search for updates', 'ie', () => openUrl('windowsupdate.microsoft.com'), y + 60))
+    out.push(link('rm', 'Remove a program', 'addremove', () => openWin('cpl:programs', 'applet', { applet: 'programs' }), y + 40))
+    out.push(link('upd', 'Search for updates', 'winupdate', () => openUrl('windowsupdate.microsoft.com'), y + 60))
     y += 82
   }
   y += 20
   out.push(head('op', 'other', 'places', y))
   y += 30
   if (!fold.op) {
-    out.push(link('docs', 'my Documents', 'folder', () => openWin('documents', 'documents'), y))
+    out.push(link('docs', 'my Documents', 'mydocs', () => openWin('documents', 'documents'), y))
     out.push(link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), y + 20))
-    out.push(link('cp', 'Control Panel', 'programs', () => openWin('control', 'control'), y + 40))
+    out.push(link('cp', 'Control Panel', 'control', () => openWin('control', 'control'), y + 40))
   }
   return out
 })

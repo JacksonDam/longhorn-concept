@@ -84,9 +84,14 @@ OS in the same style. Everything still derives from (time, event log).
   (`BOOT_SCREEN`, drawn from the clock by `PowerScreens.jsx` `BootScreen`), then the login fades in;
   the page load's own boot (a log starting with `session.boot` at t = 0) only fades in.
   `src/scenes/session/` draws the power screens. App.jsx keeps the login and desktop scenes
-  mounted (hidden) so switching between them never mounts a scene.
-- `src/os/wm.js`: window state from 'win.*' events (legacy 'music.*' aliases); the four
-  running-at-login windows exist minimised. `src/os/taskbar.js`: where each window's taskbar
+  mounted (hidden) so switching between them never mounts a scene. Leaving the desktop (log off,
+  switch user, shut down) plays the login transition in reverse (`logoffReverse`: the login exit's
+  keys unwound over the desktop, which keeps its windows until the login layer is back). Shut
+  down goes through the logon screen's shutting-down state (4015's: the background, a white flag,
+  "Windows is shutting down..."), then the hold and fade to black.
+- `src/os/wm.js`: window state from 'win.*' events (legacy 'music.*' aliases). A session starts
+  with no windows; the video's four running apps come from its input log ('login.submit'
+  { running: [ids] }) and exist minimised. `src/os/taskbar.js`: where each window's taskbar
   button is (the shell registers a locator), so windows minimise into their own button.
 - `src/os/apps.js`: auto-registry of `src/apps/*/index.{js,jsx}`. An app is
   `{ id, title, taskbarLabel, icon, size, position, explorer, Content, usesActive?, ... }`;
@@ -98,13 +103,21 @@ OS in the same style. Everything still derives from (time, event log).
   minimised, closed or never-shown window has none (it unmounts; everything is f(t, log), so it
   remounts exactly). Motion-blur copies, each drawing the app's full Content (memoised snapshots,
   `copyKey`; no stand-in copies), exist only around a blurred animation (open, minimise, restore,
-  close): they mount MOUNT_RATE a frame from its trigger and unmount once it has settled. The
-  trigger is the animation's event, or earlier a prepare signal: the pointer on the title bar's
-  minimise or close button ('win.prepare', on hover and press) or on the window's taskbar
-  button (its 'hover' events), so the click finds the copies mounted and rasterised (they wait on
-  the window's rect at opacity 1e-4: drawn, so they rasterise; at opacity 0 Chrome would skip
-  them). An open mounts one copy a frame from its event (it shows 5 frames in; copies rasterise
-  in their first pose before that). How many layers a window blurs with is `copyCount`: the
+  close). From its trigger they grow a step a video frame, each copy in three steps: mounted
+  (React work, under content-visibility: hidden), laid out (visibility: hidden), shown (painted
+  and rasterised, waiting on the window's rect at opacity 1e-4: drawn, so it rasterises; at
+  opacity 0 Chrome would skip it); once it has settled they unmount a step at a time, and a new
+  need carries the layers still mounted over. A copy whose content equals copy 1's is a DOM clone
+  of copy 1's body (`CloneBody`: no React mount; canvases get their pixels copied); my Music's
+  slab canvases come from a pool. The trigger is the animation's event, or earlier a prepare
+  signal: the pointer on the title bar's minimise or close button ('win.prepare', held while the
+  pointer rests there, and on press) or on the window's taskbar button (its 'hover' events), so
+  the click finds the copies ready; a hidden window's live layer mounts whole on the first step,
+  so an animation without a lead (a tap) shows on time with the copies joining as they're ready.
+  The demo and the bench scripts give each minimise, restore and close the prepare a pointer
+  would (src/apps/lib/benchScript.js withPrepares). An open mounts one copy a frame from its
+  event (it shows 5 frames in; copies rasterise in their first pose before that). How many
+  layers a window blurs with is `copyCount`: the
   app's (the video's) count under ?capture / ?bench, in real time what a per-window budget
   allows (navigator.deviceMemory x 24 MB, 48-192 MB; 128 MB without the API; at most 64 MB on
   coarse-pointer or small screens); and only the first two windows animating at once blur
@@ -133,6 +146,12 @@ OS in the same style. Everything still derives from (time, event log).
   in one small layer per window whose opacity alone cross-fades; a lighter shadow). Blur copies
   always draw the active look.
 - `src/os/media.js`: the silent media player shared by the sidebar strip, flyout, my Music, Winamp.
+- `src/core/tilt.js`: a surface turning toward the pointer (critically damped, deterministic from
+  the pointer samples in the log): the selected login slab ('login.pointer' events, real input
+  only), my Music's slabs.
+- `src/os/xp.jsx`: real Windows XP / Office 2003 icon art from size-design sprites (`<XpIcon name size />`,
+  built by tools/icons/xpicons.py; docs/desktop-spec.md "XP icon art"). Apps reach it through
+  `<Ico kind>` (apps/lib/icons.jsx).
 - `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
   tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
 - `src/scenes/desktop/`: wallpaper, sidebar, taskbar, Start menu, flyouts, desktop menu.
@@ -196,7 +215,10 @@ GPU allocations included: tools/lib/memory.mjs); `tools/memory.mjs` plays a long
 session on Chrome, Playwright WebKit or the iOS Simulator and prints the peak per phase.
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
-Memory (phones): `node tools/memory.mjs --engine chrome|webkit|ios`, see docs/briefs/perf.md.
+Memory (phones): `node tools/memory.mjs --engine chrome|webkit|ios` (peak footprint through a
+scripted session) and `node tools/layers.mjs` (WebKit's layer tree with each layer's memory and
+compositing reasons), see docs/briefs/perf.md. Wrappers around content placed by left / top are
+`core/point.js` POINT (0x0), not `inset: 0` boxes: WebKit backs an overlapping wrapper at its box.
 
 ## Usability audit
 `node tools/audit.mjs --url <base> --scenarios desktop,start,flyout,music,album,app:<id>,...`

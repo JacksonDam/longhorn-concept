@@ -44,7 +44,8 @@ const AFTER = {
   'desk.flyout': [2, 6, 12],
   'shell.sidebar': [2, 6],
   'ui.menu': [1, 4],
-  'session.logoff': [1],
+  // the login transition in reverse (the tiles' motion-blur copies show), then settled
+  'session.logoff': [1, 4, 8, 13],
   'session.shutdown': [1, 40, 95],
   // the boot screen fading in, its blocks, the black, the login fading in
   'session.boot': [1, 20, 50, 70, 88, 92, 105, 125],

@@ -223,7 +223,7 @@ function Mouse({ win, t, w, h }) {
         <Slider id={id('speed')} x={48} y={138} w={180} def={0.5} />
         <div style={{ position: 'absolute', left: 236, top: 136, ...txt, color: '#8b91a6' }}>Fast</div>
         <div style={{ position: 'absolute', right: 20, top: 100 }} onDoubleClick={() => emit('ui.value', { id: id('folder'), value: !open })}>
-          <Ico kind={open ? 'open' : 'folder'} size={44} />
+          <Ico kind={open ? 'folder-open' : 'folder'} size={44} />
         </div>
       </TabPanel>
     </>

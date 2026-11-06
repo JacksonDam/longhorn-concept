@@ -13,7 +13,7 @@ const fill = { position: 'absolute', left: 0, top: 0, width: 960, height: 720 }
 // black over the login screen: fading in while shutting down, out while booting
 export function blackLevel(screen, t) {
   const k = t - screen.t0
-  if (screen.name === 'shutdown') return clamp((k - (screen.from === 'desktop' ? SHUTDOWN_HOLD : 0)) / SHUTDOWN_FADE)
+  if (screen.name === 'shutdown') return clamp((k - SHUTDOWN_HOLD) / SHUTDOWN_FADE)
   if (screen.name === 'boot') return 1 - clamp((k - bootScreenDur(screen)) / BOOT_DUR)
   if (screen.name === 'off') return 1
   return 0

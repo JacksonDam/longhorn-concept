@@ -11,6 +11,7 @@ import { ramp } from './timing.js'
 import { hover, popupState, togglePopup, toggleSidebar } from './shellState.js'
 import { closeFlyout } from './Flyout.jsx'
 import { calendarDate } from './Flyouts.jsx'
+import { POINT } from '../../core/point.js'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -92,7 +93,7 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
   const oldClock = DEMO ? '7:09 PM' : realTime()
   const newLabel = DEMO ? '11:31 am' : realTime()
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+    <div style={{ ...POINT, pointerEvents: 'none' }}>
       <Bar o={bar} />
       <Fade o={bar * (1 - built)}>{EARLY}</Fade>
       <TaskGroup t={t} f={f} />
@@ -114,7 +115,7 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
         <div style={{ position: 'absolute', left: 941, top: 700, width: 19, height: 19, borderRadius: '50%', opacity: hover(t, 'tb.chevron') * 0.6, background: 'radial-gradient(circle, rgba(220,240,255,0.7), rgba(160,210,255,0) 70%)' }} />
       </Fade>
       <div style={{ position: 'absolute', left: 880, top: 702, width: 56, height: 16, borderRadius: 3, opacity: Math.max(hover(t, 'tb.clock'), popupState(t, 'calendar').open ? 1 : 0) * 0.35, background: 'rgba(170,210,255,0.6)' }} />
-      <div style={{ position: 'absolute', inset: 0, visibility: start > 0 ? 'visible' : 'hidden' }}>{HITS_EL}</div>
+      <div style={{ ...POINT, visibility: start > 0 ? 'visible' : 'hidden' }}>{HITS_EL}</div>
       <Tooltip forId="tb.clock" text={dateText(calendarDate())} />
       <ContextMenu id="tb.ctx" items={taskMenuItems} />
     </div>
@@ -122,9 +123,10 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
 }
 
 
-// always-mounted opacity wrappers (no DOM mounts while the entrance animates)
+// always-mounted opacity wrappers (no DOM mounts while the entrance animates); points, not
+// full-stage boxes (core/point.js)
 function Fade({ o, children }) {
-  return <div style={{ position: 'absolute', inset: 0, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' }}>{children}</div>
+  return <div style={{ ...POINT, opacity: o, visibility: o > 0 ? 'visible' : 'hidden' }}>{children}</div>
 }
 const EARLY = <EarlyBarTint />
 const FLAG_PASTEL = <StartFlag pastel />

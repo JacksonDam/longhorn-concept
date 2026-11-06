@@ -247,11 +247,10 @@ const albumSlab = {
 }
 
 // The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-// skip: the canvases keep their pixels; hidden (the layer is waiting to show, e.g. a blur copy
-// mounted ahead of its animation): they draw but stay hidden, so the compositor neither draws
-// them nor their reflection's mask until the layer shows, and they're ready then
+// skip: the canvases keep their pixels (they draw once if they have none); hidden: they draw but
+// stay hidden
 function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip, hidden }) {
-  const hide = skip || hidden ? { visibility: 'hidden' } : null
+  const hide = hidden ? { visibility: 'hidden' } : null
   return (
     <>
       {reflection && <SlabCanvas
