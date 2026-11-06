@@ -17,6 +17,7 @@ import { openMenu, menuState, placePopup, pt, Tooltip } from '../../ui/index.js'
 import { closePopups } from './shellState.js'
 import { hoverLevel } from './Flyout.jsx'
 import { SUBMIT_FRAME } from './timing.js'
+import { POINT } from '../../core/point.js'
 
 // ---- insertion (video frames 701.5-716 for My Music: 8 frames after music.open) ----------
 // The group opens a gap around the new button: the left buttons slide left, the right ones
@@ -157,7 +158,7 @@ export function TaskGroup({ t, f }) {
   }
   void removeSide
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+    <div style={{ ...POINT, pointerEvents: 'none' }}>
       {/* group background */}
       <Blur
         t={tr ? r : f}
@@ -190,7 +191,7 @@ export function TaskGroup({ t, f }) {
         </Blur>
       ))}
       {removed && (
-        <div style={{ position: 'absolute', inset: 0, opacity: 1 - clamp(r / 2) }}>
+        <div style={{ ...POINT, opacity: 1 - clamp(r / 2) }}>
           <TaskButton b={removed} label={taskLabel(tr.before.find((w) => w.id === removed.id))} Icon={TaskIcon(tr.before.find((w) => w.id === removed.id))} />
         </div>
       )}
@@ -198,7 +199,7 @@ export function TaskGroup({ t, f }) {
         <PressFlash key={b.id} t={t} b={b} />
       ))}
       <BirthFlare r={tr?.kind === 'insert' ? r : -99} x={newIdx >= 0 ? layout.buttons[newIdx].x + 46.5 : 0} />
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', visibility: groupOp > 0 ? 'visible' : 'hidden' }}>
+      <div style={{ ...POINT, pointerEvents: 'none', visibility: groupOp > 0 ? 'visible' : 'hidden' }}>
         <TaskHits buttons={layout.buttons} onClick={taskClick} onContext={taskContext} />
       </div>
       {/* the full label of each button (its text is cut off with a fade) */}

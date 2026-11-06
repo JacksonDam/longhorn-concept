@@ -61,6 +61,8 @@ const sink = createServer((req, res) => {
       reports.errors.push(...m.errors)
       reports.frames.push({ app: m.app, ...m.frames })
     } catch { /* not a report */ }
+    // (GET: the blank page the simulator's Safari opens first)
+    if (req.method === 'GET') return res.writeHead(200, { 'content-type': 'text/html' }), res.end('<!doctype html><meta name="viewport" content="width=device-width"><title>blank</title>')
     res.writeHead(204, { 'access-control-allow-origin': '*' })
     res.end()
   })
@@ -196,8 +198,11 @@ async function ios() {
   // the simulator's processes run on the host, from its runtime's root; their IOSurfaces (layer
   // backing stores, canvases) and Metal memory are allocated host-side, in the simulator's
   // SimRenderServer and SimMetalHost processes, which a device counts as the page's own: those
-  // count from their level before the page opened (everything else on the simulator idle)
+  // count from their level with Safari up on a blank page (Safari's own windows, ~200 MB there,
+  // are Safari's on a device, not the page's), everything else on the simulator idle
   const host = (t) => t.filter((p) => /SimRenderingServices\.simdeviceio\/.*(SimRenderServer|SimMetalHost)/.test(p.cmd)).map((p) => [p.pid, 'render'])
+  x(['openurl', sim.udid, report + 'blank'])
+  await sleep(5000)
   let hostBase = 0
   for (const [pid] of host(await procTable())) hostBase += await footprint(pid)
   const simProcs = async () => {
@@ -210,7 +215,7 @@ async function ios() {
     procs: simProcs,
     appTime: async () => reports.app,
     errors: reports.errors,
-    note: `simulator ${sim.name} (${sim.udid}); render = SimRenderServer + SimMetalHost above their ${hostBase.toFixed(0)} MB before the page`,
+    note: `simulator ${sim.name} (${sim.udid}); render = SimRenderServer + SimMetalHost above their ${hostBase.toFixed(0)} MB with Safari on a blank page`,
     adjust: { render: -hostBase },
     // (a multi-display simulator, e.g. iPhone Duo, needs its display named)
     shot: (file) => { for (const a of [['--display=1'], []]) try { return x(['io', sim.udid, 'screenshot', ...a, file]) } catch { /* next */ } },
