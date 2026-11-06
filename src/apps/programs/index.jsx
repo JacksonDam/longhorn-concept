@@ -1,7 +1,7 @@
 // my Programs & Services (start-menu-mockup.md): an explorer window with "program tasks" and
 // category tiles with big glass icons, three programs each and "more..." (expands). Only programs
 // this OS has; each entry launches it.  win.open { id: 'programs', app: 'programs' }
-import { memo } from 'react'
+import { memo, useEffect, useReducer } from 'react'
 import { emit } from '../../core/events.js'
 import { scoped, wid, valueOf, hoverKeys, pt, DropMenu, dropBelow, ScrollView, C, FONT, HEAVY } from '../../ui/index.js'
 import { Ico, xpName } from '../lib/icons.jsx'
@@ -42,10 +42,9 @@ const faces = new Map() // glyph -> slab record
 // (the sheet starts loading with the app module, so it is there by the time a window opens;
 // capture waits for it)
 const sheet = typeof document === 'undefined' ? null : new Image()
-if (sheet) {
-  sheet.src = xpSheetUrl(48)
-  waitFor(sheet.decode().catch(() => {}))
-}
+if (sheet) sheet.src = xpSheetUrl(48)
+const sheetReady = sheet ? sheet.decode().catch(() => {}) : Promise.resolve()
+waitFor(sheetReady)
 function faceSlab(glyph) {
   let slab = faces.get(glyph)
   if (slab) return slab
@@ -78,11 +77,20 @@ function faceSlab(glyph) {
     slab.canvasVersion++
   }
   draw()
+  // (a window opened before the sheet decoded draws the icon on once it has)
+  if (!(sheet?.complete && sheet.naturalWidth)) sheetReady.then(draw)
   return slab
 }
 
 const GlassIcon = memo(function GlassIcon({ glyph }) {
   const slab = faceSlab(glyph)
+  const v = slab.canvasVersion
+  const [, redraw] = useReducer((n) => n + 1, 0)
+  useEffect(() => {
+    let live = true
+    sheetReady.then(() => live && slab.canvasVersion !== v && redraw())
+    return () => (live = false)
+  }, [slab, v])
   return (
     <div style={{ position: 'relative', width: 58, height: 58 }}>
       <SlabCanvas t={0} width={BOX.w} height={BOX.h} items={[{ slab, pose: () => MIRROR }]} P={700} style={{ left: -10, top: -4, opacity: 0.2, WebkitMaskImage: reflMask, maskImage: reflMask }} />

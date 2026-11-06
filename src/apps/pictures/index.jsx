@@ -3,7 +3,7 @@
 // Videos", task pane (enjoy pictures, find pictures, Refine By Date calendar, file types),
 // date-grouped thumbnails, a detail view per photo (comments, keywords, location, Edit),
 // albums, and the full-screen slide show (app 'slideshow').
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useReducer } from 'react'
 import { emit } from '../../core/events.js'
 import { now, FPS } from '../../core/clock.js'
 import {
@@ -95,7 +95,8 @@ function deviceSlab() {
     g.fillRect(M, M, FW - 2 * M, FH - 2 * M)
     frameSlab.canvasVersion++
   }
-  waitFor(img.decode().then(paint, () => {}))
+  frameSlab.ready = img.decode().then(paint, () => {})
+  waitFor(frameSlab.ready)
   return frameSlab
 }
 if (typeof document !== 'undefined') deviceSlab() // the face starts drawing with the app module
@@ -103,6 +104,14 @@ if (typeof document !== 'undefined') deviceSlab() // the face starts drawing wit
 // v: the face's version (a re-render after the photo has been drawn shows it)
 const Device = memo(function Device({ t }) {
   const slab = deviceSlab()
+  // (a window opened before the photo decoded shows it once it has)
+  const v = slab.canvasVersion
+  const [, redraw] = useReducer((n) => n + 1, 0)
+  useEffect(() => {
+    let live = true
+    slab.ready.then(() => live && slab.canvasVersion !== v && redraw())
+    return () => (live = false)
+  }, [slab, v])
   return (
     <>
       <SlabCanvas t={t} width={DEV.w} height={DEV.h} items={[{ slab, pose: () => DMIRROR }]} P={900} style={{ left: DEV.x, top: DEV.y, opacity: 0.22, WebkitMaskImage: dReflMask, maskImage: dReflMask }} />
