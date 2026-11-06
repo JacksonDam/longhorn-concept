@@ -11,6 +11,11 @@ import {
 } from '../../ui/index.js'
 import { MessageIcon } from '../../ui/Dialog.jsx'
 import { Ico } from '../lib/icons.jsx'
+import { Swoosh } from '../music/Header.jsx'
+import { SlabCanvas } from '../music/SlabCanvas.jsx'
+import { Txt } from '../../os/text.jsx'
+import { textWidth } from '../../ui/measure.js'
+import { waitFor } from '../../core/preload.js'
 import { getApp } from '../../os/apps.js'
 import { openWin, openUrl, messageBox } from '../lib/common.js'
 import { PHOTOS, photoById, TAGS, photoUrl } from '../lib/pictures.jsx'
@@ -46,152 +51,123 @@ const AREA_X = 190
 const set = (win, n, value) => emit('ui.value', { id: wid(win, n), value })
 
 // ---- header ------------------------------------------------------------------------------------
-// the my Music header's soft swoosh behind the title (own copy: window-local px, svg y = local - 123)
-const Swoosh = memo(function Swoosh() {
-  // soft glows as radial gradients (cheap to paint in every blur copy) and the ring
-  const glow = (x, y, w, h, c, o = 1) => (
-    <div style={{ position: 'absolute', left: x - w, top: y - h, width: w * 2, height: h * 2, opacity: o, background: `radial-gradient(closest-side, ${c} 0, ${c}00 100%)` }} />
-  )
-  return (
-    <div style={{ position: 'absolute', left: 0, top: 123, width: 777, height: 260, pointerEvents: 'none' }}>
-      {glow(430, 27, 120, 44, '#efe4ec')}
-      {glow(485, 107, 140, 62, '#fde0e0')}
-      <svg width="777" height="260" style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}>
-        <defs>
-          <radialGradient id="pv-ring" cx="0.5" cy="0.5" r="0.5" fx="0.3" fy="0.52">
-            <stop offset="0.45" stopColor="#f2fdff" stopOpacity="0" />
-            <stop offset="0.66" stopColor="#d4f9ff" stopOpacity="0.75" />
-            <stop offset="0.8" stopColor="#a9eaff" stopOpacity="0.95" />
-            <stop offset="0.92" stopColor="#6ea8ef" stopOpacity="1" />
-            <stop offset="0.97" stopColor="#c4dbfa" stopOpacity="0.8" />
-            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id="pv-ringfade" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#fff" stopOpacity="0" />
-            <stop offset="0.25" stopColor="#fff" stopOpacity="1" />
-          </linearGradient>
-          <mask id="pv-ringmask" maskUnits="userSpaceOnUse" x="380" y="-30" width="397" height="300">
-            <rect x="380" y="-30" width="397" height="300" fill="url(#pv-ringfade)" />
-          </mask>
-        </defs>
-        <g mask="url(#pv-ringmask)">
-          <ellipse cx="541" cy="101" rx="136" ry="80" fill="url(#pv-ring)" transform="rotate(-8 541 101)" />
-        </g>
-      </svg>
-      {glow(390, 105, 125, 14, '#f0a39a', 0.85)}
-    </div>
-  )
-})
-photoUrl('mountain', 31) // start rasterising the header photo at load
+// my Music's header for pictures (ref2 f00600, measured at the video's window scale x1.5): my
+// Music's swoosh (music/Header.jsx Swoosh, as is), the device as a real 3D glass slab drawn by the
+// shared slab renderer (music/SlabCanvas.jsx: a framed photo on its face, its floor reflection
+// below, as my Music's device), "Windows my Pictures & Videos" in my Music's title type, and the
+// View Slide Show / Create Album / Burn DVD buttons laid out as my Music's (icon over label).
+// Coordinates: content px (window px - EXPLORER_TOP 123).
+const DEV = { x: 133, y: -12, w: 240, h: 260, cx: 117, cy: 98, fw: 120, fh: 140, d: 14 }
+const DFLOOR = DEV.cy + DEV.fh / 2 + 6
+const DPOSE = { x: DEV.cx, y: DEV.cy, ry: 0.55, rx: -0.06, rz: -0.03, s: 1 }
+const DMIRROR = { ...DPOSE, y: 2 * DFLOOR - DPOSE.y, rx: -DPOSE.rx, rz: -DPOSE.rz, sy: -1 }
+const dReflMask = `linear-gradient(180deg, transparent ${DFLOOR - 4}px, #000 ${DFLOOR + 6}px, transparent ${DFLOOR + 30}px)`
 
-const Frame = memo(function Frame() {
-  const face = (
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 6, background: 'linear-gradient(135deg, #f7fbff 0, #c9d5e6 40%, #eef3fa 60%, #a9b8cc 100%)', boxShadow: 'inset 0 0 0 1px #8796ad, 0 0 0 1px rgba(255,255,255,0.6)' }}>
-      <div style={{ position: 'absolute', left: 9, top: 9, right: 9, bottom: 9, boxShadow: 'inset 0 0 0 1px #7d8aa3' }}>
-        <img src={photoUrl('mountain', 31)} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(125deg, rgba(255,255,255,0.45) 0, rgba(255,255,255,0) 40%)' }} />
-      </div>
-    </div>
-  )
-  const tf = 'perspective(500px) rotateY(24deg) rotateX(4deg) rotateZ(-2deg)'
+// the device's face: a silver photo frame around the header photo (a stand-in canyon), drawn on a
+// canvas once the photo has rasterised (photoUrl: a blob, ready before capture)
+const FW = 240, FH = 280
+let frameSlab = null
+function deviceSlab() {
+  if (frameSlab) return frameSlab
+  const c = document.createElement('canvas')
+  c.width = FW
+  c.height = FH
+  frameSlab = { w: DEV.fw, h: DEV.fh, d: DEV.d, radius: 6, canvas: c, canvasVersion: 0, edgeColor: [0.86, 0.89, 0.94], edgeMix: 0.55, spec: 0.3, rim: 0.5, sat: 1, backFlip: false }
+  const g = c.getContext('2d')
+  const frame = g.createLinearGradient(0, 0, FW, FH)
+  frame.addColorStop(0, '#fbfdff')
+  frame.addColorStop(0.4, '#c9d3e2')
+  frame.addColorStop(0.62, '#eef3fa')
+  frame.addColorStop(1, '#a3b1c6')
+  g.fillStyle = frame
+  g.fillRect(0, 0, FW, FH)
+  g.strokeStyle = '#7d8aa3'
+  g.lineWidth = 2
+  const M = 22
+  g.strokeRect(M - 1, M - 1, FW - 2 * M + 2, FH - 2 * M + 2)
+  const img = new Image()
+  img.src = photoUrl('mountain', 31)
+  const paint = () => {
+    g.drawImage(img, M, M, FW - 2 * M, FH - 2 * M)
+    const sheen = g.createLinearGradient(M, M, FW - M, FH - M)
+    sheen.addColorStop(0, 'rgba(255,255,255,0.4)')
+    sheen.addColorStop(0.4, 'rgba(255,255,255,0)')
+    g.fillStyle = sheen
+    g.fillRect(M, M, FW - 2 * M, FH - 2 * M)
+    frameSlab.canvasVersion++
+  }
+  waitFor(img.decode().then(paint, () => {}))
+  return frameSlab
+}
+if (typeof document !== 'undefined') deviceSlab() // the face starts drawing with the app module
+
+// v: the face's version (a re-render after the photo has been drawn shows it)
+const Device = memo(function Device({ t }) {
+  const slab = deviceSlab()
   return (
     <>
-      <div style={{ position: 'absolute', left: 168, top: 18, width: 118, height: 132, transform: tf, transformOrigin: '50% 100%' }}>
-        {face}
-        <div style={{ position: 'absolute', left: 40, top: 118, width: 50, height: 18, background: 'linear-gradient(180deg, #b9c6d8, #8796ad)', clipPath: 'polygon(10% 0, 90% 0, 100% 100%, 0 100%)', opacity: 0.8 }} />
-      </div>
-      <div
-        style={{
-          position: 'absolute',
-          left: 168,
-          top: 150,
-          width: 118,
-          height: 132,
-          transform: tf + ' scaleY(-1)',
-          transformOrigin: '50% 0',
-          opacity: 0.22,
-          WebkitMaskImage: 'linear-gradient(180deg, transparent 55%, #000 100%)',
-          maskImage: 'linear-gradient(180deg, transparent 55%, #000 100%)',
-        }}
-      >
-        {face}
-      </div>
+      <SlabCanvas t={t} width={DEV.w} height={DEV.h} items={[{ slab, pose: () => DMIRROR }]} P={900} style={{ left: DEV.x, top: DEV.y, opacity: 0.22, WebkitMaskImage: dReflMask, maskImage: dReflMask }} />
+      <SlabCanvas t={t} width={DEV.w} height={DEV.h} items={[{ slab, pose: () => DPOSE }]} P={900} style={{ left: DEV.x, top: DEV.y }} />
     </>
   )
 })
 
-const Projector = () => (
-  <svg width="34" height="30" viewBox="0 0 34 30">
-    <defs>
-      <linearGradient id="pv-pj" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#f2f5fa" />
-        <stop offset="1" stopColor="#8a96a8" />
-      </linearGradient>
-      <radialGradient id="pv-lens" cx="0.4" cy="0.35" r="0.7">
-        <stop offset="0" stopColor="#cfe6ff" />
-        <stop offset="0.6" stopColor="#2b4f86" />
-        <stop offset="1" stopColor="#0d1a33" />
-      </radialGradient>
-    </defs>
-    <rect x="3" y="9" width="26" height="15" rx="4" fill="url(#pv-pj)" stroke="#6f7f99" strokeWidth="0.8" />
-    <circle cx="11" cy="16.5" r="6" fill="url(#pv-lens)" stroke="#55627a" strokeWidth="0.8" />
-    <rect x="20" y="13" width="6" height="2" rx="1" fill="#9aa7bd" />
-    <circle cx="9" cy="6" r="4" fill="#dfe6f1" stroke="#6f7f99" strokeWidth="0.7" />
-    <circle cx="20" cy="6" r="4" fill="#dfe6f1" stroke="#6f7f99" strokeWidth="0.7" />
-  </svg>
-)
-const AlbumIcon = () => (
-  <svg width="34" height="30" viewBox="0 0 34 30">
-    <rect x="6" y="4" width="22" height="24" rx="2" fill="#3a5f9c" stroke="#1d3a6c" strokeWidth="0.8" />
-    <rect x="9" y="7" width="16" height="12" fill="#fff" />
-    <image href={photoUrl('beach', 2)} x="10" y="8" width="14" height="10" preserveAspectRatio="xMidYMid slice" />
-    <rect x="9" y="21" width="16" height="2" rx="1" fill="#9fb7da" />
-    <path d="M6 6 Q4 6 4 8 V26 Q4 28 6 28" fill="none" stroke="#c9d3e2" strokeWidth="1.5" />
-  </svg>
-)
-
-const btnLabel = (a, b) => (
-  <>
-    <span style={{ fontWeight: 500, color: '#3d63a6' }}>{a} </span>
-    <span style={{ color: '#6e8ec8' }}>{b}</span>
-  </>
-)
-
-function HeaderButton({ id, x, icon, a, b, onClick }) {
-  return (
-    <Button id={id} variant="flat" x={x} y={104} w={92} h={58} onClick={onClick}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        <div style={{ height: 32, display: 'flex', alignItems: 'flex-end' }}>{icon}</div>
-        <div style={{ fontFamily: FONT, fontSize: 11.5 }}>{btnLabel(a, b)}</div>
-      </div>
-    </Button>
-  )
-}
-
+// my Music's title type and place (music/Header.jsx Title, settled): "Windows" 13 px over the
+// title, 34 px light "my" and regular blue name
 const Title = memo(function Title() {
   return (
     <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
-      <div style={{ position: 'absolute', left: 324, top: 26, fontFamily: FONT, fontSize: 13, color: '#4f86d6' }}>Windows</div>
-      <div style={{ position: 'absolute', left: 322, top: 38, fontFamily: FONT, fontSize: 31, fontWeight: 300, color: '#86b4ea', whiteSpace: 'nowrap', letterSpacing: -0.4 }}>
-        my <span style={{ fontWeight: 400, color: '#2c6cc4' }}>Pictures &amp; Videos</span>
-      </div>
+      <Txt x={361} y={38} size={13} w={400} c="#4f86d6">
+        Windows
+      </Txt>
+      <Txt x={366} y={66} size={34} w={300} c="#86b4ea" ls={-0.3} parts={[['my ', {}], ['Pictures & Videos', { w: 400, c: '#2c6cc4' }]]} />
     </div>
   )
 })
 
-function Header({ win }) {
+// my Music's header buttons: a 32 px icon over a two-tone label, hit box around both
+const btnParts = (a, b) => [
+  [a + ' ', { w: 500, c: '#3d63a6' }],
+  [b, { w: 400, c: '#6e8ec8' }],
+]
+const HB = [
+  { id: 'hb.show', icon: 'slideshow', cx: 404, a: 'View', b: 'Slide Show', go: () => slideshow(null, true) },
+  { id: 'hb.album', icon: 'wmp-album', cx: 494, a: 'Create', b: 'Album', go: () => openWin('album', 'album') },
+  { id: 'hb.dvd', icon: 'cd', cx: 584, a: 'Burn', b: 'DVD', go: () => openWin('burncd', 'burncd', { what: 'dvd' }) },
+]
+function HeaderButtons({ win, t }) {
+  const lit = hoverKeys(t, wid(win, 'hb'))
+  return HB.map((b) => {
+    const tw = textWidth(b.a + ' ' + b.b, { size: 11.5, w: 500 })
+    const on = (lit.get(b.id) || 0) > 0.5
+    return (
+      <div
+        key={b.id}
+        style={{ position: 'absolute', left: b.cx - Math.max(tw, 36) / 2 - 6, top: 92, width: Math.max(tw, 36) + 12, height: 66, borderRadius: 4, background: on ? 'rgba(160,200,250,0.18)' : 'transparent' }}
+        onPointerEnter={(e) => emit('hover', { id: wid(win, 'hb'), key: b.id, on: true, ...pt(e) })}
+        onPointerLeave={() => emit('hover', { id: wid(win, 'hb'), key: b.id, on: false })}
+        onPointerDown={(e) => e.button === 0 && b.go()}
+      >
+        <div style={{ position: 'absolute', left: Math.max(tw, 36) / 2 + 6 - 16, top: 6 }}>
+          <Ico kind={b.icon} size={32} />
+        </div>
+        <Txt x={6 + (Math.max(tw, 36) - tw) / 2} y={58} size={11.5} parts={btnParts(b.a, b.b)} />
+      </div>
+    )
+  })
+}
+
+function Header({ win, t }) {
   return (
     <>
       <div style={{ position: 'absolute', left: 0, top: -123 }}>
         <Swoosh />
       </div>
       <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
-        <Frame />
+        <Device t={0} v={deviceSlab().canvasVersion} />
       </div>
       <Title />
-      <HeaderButton id={wid(win, 'hb.show')} x={318} icon={<Projector />} a="View" b="Slide Show" onClick={() => slideshow(null, true)} />
-      <HeaderButton id={wid(win, 'hb.album')} x={418} icon={<AlbumIcon />} a="Create" b="Album" onClick={() => openWin('album', 'album')} />
-      <HeaderButton id={wid(win, 'hb.dvd')} x={518} icon={<MessageIcon kind="cd" size={30} />} a="Burn" b="DVD" onClick={() => openWin('burncd', 'burncd', { what: 'dvd' })} />
+      <HeaderButtons win={win} t={t} />
     </>
   )
 }
@@ -200,11 +176,12 @@ const slideshow = (photo, auto = false, album = null) => openWin('slideshow', 's
 const printBox = () => messageBox({ title: 'Print Pictures', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 
 // ---- task pane ---------------------------------------------------------------------------------
-function Link({ id, children, x, y, onClick, on, t }) {
+// wrap: a width the label wraps within (two lines, the icon on the first), else one line
+function Link({ id, children, x, y, onClick, on, t, wrap }) {
   const lit = hoverKeys(t, id).get(0) || 0
   return (
     <div
-      style={{ position: 'absolute', left: x, top: y, height: 17, display: 'flex', alignItems: 'center', gap: 5, fontFamily: FONT, fontSize: 11, whiteSpace: 'nowrap', color: on ? C.link : lit > 0.5 ? C.link : C.textDark, fontWeight: on ? 560 : 400, textDecoration: lit > 0.5 ? 'underline' : 'none' }}
+      style={{ position: 'absolute', left: x, top: y, ...(wrap ? { width: wrap, alignItems: 'flex-start', lineHeight: '13px', paddingTop: 2 } : { height: 17, alignItems: 'center', whiteSpace: 'nowrap' }), display: 'flex', gap: 5, fontFamily: FONT, fontSize: 11, color: on ? C.link : lit > 0.5 ? C.link : C.textDark, fontWeight: on ? 560 : 400, textDecoration: lit > 0.5 ? 'underline' : 'none' }}
       onPointerEnter={(e) => emit('hover', { id, key: 0, on: true, ...pt(e) })}
       onPointerLeave={() => emit('hover', { id, key: 0, on: false })}
       onPointerDown={(e) => e.button === 0 && onClick()}
@@ -223,8 +200,8 @@ const Head = memo(function Head({ a, b, y }) {
 const small = { position: 'absolute', fontFamily: FONT, fontSize: 10.5, color: '#8b91a6', whiteSpace: 'nowrap' }
 
 function TaskPane({ win, t, st, calendar = true }) {
-  const L = (n, y, label, icon, fn, on) => (
-    <Link key={n} id={wid(win, 'tp.' + n)} x={PANE_X - 8} y={y} onClick={fn} on={on} t={t}>
+  const L = (n, y, label, icon, fn, on, wrap) => (
+    <Link key={n} id={wid(win, 'tp.' + n)} x={PANE_X - 8} y={y} onClick={fn} on={on} t={t} wrap={wrap}>
       {icon !== undefined && <span style={{ width: 16, height: 16, display: 'inline-block' }}>{icon && <Ico kind={icon} size={16} />}</span>}
       {label}
     </Link>
@@ -240,21 +217,22 @@ function TaskPane({ win, t, st, calendar = true }) {
       {L('dvd', 62, 'Burn DVD', 'wmp-burn', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
       {L('share', 78, 'Share Pictures', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: 'my Pictures & Videos' }))}
       {L('print', 94, 'Print Pictures', 'printpics', printBox)}
-      {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()))}
+      {/* (wraps: on one line it ran into the header's device) */}
+      {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()), false, 120)}
       <div onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>
-        <Head a="find" b="pictures" y={132} />
+        <Head a="find" b="pictures" y={145} />
       </div>
-      <div style={{ ...small, left: PANE_X - 8, top: 155 }} onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>Containing the words:</div>
-      <TextField id={wid(win, 'words')} x={PANE_X - 8} y={170} w={136} h={17} size={10.5} pad={4} />
-      <div style={{ ...small, left: PANE_X - 8, top: 194 }} onPointerDown={(e) => e.button === 0 && set(win, 'tag', null)}>Show all images by:</div>
-      {tags.map((tg, i) => L('tag' + tg, 209 + i * 16, tg, undefined, () => set(win, 'tag', st.tag === tg ? null : tg), st.tag === tg))}
-      {L('more', 257, st.moreTags ? 'Back...' : 'More...', undefined, () => set(win, 'moretags', !st.moreTags))}
-      <div style={{ ...small, left: PANE_X - 8, top: 282 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
-      {calendar ? <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} /> : <div style={{ position: 'absolute', left: PANE_X - 8, top: 297, width: 136, height: 150, borderRadius: 4, background: 'linear-gradient(180deg, #ffffff, #eef4fc)', boxShadow: `inset 0 0 0 1px ${C.borderLight}` }} />}
-      <div style={{ ...small, left: PANE_X - 8, top: 450 }} onPointerDown={(e) => e.button === 0 && set(win, 'type', 'all')}>Of this file type:</div>
-      {L('tpic', 466, 'Pictures', 'image', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
-      <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'wmp-video', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
-      {L('talb', 484, 'Albums', 'wmp-album', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
+      <div style={{ ...small, left: PANE_X - 8, top: 168 }} onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>Containing the words:</div>
+      <TextField id={wid(win, 'words')} x={PANE_X - 8} y={183} w={136} h={17} size={10.5} pad={4} />
+      <div style={{ ...small, left: PANE_X - 8, top: 207 }} onPointerDown={(e) => e.button === 0 && set(win, 'tag', null)}>Show all images by:</div>
+      {tags.map((tg, i) => L('tag' + tg, 222 + i * 16, tg, undefined, () => set(win, 'tag', st.tag === tg ? null : tg), st.tag === tg))}
+      {L('more', 270, st.moreTags ? 'Back...' : 'More...', undefined, () => set(win, 'moretags', !st.moreTags))}
+      <div style={{ ...small, left: PANE_X - 8, top: 295 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
+      {calendar ? <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={310} w={136} /> : <div style={{ position: 'absolute', left: PANE_X - 8, top: 310, width: 136, height: 150, borderRadius: 4, background: 'linear-gradient(180deg, #ffffff, #eef4fc)', boxShadow: `inset 0 0 0 1px ${C.borderLight}` }} />}
+      <div style={{ ...small, left: PANE_X - 8, top: 463 }} onPointerDown={(e) => e.button === 0 && set(win, 'type', 'all')}>Of this file type:</div>
+      {L('tpic', 479, 'Pictures', 'image', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
+      <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 479, 'Videos', 'wmp-video', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
+      {L('talb', 497, 'Albums', 'wmp-album', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
     </>
   )
 }
@@ -594,7 +572,7 @@ function Pictures({ win, t, w, h, active }) {
   const selCount = st.photo ? 1 : 0
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body, overflow: 'hidden' }}>
-      {!detail && !hide && <Header win={win} />}
+      {!detail && !hide && <Header win={win} t={t} />}
       {!detail && hide && <Title />}
       {detail && <Detail win={win} t={t} st={st} list={list.length ? list : PHOTOS} w={w} edits={edits} />}
       {!hide && <TaskPane win={win} t={t} st={st} calendar={stage >= 3} />}

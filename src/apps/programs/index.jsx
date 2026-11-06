@@ -4,7 +4,11 @@
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { scoped, wid, valueOf, hoverKeys, pt, DropMenu, dropBelow, ScrollView, C, FONT, HEAVY } from '../../ui/index.js'
-import { Ico } from '../lib/icons.jsx'
+import { Ico, xpName } from '../lib/icons.jsx'
+import { SlabCanvas } from '../music/SlabCanvas.jsx'
+import { xpSheetUrl } from '../../os/xp.jsx'
+import { ICONS, COLS, PAD } from '../../os/xpSheet.js'
+import { waitFor } from '../../core/preload.js'
 import { openWin, openUrl, messageBox } from '../lib/common.js'
 import { openMusic } from '../lib/fs.js'
 import { useChromeCommands, chromeToggled } from '../lib/Explorer.jsx'
@@ -20,22 +24,69 @@ export const CATEGORIES = [
   { key: 'productivity', label: 'Productivity', color: ['#eef3ff', '#8ea6e0', '#3a52a0'], glyph: 'doc', items: [P('Word', 'word', () => openWin('doc1', 'word')), P('my Documents', 'mydocs', () => openWin('documents', 'documents')), P('Notepad', 'notepad', () => openWin('notepad', 'notepad'))] },
 ]
 
-// a big glass tile icon (ref3): a pale blue glass slab turned towards the text, the glyph on its
-// face, and a faint reflection below
+// A big glass tile icon (ref3 insp1.png): a pale blue glass slab turned towards the text, the
+// category's icon on its face, its reflection on the floor below. Drawn by the shared slab
+// renderer (gl/slab.js through my Music's SlabCanvas: one GL context for every slab, its targets
+// shared) as a real 3D slab; a tile's image depends only on its category, so each canvas renders
+// once and keeps its pixels (no GL work per frame).
+const TILE = { w: 58, h: 58, d: 9 }
+const BOX = { w: 92, h: 150, cx: 38, cy: 33 } // the canvas around the slab and its reflection
+const FLOOR = BOX.cy + TILE.h / 2 + 4
+const POSE = { x: BOX.cx, y: BOX.cy, ry: 0.55, rx: -0.12, rz: 0, s: 1 }
+const MIRROR = { ...POSE, y: 2 * FLOOR - POSE.y, rx: -POSE.rx, sy: -1 }
+const reflMask = `linear-gradient(180deg, transparent ${FLOOR - 2}px, #000 ${FLOOR + 4}px, transparent ${FLOOR + 40}px)`
+
+// the face: glass gradient, a highlight across the top, the icon's 48 px design from the XP sheet
+const FACE = 128
+const faces = new Map() // glyph -> slab record
+// (the sheet starts loading with the app module, so it is there by the time a window opens;
+// capture waits for it)
+const sheet = typeof document === 'undefined' ? null : new Image()
+if (sheet) {
+  sheet.src = xpSheetUrl(48)
+  waitFor(sheet.decode().catch(() => {}))
+}
+function faceSlab(glyph) {
+  let slab = faces.get(glyph)
+  if (slab) return slab
+  const c = document.createElement('canvas')
+  c.width = c.height = FACE
+  slab = { ...TILE, radius: 7, canvas: c, canvasVersion: 0, edgeColor: [0.78, 0.88, 1], edgeMix: 0.45, spec: 0.3, rim: 0.55, sat: 1, contrast: 1, brightness: 1, backFlip: false }
+  faces.set(glyph, slab)
+  const draw = () => {
+    const g = c.getContext('2d')
+    const bg = g.createLinearGradient(0, 0, FACE, FACE)
+    bg.addColorStop(0, '#eef7ff')
+    bg.addColorStop(0.45, '#b6d9fb')
+    bg.addColorStop(1, '#7cb1ec')
+    g.fillStyle = bg
+    g.fillRect(0, 0, FACE, FACE)
+    const hl = g.createLinearGradient(0, 0, 0, FACE * 0.42)
+    hl.addColorStop(0, 'rgba(255,255,255,0.85)')
+    hl.addColorStop(1, 'rgba(255,255,255,0)')
+    g.fillStyle = hl
+    g.beginPath()
+    g.ellipse(FACE / 2, 0, FACE * 0.62, FACE * 0.42, 0, 0, Math.PI)
+    g.fill()
+    const name = xpName(glyph)
+    const i = name && ICONS[name]?.[48]
+    if (i != null && sheet?.complete && sheet.naturalWidth) {
+      const cell = 48 + 2 * PAD
+      g.imageSmoothingQuality = 'high'
+      g.drawImage(sheet, (i % COLS) * cell + PAD, Math.floor(i / COLS) * cell + PAD, 48, 48, FACE * 0.18, FACE * 0.18, FACE * 0.64, FACE * 0.64)
+    }
+    slab.canvasVersion++
+  }
+  draw()
+  return slab
+}
+
 const GlassIcon = memo(function GlassIcon({ glyph }) {
-  const slab = (
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 7, background: 'linear-gradient(150deg, rgba(235,246,255,0.95) 0, rgba(176,214,250,0.9) 45%, rgba(120,175,235,0.9) 100%)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.9), inset -3px -3px 0 rgba(90,140,210,0.35), 0 2px 5px rgba(40,80,150,0.3)' }}>
-      <div style={{ position: 'absolute', left: 3, top: 3, right: 3, height: 20, borderRadius: '5px 5px 18px 18px / 5px 5px 8px 8px', background: 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.1))' }} />
-      <div style={{ position: 'absolute', left: 12, top: 12 }}>
-        <Ico kind={glyph} size={34} />
-      </div>
-    </div>
-  )
-  const tf = 'perspective(260px) rotateY(24deg) rotateX(6deg)'
+  const slab = faceSlab(glyph)
   return (
     <div style={{ position: 'relative', width: 58, height: 58 }}>
-      <div style={{ position: 'absolute', inset: 0, transform: tf, transformOrigin: '0 50%' }}>{slab}</div>
-      <div style={{ position: 'absolute', left: 0, top: 58, width: 58, height: 58, transform: tf + ' scaleY(-1)', transformOrigin: '0 0', opacity: 0.18, WebkitMaskImage: 'linear-gradient(180deg, transparent 50%, #000 100%)', maskImage: 'linear-gradient(180deg, transparent 50%, #000 100%)' }}>{slab}</div>
+      <SlabCanvas t={0} width={BOX.w} height={BOX.h} items={[{ slab, pose: () => MIRROR }]} P={700} style={{ left: -10, top: -4, opacity: 0.2, WebkitMaskImage: reflMask, maskImage: reflMask }} />
+      <SlabCanvas t={0} width={BOX.w} height={BOX.h} items={[{ slab, pose: () => POSE }]} P={700} style={{ left: -10, top: -4 }} />
     </div>
   )
 })
