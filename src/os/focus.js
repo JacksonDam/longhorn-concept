@@ -19,8 +19,7 @@ import { CLOSE_END, MIN_END } from './windowAnim.js'
 export const FOCUS_FADE = 4 // video frames
 const toRel = (t, t0) => (t - t0) * FPS
 
-// the ids drawn active at time t; list = the session's windows at t (os/wm.js windows(t), plus
-// WindowLayer's prewarmed ghosts, which never count)
+// the ids drawn active at time t; list = the session's windows at t (os/wm.js windows(t))
 export function activeIds(list, t) {
   const focus = focusedWindow(t)
   const ids = new Set(focus ? [focus.id] : [])

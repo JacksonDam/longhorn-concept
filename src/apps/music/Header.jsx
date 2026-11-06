@@ -10,8 +10,11 @@ import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel } from './timeline.js'
 import { TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
-import { FPS } from '../../core/clock.js'
+import { FPS, frameTime } from '../../core/clock.js'
 import { ease } from '../../core/anim.js'
+
+// the start of the video frame that t falls in (t itself on a frame time)
+const onFrameGrid = (t) => frameTime(Math.floor(t * FPS + 1e-6) + 1)
 
 // slab canvas: window-local box that holds the device and its floor reflection
 const SC = { x: 175, y: 118, w: 230, h: 240 }
@@ -205,20 +208,31 @@ const reflMask = `linear-gradient(180deg, transparent ${FLOOR - 4}px, #000 ${FLO
 
 loadTexture(TWEET_COVER) // start loading now so capture's ready() waits for it
 
-const deviceSlab = (canvas) => ({
-  w: DEV.w,
-  h: DEV.h,
-  d: DEV.d,
-  radius: 8,
-  canvas,
-  canvasVersion: deviceVersion,
-  edgeColor: [0.32, 0.64, 0.78],
-  edgeMix: 0.35,
-  spec: 0.35,
-  rim: 0.6,
-  sat: 0.75,
-  backFlip: false,
-})
+// (one slab record per canvas, its version bumped when the equaliser redraws: SlabCanvas keys
+// what it shows on the slab's identity and version)
+const deviceSlabs = new WeakMap()
+const deviceSlab = (canvas) => {
+  let s = deviceSlabs.get(canvas)
+  if (!s) {
+    s = {
+      w: DEV.w,
+      h: DEV.h,
+      d: DEV.d,
+      radius: 8,
+      canvas,
+      canvasVersion: deviceVersion,
+      edgeColor: [0.32, 0.64, 0.78],
+      edgeMix: 0.35,
+      spec: 0.35,
+      rim: 0.6,
+      sat: 0.75,
+      backFlip: false,
+    }
+    deviceSlabs.set(canvas, s)
+  }
+  s.canvasVersion = deviceVersion
+  return s
+}
 const albumSlab = {
   w: DEV.w,
   h: DEV.h,
@@ -233,7 +247,11 @@ const albumSlab = {
 }
 
 // The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip }) {
+// skip: the canvases keep their pixels; hidden (the layer is waiting to show, e.g. a blur copy
+// mounted ahead of its animation): they draw but stay hidden, so the compositor neither draws
+// them nor their reflection's mask until the layer shows, and they're ready then
+function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip, hidden }) {
+  const hide = skip || hidden ? { visibility: 'hidden' } : null
   return (
     <>
       {reflection && <SlabCanvas
@@ -244,11 +262,11 @@ function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, s
         samples={samples}
         shutter={shutter}
         P={900}
-        style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask }}
+        style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask, ...hide }}
         cacheKey={cache && 'refl'}
         skip={skip}
       />}
-      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y }} cacheKey={cache && 'main'} skip={skip} />
+      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y, ...hide }} cacheKey={cache && 'main'} skip={skip} />
     </>
   )
 }
@@ -377,9 +395,15 @@ function albumSlabFor(album) {
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
 // window's overlay layer). track / trackHover / playing: the page's track list state.
-export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT = t, slabs = 'all', cache = false, skip = false, actions }) {
+export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
+  // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate; their
+  // slow idle drift (a fraction of a pixel per video frame) steps on the video's frame grid, so the
+  // slab canvases re-render 30 times a second at rest instead of every display frame (the grid
+  // holds the capture frames themselves: ?capture draws the same)
+  const fast = rel < 24 || (hrel > 0 && hrel < 21)
+  const slabT = fast ? slabT0 : onFrameGrid(slabT0)
   const toDevice = page != null && page.album == null
   const fromDevice = page != null && page.prev == null
   // the device header (title, buttons, swoosh): fades out leaving the device, back in returning
@@ -395,7 +419,12 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   }
   const items = []
   const device = (tt) => devicePoseRel(toRel(tt, openT))
-  if (page == null) {
+  // (only a header that draws the slabs builds them: the device's equaliser canvas is one shared
+  // canvas, drawn here for this header's slab time, so a header without slabs (the window
+  // content's, at its own content time) mustn't redraw it under the slab overlay)
+  if (slabs === 'none') {
+    // no slabs
+  } else if (page == null) {
     if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: device })
   } else {
     // outgoing (until it has turned away)
@@ -407,10 +436,9 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
     // incoming
     if (hrel > 3.8) items.push({ slab: page.album ? albumSlabFor(page.album) : deviceSlab(drawDevice(slabT)), pose: spinIn })
   }
-  const fast = rel < 24 || (hrel > 0 && hrel < 21)
   const slabEl =
     items.length > 0 && slabs !== 'none' ? (
-      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} />
+      <Slabs t={slabT} items={items} samples={copy ? 1 : fast ? 8 : 3} shutter={(fast ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} hidden={hidden} />
     ) : null
   if (slabs === 'only') return slabEl
   const prevListOp = page && page.prev ? 1 - smoothRamp(hrel, 1, 6) : 0

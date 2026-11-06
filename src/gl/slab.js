@@ -13,13 +13,17 @@ THREE.ColorManagement.enabled = false
 
 let renderer = null
 let glCanvas = null
-const MAX = 2048
+const MAX = 2048 // largest render (px per side)
 
+// The one GL context: its drawing buffer is sized for the renders in use (the largest render
+// target size), not MAX x MAX (16 MB plus depth for a 2048 square). Render targets are kept per
+// size (the login's full-stage slab canvas, my Music's header box): freeing and reallocating the
+// login's ~200 MB of multisampled targets stalls a frame for hundreds of ms.
 function getRenderer() {
   if (renderer) return renderer
   glCanvas = document.createElement('canvas')
-  glCanvas.width = MAX
-  glCanvas.height = MAX
+  glCanvas.width = 1
+  glCanvas.height = 1
   renderer = new THREE.WebGLRenderer({
     canvas: glCanvas,
     alpha: true,
@@ -31,7 +35,7 @@ function getRenderer() {
   })
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace
   renderer.setPixelRatio(1)
-  renderer.setSize(MAX, MAX, false)
+  renderer.setSize(1, 1, false)
   renderer.autoClear = false
   return renderer
 }
@@ -220,16 +224,25 @@ const accumQuad = (() => {
   }
 })()
 
-const rtCache = new Map()
+const rtCache = new Map() // size -> { sample, accum, w, h }
 function targets(w, h) {
   const key = w + 'x' + h
   let t = rtCache.get(key)
   if (!t) {
     const opts = { type: THREE.HalfFloatType, depthBuffer: true, samples: 4 }
-    t = { sample: new THREE.WebGLRenderTarget(w, h, opts), accum: new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType }) }
+    t = { sample: new THREE.WebGLRenderTarget(w, h, opts), accum: new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType }), w, h }
     rtCache.set(key, t)
   }
   return t
+}
+// the drawing buffer: as large as the largest target size in use (resizing it reallocates it)
+function bufferSize() {
+  let w = 1, h = 1
+  for (const t of rtCache.values()) {
+    w = Math.max(w, t.w)
+    h = Math.max(h, t.h)
+  }
+  return [w, h]
 }
 
 export class SlabScene {
@@ -352,7 +365,9 @@ export function renderSlabs(ctx2d, slabScene, items, times, view) {
     r.setViewport(0, 0, pw, ph)
     r.render(q.scene, q.cam)
   }
-  // accum -> default framebuffer bottom-left corner -> 2D canvas
+  // accum -> default framebuffer -> 2D canvas
+  const [bw, bh] = bufferSize()
+  if (glCanvas.width !== bw || glCanvas.height !== bh) r.setSize(bw, bh, false)
   r.setRenderTarget(null)
   r.setViewport(0, 0, pw, ph)
   r.setScissorTest(true)
@@ -369,5 +384,5 @@ export function renderSlabs(ctx2d, slabScene, items, times, view) {
     c.height = ph
   }
   ctx2d.clearRect(0, 0, pw, ph)
-  ctx2d.drawImage(glCanvas, 0, MAX - ph, pw, ph, 0, 0, pw, ph)
+  ctx2d.drawImage(glCanvas, 0, glCanvas.height - ph, pw, ph, 0, 0, pw, ph)
 }

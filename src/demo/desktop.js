@@ -34,7 +34,8 @@ export const desktopDemo = [
   { frame: 693.5, type: 'music.open' },
 
   // the window is minimised from its title bar (music scene); a click on the taskbar's
-  // My Music button restores it
+  // My Music button restores it (the pointer reaches the button first: the window prepares)
+  { frame: 1392, type: 'win.prepare', id: 'music' },
   { frame: 1402.6, type: 'tb.press', id: 'music' },
   { frame: 1402.6, type: 'music.restore' },
 ]

@@ -85,6 +85,17 @@ function script(name) {
   return ev
 }
 
+// A user's pointer reaches the minimise, close or taskbar button before it clicks: each scripted
+// minimise, restore and close gets the 'win.prepare' that pointer would make, PREP frames before
+// (os/PlexWindow residency: the window's motion-blur copies mount from it)
+const PREP = 10
+const PREPARED = new Set(['win.minimize', 'win.restore', 'win.close'])
+export function withPrepares(ev, at = 'f') {
+  const out = [...ev]
+  for (const e of ev) if (PREPARED.has(e.type)) out.push({ [at]: e[at] - PREP, type: 'win.prepare', id: e.id })
+  return out.sort((a, b) => a[at] - b[at])
+}
+
 // ?apps=every: [app, window id, props] (the ids and props the shell's launchers use)
 export const EVERY = [
   ['about', 'about'], ['acquire', 'acquire'], ['album', 'album'], ['applet', 'applet', { applet: 'network' }], ['autoplay', 'autoplay'],
@@ -103,7 +114,7 @@ if (NAME) {
     const log = getLog()
     if (!log.some((e) => e.type === 'login.submit')) return
     done = true
-    for (const { f, type, ...data } of script(NAME)) emit(type, data, frameTime(f))
+    for (const { f, type, ...data } of withPrepares(script(NAME))) emit(type, data, frameTime(f))
   }
   onEvents(add)
   queueMicrotask(add)
