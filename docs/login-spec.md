@@ -22,7 +22,10 @@ demo input: src/demo/login.js.
   'login.pointer' samples are in that middle's coordinates. The slab's exit bends over to the
   stage's top right corner (exit.js slabExit corner). The power screens and the shutting-down
   message are centred (+dw / 2, +dh / 2).
-- Aurora past the frame: coarse lattice points outside the frame take the fitted field's colour
+- Aurora on a taller stage (dh > 0): the fitted frame scaled up uniformly to the stage's height
+  (k = h / 720), centred across, its sides cropped; ribbons wider and faster with it (Aurora.jsx
+  view, aurora.js uScale). The UI stays at its offsets (the tiles, slab and panel on the bottom).
+- Aurora past the frame on a wider stage: coarse lattice points outside the frame take the fitted field's colour
   where a line through them along the field's grain (slope 0.36 up to the right, its least-varying
   direction) enters the frame; lines that miss it take the nearest corner's colour, settling over
   240 px to that corner's loop-averaged colour. Ribbons run on past x 0 / 960 along their tangent

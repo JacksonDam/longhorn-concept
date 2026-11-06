@@ -11,9 +11,10 @@
 // (~10 KB); the shader evaluates the curves and sums the gaussians analytically per pixel. JS also
 // samples the curves at the mask columns for the per-tile ribbon masks.
 //
-// Beyond the frame (core/Stage.jsx: a wider or taller screen extends the stage past the video's
-// 960x720; the login places the frame at an offset in it, layout.js frameOffset) the field runs
-// on, unstretched:
+// On a taller stage (core/Stage.jsx: a portrait screen) the frame is scaled up uniformly to the
+// stage's height, centred across and cropped at its sides (Aurora.jsx), ribbons wider and faster
+// with it. On a wider one (core/Stage.jsx: the frame widened; the login places the frame at an
+// offset in it, layout.js frameOffset) the field runs on beyond the frame's sides, unstretched:
 // - the coarse field is a wider lattice: the fitted control points inside the frame stay, and
 //   every other one takes the fitted field's colour where a line through it along the field's
 //   grain enters the frame (FLOW: its colour bands rise to the right at ~0.36, the direction in
@@ -219,11 +220,13 @@ const REACH = Math.sqrt(2 * CUT) // in sigmas
 //   tiles: tx x ty ribbon-mask tiles over the stage
 //   columns: mc mask columns over the stage (the frame's MC spacing), each with its frame x
 //        clamped to the frame (B-spline basis there, colB / colD / colI) and the run past it (colRun)
-function makeView(w, h, ox, oy) {
-  const L = ox > 0 ? Math.ceil(ox / S) : 0
-  const T = oy > 0 ? Math.ceil(oy / S) : 0
-  const R = w - ox > 960 ? Math.ceil((w - ox - 930) / S) : 0
-  const B = h - oy > 720 ? Math.ceil((h - oy - 690) / S) : 0
+function makeView(w, h, ox, oy, k) {
+  // the stage's edges in frame px
+  const fx0 = -ox / k, fy0 = -oy / k, fx1 = (w - ox) / k, fy1 = (h - oy) / k
+  const L = fx0 < 0 ? Math.ceil(-fx0 / S) : 0
+  const T = fy0 < 0 ? Math.ceil(-fy0 / S) : 0
+  const R = fx1 > 960 ? Math.ceil((fx1 - 930) / S) : 0
+  const B = fy1 > 720 ? Math.ceil((fy1 - 690) / S) : 0
   const nx = NX + L + R, ny = NY + T + B
   let taps = null, wts = null, far = null
   if (nx !== NX || ny !== NY) {
@@ -278,7 +281,7 @@ function makeView(w, h, ox, oy) {
   const colI = new Int32Array(mc)
   const colRun = new Float32Array(mc)
   for (let c = 0; c < mc; c++) {
-    const xs = (c * 960) / (MC - 1) - ox
+    const xs = ((c * 960) / (MC - 1) - ox) / k
     const x = Math.max(0, Math.min(960, xs))
     const u = (x - BX0) / BSX + 1
     const i = Math.floor(u)
@@ -289,7 +292,7 @@ function makeView(w, h, ox, oy) {
     colD.set([-((1 - f) ** 2) / 2 / BSX, (9 * f ** 2 - 12 * f) / 6 / BSX, (-9 * f ** 2 + 6 * f + 3) / 6 / BSX, f ** 2 / 2 / BSX], c * 4)
   }
   return {
-    w, h, ox, oy, L, T, nx, ny, taps, wts, far,
+    w, h, ox, oy, k, L, T, nx, ny, taps, wts, far,
     grid: taps ? new Float32Array(nx * ny * 3) : null,
     tx, ty, tileMask: new Uint32Array(tx * ty * 4),
     mc, colB, colD, colI, colRun, ribY: new Float32Array(mc * 2),
@@ -387,7 +390,7 @@ function ribbonsAt(v, a, w0, row) {
     ribTex = new Float32Array((KX + 1) * MAXR * 4)
     Q = [0, 1, 2, 3].map(() => new Float32Array(PER))
   }
-  const { mc, colB, colD, colI, colRun, ribY, tileMask, tx: TX, ty: TY, oy } = v
+  const { mc, colB, colD, colI, colRun, ribY, tileMask, tx: TX, ty: TY, oy, k: sc } = v
   for (let s = 0, part = 0; s < NS && row < MAXR; part ? (s++, (part = 0)) : (part = 1)) {
     const wp = slotAt(s, a, part, rib)
     if (part === 0 && wp === 1) part = 1 // no switch here: the slot is one ribbon
@@ -415,7 +418,7 @@ function ribbonsAt(v, a, w0, row) {
         dy += colD[c * 4 + m] * rib[o + k]
       }
       // (past the frame's sides: along the tangent at the side; stage px)
-      ribY[c * 2] = y + dy * colRun[c] + oy
+      ribY[c * 2] = (y + dy * colRun[c]) * sc + oy
       ribY[c * 2 + 1] = 1 / Math.sqrt(1 + dy * dy)
     }
     // mark the tiles this ribbon reaches
@@ -427,7 +430,7 @@ function ribbonsAt(v, a, w0, row) {
       let lo = Infinity, hi = -Infinity
       for (let c = c0; c <= c1; c++) {
         const y = ribY[c * 2]
-        const ext = (REACH * sig) / ribY[c * 2 + 1] + 1 // +1 px: the curve between mask columns
+        const ext = (REACH * sig * sc) / ribY[c * 2 + 1] + 1 // +1 px: the curve between mask columns
         if (y - ext < lo) lo = y - ext
         if (y + ext > hi) hi = y + ext
       }
@@ -465,6 +468,7 @@ uniform highp usampler2D uTiles; // per 30 px tile of the stage: bitmask of the 
 uniform float uDim;
 uniform vec2 uSize;        // the stage (px)
 uniform vec2 uOff;         // the frame's corner in it
+uniform float uScale;      // stage px per frame px
 uniform vec2 uLat;         // the fitted lattice's first column and row in the lattice
 uniform ivec2 uGridMax;    // the lattice's last column and row
 uniform ivec2 uTileMax;    // the last tile column and row
@@ -534,7 +538,7 @@ const FS_ONE = `${COMMON}
 out vec4 outColor;
 void main() {
   vec2 q = stagePx();
-  vec2 p = q - uOff;
+  vec2 p = (q - uOff) / uScale; // frame px
   int j0; vec4 wy;
   coarseRows(p.y, j0, wy);
   vec3 col = vec3(0.0);
@@ -561,7 +565,7 @@ const FS_COLS = `${COMMON}
 layout(location = 0) out vec4 o0;
 layout(location = 1) out vec4 o1;
 void main() {
-  float x = stagePx().x - uOff.x;
+  float x = (stagePx().x - uOff.x) / uScale;
   int row = int(gl_FragCoord.y);
   if (row < ${MAXR}) {
     float y, k; vec3 amp;
@@ -581,7 +585,7 @@ uniform highp sampler2D uCol1;
 out vec4 outColor;
 void main() {
   vec2 q = stagePx();
-  vec2 p = q - uOff;
+  vec2 p = (q - uOff) / uScale; // frame px
   int cx = int(gl_FragCoord.x);
   int j0; vec4 wy;
   coarseRows(p.y, j0, wy);
@@ -610,7 +614,7 @@ function compile(gl, type, src) {
   return s
 }
 
-const UNIFORMS = ['uGrid', 'uRib', 'uTiles', 'uDim', 'uSize', 'uOff', 'uLat', 'uGridMax', 'uTileMax', 'uCol0', 'uCol1']
+const UNIFORMS = ['uGrid', 'uRib', 'uTiles', 'uDim', 'uSize', 'uOff', 'uScale', 'uLat', 'uGridMax', 'uTileMax', 'uCol0', 'uCol1']
 function program(gl, vs, fs) {
   const prog = gl.createProgram()
   gl.attachShader(prog, vs)
@@ -623,7 +627,7 @@ function program(gl, vs, fs) {
   return { prog, u }
 }
 
-const FRAME_VIEW = { w: 960, h: 720, ox: 0, oy: 0 }
+const FRAME_VIEW = { w: 960, h: 720, ox: 0, oy: 0, k: 1 }
 // local comparison aid: ?aurora=one draws in one pass where two would do
 const ONE_PASS = new URLSearchParams(location.search).get('aurora') === 'one'
 
@@ -668,11 +672,11 @@ export class AuroraRenderer {
   }
 
   // the lattice and tile textures for a stage size (new ones when the size changes)
-  setView({ w, h, ox, oy }) {
+  setView({ w, h, ox, oy, k = 1 }) {
     const v = this.view
-    if (v && v.w === w && v.h === h && v.ox === ox && v.oy === oy) return v
+    if (v && v.w === w && v.h === h && v.ox === ox && v.oy === oy && v.k === k) return v
     const gl = this.gl
-    const nv = makeView(w, h, ox, oy)
+    const nv = makeView(w, h, ox, oy, k)
     if (!v || v.nx !== nv.nx || v.ny !== nv.ny) {
       if (this.tex) gl.deleteTexture(this.tex)
       this.tex = this.texture()
@@ -733,13 +737,14 @@ export class AuroraRenderer {
     gl.uniform1f(u.uDim, g ? 1 : 0)
     gl.uniform2f(u.uSize, v.w, v.h)
     gl.uniform2f(u.uOff, v.ox, v.oy)
+    gl.uniform1f(u.uScale, v.k)
     gl.uniform2f(u.uLat, v.L, v.T)
     gl.uniform2i(u.uGridMax, v.nx - 1, v.ny - 1)
     gl.uniform2i(u.uTileMax, v.tx - 1, v.ty - 1)
   }
 
-  // t: clock time; pw x ph: the canvas's pixels; view: the stage (w x h px) the canvas covers and
-  // the video frame's corner in it (ox, oy)
+  // t: clock time; pw x ph: the canvas's pixels; view: the stage (w x h px) the canvas covers, the
+  // video frame's corner in it (ox, oy) and its scale (k stage px per frame px)
   render(t, pw, ph, view = FRAME_VIEW) {
     const { gl, canvas } = this
     if (canvas.width !== pw || canvas.height !== ph) {
