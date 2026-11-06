@@ -57,7 +57,7 @@ sidebar, the Refresh dim), `out = k(x) * blur(backdrop) + t(x) + g(y)` per chann
 | Seattle | "Seattle" 10.7 px at 866.3 / 42; skyline art 878,31 82x30 (Space Needle at x ~921) |
 | Mail | "Mail" 10.5 px 867 / 81.2; 9 rows 9 px at x 888, baselines 99.4 + 18.8 i; icons closed (rows 0-2) at 867, open diamonds at 866; row 1 selected band y 103-121 |
 | media | title 8 px at 867 / 272 ("U2 - One more Voice Wit..." clipped); play 865,278 (25 px with halo); stop/prev/next 14 px at 894/914/932, y 284; translucent capsule 888,281 64x20 |
-| Buddies | "Buddies" 10.2 px 866.5 / 333.5; rows 9 px at 888, baselines 351.5 + 18.75 i (row 1 has a picture only); pictures 16x17 at 866, top = baseline - 14.5 |
+| Buddies | "Buddies" 10.2 px 866.5 / 333.5; rows 9 px at 888, baselines 351.5 + 18.75 i (row 1, the orange tile, has no name in either video; it is "Jennifer" as in the user's mock-up ref3/insp1.png, which shows the same sidebar); pictures 16x17 at 866, top = baseline - 14.5 |
 | photo | 862,519 96x73 |
 | Go Online | orb 864,599.5 16 px; text 10.3 px 886.2 / 616.5 |
 | thumbs | 33x29 at (875,627) (912,627) (875,661) (912,661) |
@@ -75,7 +75,8 @@ Row pitches were fitted by template alignment (all labels within +-0.75 px).
   the bar's 0.45 (x 75-180; the plain bar right of the task group agrees, weaker). Row fit
   RMSE: blur 0 -> 2.95, 2 -> 2.71, 3 -> 2.68.
 - Start: flag (XP flag, white-blue; settled: icons/flag-start.webp) 8,702.25 17x15; "start" Plex 600 13 px at x 29.
-- Task group: light blue band (top 2 rows 172,214,223; body 110,180,250), sticks up 1 px.
+- Task group: light blue band (top row 172,214,223; body 110,180,250). The video's band sticks
+  up 1 px above the bar (698); by the user's request it runs flush with the bar from 699.
   Libre Franklin 600 9.9 px white, faded on the right edge of each button.
   4 buttons: group 248-675.5, separators 379.5, 481.5, 589.5.
   5 buttons: group 185.5-730.5, separators 312.5, 412.5, 644.5 (none between My Music and
@@ -142,8 +143,9 @@ first frame and 1.0 on the next.
 ## Interactive mode
 Media strip click toggles the flyout; clicks elsewhere close it; flyout rows emit hover
 events; press/release on "Go to my Music" opens the window; the My Music task button
-minimises/restores. The clock shows the real time ("h:mm am", and "h:mm PM" during the
-entrance) outside ?demo / ?capture.
+minimises/restores. The clock shows the real time in the taskbar's format ("10:35 pm") outside
+?demo / ?capture, from the entrance's first frame (the video's entrance shows the login's
+"7:09 PM" first, kept under ?demo / ?capture).
 
 ## RMSE (0-255, both blurred 1 px; login placeholder hidden; music window not in this branch)
 Before = the scene's initial flat-orange placeholder.
@@ -175,7 +177,9 @@ Files (src/scenes/desktop unless noted):
   New windows are inserted in the middle of the group, as My Music is in the video.
 - Popups: `shellState.js` ('shell.popup' { id, open }: one open at a time; 'shell.sidebar'),
   `Popup.jsx` (rise / drop / left / fade, pre-mounted, motion-blurred), `StartMenu.jsx` (after
-  ref3/insp1.png), `Flyouts.jsx` (Seattle weather, calendar), `Flyout.jsx` (my Music flyout;
+  ref3/insp1.png; live glass like the sidebar's: `StartGlass` blurs the backdrop with GLASS_BLUR
+  under the panel's translucent layers, follows the rise at the shutter's middle pose and stops
+  at the taskbar's top; hover is a light box, not the mock-up's red outline), `Flyouts.jsx` (Seattle weather, calendar), `Flyout.jsx` (my Music flyout;
   rows play their track). Menus use the UI kit: desktop context menu (`deskMenu.js`), sidebar
   header menus (`sidebarMenus.js`), task button menu (`TaskGroup.jsx`).
 - Sidebar: `Sidebar.jsx` (visuals; the glass is split into the sliding panel and the static clock

@@ -18,7 +18,9 @@ video frames; "rel" counts frames from an animation's reference point (see Timin
   edges: 178, 254, 336, 432, 527, 638, 740.
 - Menu: File 61, Edit 103, View 146, Help 196 (Franklin Gothic 10 px, #86bcff).
   Breadcrumb pill x 243..807, y 101..118: "my Computer" (light segment) > "my Pictures" > the
-  search field "search my for..." (the video's text, kept verbatim).
+  search field, its hint "search my for..." in the video, "search for…" by the user's request
+  (every explorer window). The crumbs' arrows sit 6 px after their measured text
+  (os/ExplorerChrome crumbLayout: 291 / 378 for the video's crumbs, search field from 390).
 - Command row: Hide Music Tasks (81), Up a Folder (264), Folders (366), Find (442), Preview (508,
   in a pale rounded button).
 - Task pane (x 80 text column): "enjoy music" (heading 17.5 px, light + medium weights) with

@@ -30,6 +30,21 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
   band shows a slight rounding (the user's rule wins). Controls keep their rounding (buttons,
   the address / search pill, tabs, tiles, menus, cards inset from the edges). Use
   `src/apps/lib/chrome.jsx` (AppTop, GlassRow, Band, StatusBar) for an app's top bars.
+- **Rim.** The rim's light top edge turns into its dark sides gradually along the corner arcs
+  (one stroke with a vertical gradient, PlexWindow `Rim`), not in a CSS border's hard diagonal
+  join (the user's ask; the video's corners agree: corner RMSE 7.65 -> 7.24 left, 8.54 -> 8.29
+  right, frames 760-1340).
+- **Title.** Title text (the plain title and an app's TitleContent) is vertically centred on the
+  minimise / maximise / close glyphs by its cap height: baseline = os/frame.js
+  `titleBaseline(size, capHeight)` (glyphs centred at y 11.75).
+- **Maximised.** A maximised window's body fills the work area exactly: from the top of the
+  screen to the taskbar's top row (699) and across to the sidebar's edge (858) (os/frame.js
+  `WORK`; its layer starts 3 px above the screen, `MAX_RECT`, so the rim's top edge is off-screen,
+  and the rim fades out with the maximise).
+- **Drop-down arrows** follow their label's measured width (ui/measure.js `textWidth`, a canvas
+  measure equal to the SVG / HTML text) with a 6 px gap: the explorer breadcrumbs, my Music's
+  Group / Arrange / View bar; flex rows in the ui kit already flow. Combo fields keep their arrow
+  at the right edge and clip the text before it.
 - **Shadow.** Every window casts the video's soft drop shadow (os/shadow.jsx, fitted on the my
   Music window: black, offset 9 px down, sigma 8, spread -1, alpha 0.33; nothing above the
   window; the second video, ref2 f01490, shows the same kind of shadow). It is one layer per
