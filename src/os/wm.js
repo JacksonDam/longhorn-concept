@@ -16,8 +16,10 @@
 // Legacy aliases (the video's demo input): 'music.open' / 'music.minimize' / 'music.restore' /
 // 'music.close' act on id 'music' with app 'music'.
 //
-// Session start ('login.submit'): the apps that are already running in the video's taskbar
-// exist minimised from the first frame (no animation): see RUNNING_AT_LOGIN.
+// Session start ('login.submit'): a session starts with no windows. The video's starts with four
+// apps already in its taskbar: its input log says so ('login.submit' { running: [ids] }, the
+// demo's and the scripted scenarios' that follow the video), and those exist minimised from the
+// first frame (no animation), as RUNNING_AT_LOGIN describes them. A real login never has them.
 import { getLog, getVersion, getEpoch, countAt } from '../core/events.js'
 
 export const RUNNING_AT_LOGIN = [
@@ -54,7 +56,7 @@ function foldInto(st, log, from, to) {
       case 'login.submit':
         wins.clear()
         st.session = t
-        for (const r of RUNNING_AT_LOGIN) {
+        for (const r of RUNNING_AT_LOGIN.filter((r) => e.running?.includes(r.id))) {
           wins.set(r.id, {
             id: r.id, app: r.app, props: { ...(r.props || {}) }, x: null, y: null, z: ++st.z,
             openedAt: t, state: 'minimized', changedAt: t, lastAction: 'initial', maximized: false,

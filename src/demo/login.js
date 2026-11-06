@@ -39,5 +39,6 @@ export const loginDemo = [
   { frame: 416, type: 'login.pw', len: 4 },
   { frame: 423, type: 'login.pw', len: 5 },
   { frame: 430, type: 'login.pw', len: 6 },
-  { frame: 510, type: 'login.submit', id: 'sondra' },
+  // (the video's session starts with these apps already in its taskbar: os/wm.js)
+  { frame: 510, type: 'login.submit', id: 'sondra', running: ['inbox', 'yahoo', 'doc1', 'winamp'] },
 ]

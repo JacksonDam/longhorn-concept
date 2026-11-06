@@ -6,7 +6,7 @@
 // kind of wallpaper. [{ frame, type, ...data }] in 1-based video frames.
 export const shellScenario = [
   { frame: 10, type: 'login.select', id: 'sondra' },
-  { frame: 20, type: 'login.submit', id: 'sondra' },
+  { frame: 20, type: 'login.submit', id: 'sondra', running: ['inbox', 'yahoo', 'doc1', 'winamp'] },
   // Start menu
   { frame: 95, type: 'hover', id: 'tb.start', on: true },
   { frame: 98, type: 'shell.popup', id: 'start', open: true },
