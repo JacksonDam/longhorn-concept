@@ -2,7 +2,10 @@
 // whose click does nothing (no event other than hover/press/focus, and no visible change).
 //
 // usage: node tools/audit.mjs [--url base] [--scenarios desktop,music,...] [--out out/audit]
-//        [--step 8] [--limit 0]
+//        [--step 8] [--limit 0] [--size 960x720]
+// --size: the window's CSS size (default 960x720: the stage is the frame at scale 1); at another
+// shape the stage is scaled and wider or taller than the frame (core/Stage.jsx), and the grid of
+// targets covers all of it.
 // Scenarios are reached by emitting events (window.__lh.emit) from a fresh interactive page; after
 // each click the event log is restored to the scenario's snapshot (UI state is derived from the
 // log), so every click starts from the same state.
@@ -25,6 +28,7 @@ const base = opt('--url', 'http://127.0.0.1:5398/longhorn-concept/')
 const out = opt('--out', 'out/audit')
 const step = +opt('--step', 8)
 const limit = +opt('--limit', 0)
+const [VW, VH] = opt('--size', '960x720').split('x').map(Number)
 mkdirSync(out, { recursive: true })
 
 // scenario -> events to emit (in order, with waits) from a fresh page
@@ -46,7 +50,7 @@ const port = 9200 + Math.floor(Math.random() * 90)
 const profile = mkdtempSync(join(tmpdir(), 'lhaudit-'))
 const chrome = spawn(CHROME, [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--hide-scrollbars',
-  '--window-size=960,720', '--force-device-scale-factor=1', '--enable-gpu', '--ignore-gpu-blocklist', 'about:blank',
+  `--window-size=${VW},${VH}`, '--force-device-scale-factor=1', '--enable-gpu', '--ignore-gpu-blocklist', 'about:blank',
 ], { stdio: 'ignore' })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let list
@@ -108,7 +112,7 @@ async function runScenario(name) {
     if (typeof s === 'number') await sleep(s)
     else await evaluate(`window.__lh.emit(${JSON.stringify(s[0])}, ${JSON.stringify(s[1])})`)
   }
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 959, y: 1 })
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: VW - 1, y: 1 })
   await sleep(400)
   const snapshot = await evaluate('window.__lh.log().length')
   let snap = await evaluate('JSON.stringify(window.__lh.log())')
@@ -180,13 +184,13 @@ async function runScenario(name) {
       console.log(`  ERROR after clicking ${JSON.stringify(tg.text)} at ${Math.round(tg.x)},${Math.round(tg.y)}:\n    ${error.split('\n').slice(0, 6).join('\n    ')}`)
       // the page may be broken: rebuild the scenario from scratch
       await restore(true)
-      await mouse('mouseMoved', 959, 1)
+      await mouse('mouseMoved', VW - 1, 1)
       await sleep(500)
       continue
     }
     // restore the scenario
     await restore()
-    await mouse('mouseMoved', 959, 1)
+    await mouse('mouseMoved', VW - 1, 1)
     await sleep(500)
   }
   const dead = results.filter((r) => !r.live)
@@ -213,7 +217,7 @@ async function runScenario(name) {
 try {
   await send('Page.enable')
   await send('Runtime.enable')
-  await send('Emulation.setDeviceMetricsOverride', { width: 960, height: 720, deviceScaleFactor: 1, mobile: false })
+  await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false })
   let total = 0
   for (const n of names) total += await runScenario(n)
   console.log(`dead targets: ${total}`)

@@ -3,7 +3,7 @@
 // Demo: follows the scripted path (demo/cursor.js) evaluated at the clock time, with the
 // same multi-sample motion blur as the video (fast moves show as a streak).
 import { memo, useEffect, useState } from 'react'
-import { toStage } from './Stage.jsx'
+import { toStage, FIT } from './Stage.jsx'
 import { useTime, nextFrame } from './time.jsx'
 import { FPS } from './clock.js'
 import { emit } from './events.js'
@@ -59,7 +59,11 @@ const Arrow = memo(function Arrow() {
 const SAMPLES = 12
 const SHUTTER = 0.75 / FPS
 
+// ?demo&fit: the video's cursor path is drawn for the frame, not the screen's shape: hidden
+const HIDDEN = () => ({ hidden: true })
+
 export function Cursor({ path }) {
+  if (FIT && path) path = HIDDEN
   const t = useTime()
   const [, force] = useState(0)
   useEffect(() => {

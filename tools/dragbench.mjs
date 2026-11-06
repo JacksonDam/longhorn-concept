@@ -193,10 +193,10 @@ for (const dpr of dprs) {
           }
           const logLen0 = await s.evaluate('window.__lh.log().length')
           // stage -> page px
-          const fit = await s.evaluate(`(() => { const r = document.getElementById('stage').getBoundingClientRect(); return { x: r.left, y: r.top, s: r.width / 960 } })()`)
+          const fit = await s.evaluate(`(() => { const e = document.getElementById('stage'), r = e.getBoundingClientRect(); return { x: r.left, y: r.top, s: +e.dataset.s || r.width / 960 } })()`)
           const P = (x, y) => ({ x: fit.x + x * fit.s, y: fit.y + y * fit.s })
           // the top window's live layer, in stage px
-          const rect = await s.evaluate(`(() => { const d = [...document.querySelectorAll('div')].filter((d) => d.style.mixBlendMode === 'plus-lighter' && d.style.pointerEvents === 'auto'); const z = d.map((e) => [e, +e.parentElement.parentElement.style.zIndex]).sort((a, b) => b[1] - a[1])[0][0]; const b = z.getBoundingClientRect(), st = document.getElementById('stage').getBoundingClientRect(), s = st.width / 960; return { x: (b.left - st.left) / s, y: (b.top - st.top) / s, w: parseFloat(z.style.width), h: parseFloat(z.style.height) } })()`)
+          const rect = await s.evaluate(`(() => { const d = [...document.querySelectorAll('div')].filter((d) => d.style.mixBlendMode === 'plus-lighter' && d.style.pointerEvents === 'auto'); const z = d.map((e) => [e, +e.parentElement.parentElement.style.zIndex]).sort((a, b) => b[1] - a[1])[0][0]; const b = z.getBoundingClientRect(), se = document.getElementById('stage'), st = se.getBoundingClientRect(), s = +se.dataset.s || st.width / 960; return { x: (b.left - st.left) / s, y: (b.top - st.top) / s, w: parseFloat(z.style.width), h: parseFloat(z.style.height) } })()`)
           // frame recorder; a 1 px change every frame (as ?bench does) so the browser never idles
           // down to the display rate between two mouse events: each interval is a frame's cost
           await s.evaluate(`(() => {

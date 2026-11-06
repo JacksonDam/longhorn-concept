@@ -13,6 +13,17 @@ Vite + React app deployed to GitHub Pages (base `/longhorn-concept/`).
 ## Stage
 - Everything is authored in **video pixels**: a 960x720 stage (`core/Stage.jsx`), scaled to fit the
   window. Measure positions straight off the reference frames; no unit conversion.
+- Desktop browsers scale the stage with CSS `zoom` (engines with standard zoom: Chrome 128+,
+  Safari's WebKit, Firefox 126+; others, phones and the pinned modes keep `transform: scale`), so
+  the page is laid out at its shown size and every layer, glyph and border is rasterised at the
+  screen's density: under a scale transform WebKit backs each composited layer at its
+  untransformed size x devicePixelRatio and stretches it (the site was blurry in Safari). Inside,
+  lengths are stage px as before; getBoundingClientRect and pointer clientX/Y are viewport px
+  (`toStage` maps both), offsetWidth, scrollTop, ResizeObserver and getComputedStyle stay stage px;
+  1 px borders snap down to whole device px. A layer placed by a transform at rest should sit on a
+  whole device pixel (`seam(v)`): WebKit composites a layer at a fractional offset resampled (soft
+  text), e.g. the window group's translate in `os/PlexWindow.jsx`. #stage carries its geometry in
+  `data-s/x/y/w/h/mode` for the tools; `?stage=transform|zoom` forces a mechanism.
 - Phones and tablets (coarse pointer): index.html lays the page out at the stage's own width
   (960, or wider for a wide screen) and sets the viewport tag's zoom to fit the visible area, so
   the browser's page zoom shrinks it and the stage's own scale stays 1. WebKit backs every

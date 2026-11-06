@@ -20,7 +20,7 @@ import { emit, getLog, getVersion, getEpoch } from '../core/events.js'
 import { eventsOf } from './logIndex.js'
 import { FPS, now, CAPTURE } from '../core/clock.js'
 import { nextFrame } from '../core/time.jsx'
-import { toStage } from '../core/Stage.jsx'
+import { toStage, seam, useStageScale } from '../core/Stage.jsx'
 import { Txt, abs, HEAVY, LiveLayers } from './text.jsx'
 import { focusedField } from '../ui/state.js'
 import { ExplorerChrome, EXPLORER_TOP } from './ExplorerChrome.jsx'
@@ -703,6 +703,7 @@ export function quietKey(win, app, t) {
 
 // look: the active look's level (os/focus.js activeLevels: 1 active .. 0 inactive)
 function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
+  useStageScale() // (redraws on a new stage scale: the group's corner below is snapped for it)
   const m = motion(win, app, t)
   const r = m.rect(t)
   const N = blurs ? copyCount(app, normalRect(win, app)) : 1
@@ -848,8 +849,10 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
     // (a point at the stage's origin, not a full-stage box: core/point.js)
     <div style={{ ...POINT, pointerEvents: 'none', zIndex: z }}>
       {/* the window's layers sit relative to its rect, which only moves this group: dragging a
-          window changes one transform, no layout or paint (the layers' left / top stay) */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transform: `translate(${r.x}px, ${r.y}px)` }}>
+          window changes one transform, no layout or paint (the layers' left / top stay); its
+          corner on a whole device pixel (seam): under the stage's zoom WebKit composites a layer
+          offset by a fractional translate resampled, so the window's text went soft */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transform: `translate(${seam(r.x)}px, ${seam(r.y)}px)` }}>
         {shadow}
         {layers}
         {wash}
