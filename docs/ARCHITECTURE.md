@@ -47,7 +47,7 @@ semi-transparent copies. Reproduce it the same way:
   glassy rounded slabs (picture face, glass edges, softbox reflection, fresnel rim) rendered by
   one shared three.js renderer, accumulated in half float, copied into a DOM canvas.
 
-## Glass (sidebar, clock foot, taskbar)
+## Glass (sidebar, clock foot, taskbar, Start menu)
 The Plex glass is live, so it shows whatever is behind it: the wallpaper choice, windows dragged
 under it, the Refresh dim.
 - Sidebar panel and clock foot (`scenes/desktop/Sidebar.jsx` `Glass`):
@@ -58,6 +58,8 @@ under it, the Refresh dim.
   `tools/desktop/fit_glass.py` against the empty panel of video frames 521-523 and the clock foot
   of the later frames (docs/desktop-spec.md has the numbers and how to refit).
 - Taskbar (`Taskbar.jsx` `Bar`): its per-row colours at alpha 0.55 over the same blur.
+- Start menu (`StartMenu.jsx` `StartGlass`): the same blur under the panel's own translucent
+  layers; one element outside the Popup's blur copies and clip, posed like the panel.
 - Rules: the glass elements carry their own opacity and transform. An ancestor with opacity < 1,
   a filter, mask, clip-path, blend mode or isolation becomes the backdrop root (the blur then
   sees nothing and the tint adds to nothing), and a transformed or isolated wrapper isolates the
@@ -147,6 +149,9 @@ OS in the same style. Everything still derives from (time, event log).
 - `src/core/tilt.js`: a surface turning toward the pointer (critically damped, deterministic from
   the pointer samples in the log): the selected login slab ('login.pointer' events, real input
   only), my Music's slabs.
+- `src/os/xp.jsx`: real Windows XP / Office 2003 icon art from size-design sprites (`<XpIcon name size />`,
+  built by tools/icons/xpicons.py; docs/desktop-spec.md "XP icon art"). Apps reach it through
+  `<Ico kind>` (apps/lib/icons.jsx).
 - `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
   tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
 - `src/scenes/desktop/`: wallpaper, sidebar, taskbar, Start menu, flyouts, desktop menu.

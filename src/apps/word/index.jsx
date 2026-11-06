@@ -103,7 +103,7 @@ function Field({ id, x, y, w, text, items }) {
   return (
     <>
       <div
-        style={{ position: 'absolute', left: x, top: y, width: w, height: 18, borderRadius: 3, background: 'linear-gradient(180deg, #ffffff, #e9f1fb)', boxShadow: 'inset 0 0 0 1px rgba(20,55,105,0.55), 0 1px 0 rgba(170,210,255,0.35)', fontFamily: FONT, fontSize: 10.5, lineHeight: '18px', paddingLeft: 5, color: '#1d3557', whiteSpace: 'nowrap', overflow: 'hidden', boxSizing: 'border-box' }}
+        style={{ position: 'absolute', left: x, top: y, width: w, height: 18, borderRadius: 3, background: 'linear-gradient(180deg, #ffffff, #e9f1fb)', boxShadow: 'inset 0 0 0 1px rgba(20,55,105,0.55), 0 1px 0 rgba(170,210,255,0.35)', fontFamily: FONT, fontSize: 10.5, lineHeight: '18px', paddingLeft: 5, paddingRight: 17, color: '#1d3557', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', boxSizing: 'border-box' }}
         onPointerDown={(e) => {
           if (e.button !== 0) return
           e.preventDefault()

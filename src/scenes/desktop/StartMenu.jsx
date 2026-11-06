@@ -3,18 +3,21 @@
 // user picture, big name, "switch user", round red "shut down" and amber "log off" buttons.
 // Left column: pinned programs with big icons (title + subtitle), a small-icon list and
 // "All Programs & Services". Right column (lighter glass): places, then Search, Control Panel,
-// Help & Support, Run..., Windows Tour, Top 10 Tasks. Hover = a thin red outline box, as in
-// the mock-up. Only entries that open something the OS has.
+// Help & Support, Run..., Windows Tour, Top 10 Tasks. Hover = a light box (the mock-up's thin red
+// outline was dropped). Only entries that open something the OS has. The panel is live glass like
+// the sidebar and the taskbar: StartGlass blurs whatever is behind it.
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { hasApp } from '../../os/apps.js'
-import { Popup } from './Popup.jsx'
+import { Popup, popupPhase, popupTravel } from './Popup.jsx'
+import { GLASS_BLUR } from './glassFit.js'
 import { closePopups, hover, hoverOn, hoverOff } from './shellState.js'
 import { launch, openApp } from './appInfo.jsx'
 import {
-  IEIcon, OutlookIcon, WordIcon, WinampIcon, DocumentsIcon, PicturesIcon, MusicIcon, ComputerIcon,
-  ControlIcon, HelpIcon, SearchIcon, RunIcon, DialogIcon,
+  IEIcon, OutlookIcon, WordIcon, WinampIcon, DocumentsIcon, PicturesIcon, VideosIcon, SharedIcon, ComputerIcon,
+  ControlIcon, HelpIcon, SearchIcon, RunIcon, TourIcon, DialogIcon, Xp, appXpIcon,
 } from './appIcons.jsx'
+import { XpIcon } from '../../os/xp.jsx'
 
 export const START = { x: 0, y: 281, w: 300, h: 418 }
 const HEAD = 80
@@ -40,21 +43,21 @@ const PINNED = [
 ]
 const listFor = () => [
   { label: 'Winamp3', Icon: WinampIcon, go: () => launch.winamp() },
-  { label: 'my Music', Icon: MusicIcon, go: () => launch.music() },
-  ...OPTIONAL.filter((o) => hasApp(o.app)).map((o) => ({ label: o.label, Icon: DialogIcon, go: () => openApp(o.app, o.app) })),
+  { label: 'my Music', Icon: Xp('mymusic'), go: () => launch.music() },
+  ...OPTIONAL.filter((o) => hasApp(o.app)).map((o) => ({ label: o.label, Icon: appXpIcon(o.app) || DialogIcon, go: () => openApp(o.app, o.app) })),
 ].slice(0, 6)
 const RIGHT = [
   { label: 'My Documents', Icon: DocumentsIcon, go: () => launch.documents() },
   { label: 'My Pictures', Icon: PicturesIcon, go: () => launch.pictures(), bold: true },
-  { label: 'My Videos', Icon: DocumentsIcon, go: () => openApp('documents', 'documents', { go: ['my Computer', 'my Documents', 'my Videos'] }) },
+  { label: 'My Videos', Icon: VideosIcon, go: () => openApp('documents', 'documents', { go: ['my Computer', 'my Documents', 'my Videos'] }) },
   { label: 'My Computer', Icon: ComputerIcon, go: () => launch.computer() },
-  { label: 'Shared Documents', Icon: DocumentsIcon, go: () => openApp('computer', 'computer', { go: ['my Computer', 'Shared Documents'] }) },
+  { label: 'Shared Documents', Icon: SharedIcon, go: () => openApp('computer', 'computer', { go: ['my Computer', 'Shared Documents'] }) },
   { sep: true },
   { label: 'Search', Icon: SearchIcon, go: () => launch.search() },
   { label: 'Control Panel', Icon: ControlIcon, go: () => launch.control() },
   { label: 'Help & Support', Icon: HelpIcon, go: () => launch.help() },
   { label: 'Run...', Icon: RunIcon, go: () => launch.run() },
-  { label: 'Windows Tour', Icon: HelpIcon, go: tour },
+  { label: 'Windows Tour', Icon: TourIcon, go: tour },
   { label: 'Top 10 Tasks', Icon: HelpIcon, go: () => launch.help({ page: 'tasks' }) },
 ]
 
@@ -69,7 +72,7 @@ function buildRows() {
       y += 10
       return
     }
-    out.push({ ...it, id: 'sm.r' + i, x: SPLIT + 2, y, w: START.w - SPLIT - 6, h: 25 })
+    out.push({ ...it, id: 'sm.r' + i, x: SPLIT + 2, y, w: START.w - SPLIT - 6, h: 25, right: true })
     y += 26
   })
   out.push({ label: 'switch user', id: 'sm.switch', x: 70, y: 40, w: 70, h: 16, go: () => emit('session.switch'), plain: true })
@@ -86,20 +89,11 @@ const Text = ({ x, y, size, bold, children, lh }) => (
   <div style={{ position: 'absolute', left: x, top: y, fontFamily: bold ? heavy : font, fontWeight: bold ? 400 : 600, fontSize: size, lineHeight: (lh || size + 4) + 'px', color: '#fff', textShadow: shadow, whiteSpace: 'nowrap' }}>{children}</div>
 )
 
-function RoundButton({ x, y, color, label }) {
+// shut down / log off: XP's Start menu buttons (shell32 28 Turn Off Computer, 45 Log Off), 24 px design
+function RoundButton({ x, y, icon, label }) {
   return (
     <>
-      <svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute', left: x, top: y + 2 }}>
-        <defs>
-          <radialGradient id={'dk-rb' + color.slice(1)} cx="0.45" cy="0.35" r="0.7">
-            <stop offset="0" stopColor="#fff" stopOpacity="0.9" />
-            <stop offset="0.35" stopColor={color} />
-            <stop offset="1" stopColor={color} stopOpacity="0.85" />
-          </radialGradient>
-        </defs>
-        <circle cx="10" cy="10" r="9" fill={`url(#dk-rb${color.slice(1)})`} stroke="rgba(255,255,255,0.75)" strokeWidth="1.2" />
-        <path d="M7 6.8 A4.4 4.4 0 1 0 13 6.8 M10 4.6 V9.8" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
+      <XpIcon name={icon} x={x - 2} y={y} size={24} />
       <Text x={x + 26} y={y + 3} size={11}>
         {label}
       </Text>
@@ -125,15 +119,15 @@ const Panel = memo(function Panel({ user, list }) {
       <Text x={72} y={40} size={10.5}>
         switch user
       </Text>
-      <RoundButton x={198} y={14} color="#d63d2e" label="shut down" />
-      <RoundButton x={198} y={44} color="#e9a53a" label="log off" />
+      <RoundButton x={198} y={14} icon="shutdown" label="shut down" />
+      <RoundButton x={198} y={44} icon="logoff" label="log off" />
       {/* columns */}
       {rows()
         .filter((r) => !r.round && !r.plain)
         .map((r) =>
           r.big ? (
             <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
-              <r.Icon x={4} y={5} size={30} />
+              <r.Icon x={3} y={4} size={32} />
               <Text x={42} y={4} size={11.5} bold>
                 {r.label}
               </Text>
@@ -143,7 +137,7 @@ const Panel = memo(function Panel({ user, list }) {
             </div>
           ) : (
             <div key={r.id} style={{ position: 'absolute', left: r.x, top: r.y, width: r.w, height: r.h }}>
-              {r.Icon && <r.Icon x={6} y={3} size={18} />}
+              {r.Icon && (r.right ? <r.Icon x={4} y={0} size={24} /> : <r.Icon x={7} y={4} size={16} />)}
               <Text x={r.all ? 6 : 32} y={4} size={10.5} bold={r.bold}>
                 {r.label}
               </Text>
@@ -176,7 +170,7 @@ function Live({ t }) {
           opacity: lv,
           borderRadius: r.round ? 12 : 2,
           background: 'rgba(170,210,255,0.2)',
-          boxShadow: r.round ? 'inset 0 0 0 1px rgba(255,255,255,0.7)' : 'inset 0 0 0 1px rgba(232,72,92,0.95)',
+          boxShadow: r.round ? 'inset 0 0 0 1px rgba(255,255,255,0.7)' : 'inset 0 0 0 1px rgba(200,230,255,0.4)',
         }}
       />
     )
@@ -204,25 +198,56 @@ const eater = (
   <div style={{ position: 'absolute', left: START.x, top: START.y, width: START.w, height: START.h, pointerEvents: 'auto' }} onPointerDown={(e) => e.stopPropagation()} />
 )
 
+// The panel's live glass (the sidebar's and the taskbar's material, scenes/desktop/Sidebar.jsx
+// Glass): one element under the panel that blurs the backdrop with the glass's radius; the
+// panel's own translucent layers (in the Popup's blur copies) tint it. It follows the panel's
+// rise at the shutter's middle pose with the panel's opacity, and stops at the taskbar's top as
+// the panel's clip does. It carries its own position and opacity and is never inside the
+// Popup's groups: an ancestor with opacity, a filter, a mask, a clip or isolation would become
+// the backdrop root and the blur would see nothing (docs/ARCHITECTURE.md, Glass).
+const BLUR = `blur(${GLASS_BLUR}px)`
+const BOX = { left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }
+const CLIP_Y = 699 // the taskbar's top: the panel rises from behind it
+function StartGlass({ t }) {
+  const { st, df, visible, din, dout } = popupPhase(t, 'start', 'rise')
+  const p = visible ? popupTravel(st.open, df, din, dout) : null
+  const top = START.y + (p ? p.h * BOX.height : 0)
+  const h = Math.max(0, Math.min(START.h, CLIP_Y - top))
+  const op = p ? p.op : 0
+  const on = op > 0 && h > 0
+  return (
+    <div
+      style={{
+        position: 'absolute', left: START.x, top: Math.min(top, CLIP_Y), width: START.w, height: h,
+        borderRadius: '7px 7px 0 0', backdropFilter: BLUR, WebkitBackdropFilter: BLUR,
+        opacity: op, visibility: on ? 'visible' : 'hidden', pointerEvents: 'none',
+      }}
+    />
+  )
+}
+
 export function StartMenu({ t, user }) {
   const items = rows()
   return (
-    <Popup
-      t={t}
-      id="start"
-      kind="rise"
-      n={10}
-      box={{ left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }}
-      live={<Live t={t} />}
-      hits={
-        <>
-          {eater}
-          <Hits items={items} />
-        </>
-      }
-    >
-      <Panel user={user} list={EMPTY} />
-    </Popup>
+    <>
+      <StartGlass t={t} />
+      <Popup
+        t={t}
+        id="start"
+        kind="rise"
+        n={10}
+        box={BOX}
+        live={<Live t={t} />}
+        hits={
+          <>
+            {eater}
+            <Hits items={items} />
+          </>
+        }
+      >
+        <Panel user={user} list={EMPTY} />
+      </Popup>
+    </>
   )
 }
 const EMPTY = []

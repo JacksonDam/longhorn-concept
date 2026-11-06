@@ -4,20 +4,21 @@
 import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, hoverKeys, pt, find, selectionOf, C, FONT, HEAVY } from '../../ui/index.js'
+import { scoped, wid, valueOf, hoverKeys, pt, find, selectionOf, ScrollView, C, FONT, HEAVY } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl } from '../lib/common.js'
 import { getWindow } from '../../os/wm.js'
 
+// icon: the applet's own icon (classic view), cat: its XP category-view art (shell32 270-279)
 export const APPLETS = [
-  { key: 'display', label: 'Display', desc: 'Change the desktop background and the look of your screen', icon: 'display' },
-  { key: 'datetime', label: 'Date and Time', desc: 'Set the date, time and time zone', icon: 'clock' },
-  { key: 'sound', label: 'Sounds and Audio Devices', desc: 'Change the speaker volume', icon: 'sound' },
-  { key: 'mouse', label: 'Mouse', desc: 'Customize your mouse buttons and double-click speed', icon: 'mouse' },
-  { key: 'users', label: 'User Accounts', desc: 'See the people who use this computer', icon: 'users' },
-  { key: 'network', label: 'Network Connections', desc: 'See your network and Internet connections', icon: 'network' },
-  { key: 'programs', label: 'Add or Remove Programs', desc: 'See the programs installed on this computer', icon: 'programs' },
-  { key: 'printers', label: 'Printers and Faxes', desc: 'Add a printer or see the ones installed', icon: 'printer' },
+  { key: 'display', label: 'Display', desc: 'Change the desktop background and the look of your screen', icon: 'display', cat: 'cat-appearance' },
+  { key: 'datetime', label: 'Date and Time', desc: 'Set the date, time and time zone', icon: 'clock', cat: 'cat-datetime' },
+  { key: 'sound', label: 'Sounds and Audio Devices', desc: 'Change the speaker volume', icon: 'sound', cat: 'cat-sound' },
+  { key: 'mouse', label: 'Mouse', desc: 'Customize your mouse buttons and double-click speed', icon: 'mouse', cat: 'cat-hardware' },
+  { key: 'users', label: 'User Accounts', desc: 'See the people who use this computer', icon: 'users', cat: 'cat-users' },
+  { key: 'network', label: 'Network Connections', desc: 'See your network and Internet connections', icon: 'network', cat: 'cat-network' },
+  { key: 'programs', label: 'Add or Remove Programs', desc: 'See the programs installed on this computer', icon: 'programs', cat: 'cat-addremove' },
+  { key: 'printers', label: 'Printers and Faxes', desc: 'Add a printer or see the ones installed', icon: 'printer', cat: 'cat-hardware' },
 ]
 export function openApplet(key) {
   if (key === 'display') openWin('display', 'display')
@@ -29,7 +30,7 @@ const Tile = memo(function Tile({ a, lit, sel }) {
     <div style={{ position: 'relative', width: 250, height: 58 }}>
       {(lit > 0 || sel) && <div style={{ position: 'absolute', inset: 0, borderRadius: 5, opacity: sel ? 1 : lit, background: sel ? C.rowSel : C.rowHover, boxShadow: sel ? `inset 0 0 0 1px ${C.rowSelEdge}` : 'none' }} />}
       <div style={{ position: 'absolute', left: 6, top: 7 }}>
-        <Ico kind={a.icon} size={42} />
+        <Ico kind={a.cat} size={42} />
       </div>
       <div style={{ position: 'absolute', left: 58, top: 9, fontFamily: HEAVY, fontSize: 12, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{a.label}</div>
       <div style={{ position: 'absolute', left: 58, top: 26, width: 186, fontFamily: FONT, fontSize: 10, lineHeight: '13px', color: '#8b91a6' }}>{a.desc}</div>
@@ -68,7 +69,7 @@ const Pane = memo(function Pane({ classic, onClassic, fold, onFold }) {
   const out = [head('cp', 'control', 'panel', y)]
   y += 28
   if (!fold.cp) {
-    out.push(link('classic', classic ? 'Switch to Category View' : 'Switch to Classic View', 'programs', onClassic, y))
+    out.push(link('classic', classic ? 'Switch to Category View' : 'Switch to Classic View', 'control', onClassic, y))
     y += 24
     out.push(<div key="d" style={{ position: 'absolute', left: 14, top: y, width: 160, fontFamily: FONT, fontSize: 10.5, lineHeight: '15px', color: C.textDark }} onPointerDown={(e) => e.button === 0 && onClassic()}>Pick a task below to change how your computer looks and works.</div>)
     y += 40
@@ -77,14 +78,19 @@ const Pane = memo(function Pane({ classic, onClassic, fold, onFold }) {
   out.push(head('sa', 'see', 'also', y))
   y += 28
   if (!fold.sa) {
-    out.push(link('wu', 'Windows Update', 'ie', () => openUrl('windowsupdate.microsoft.com'), y))
+    out.push(link('wu', 'Windows Update', 'winupdate', () => openUrl('windowsupdate.microsoft.com'), y))
     out.push(link('help', 'Help and Support', 'help', () => openWin('help', 'help', { topic: 'background' }), y + 20))
     out.push(link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), y + 40))
   }
   return out
 })
 
-function Control({ win, t, h, live }) {
+// The applets scroll in a view between the heading and the status bar ("8 objects"), so a short
+// window clips them above it instead of drawing them under it.
+const VIEW_X = 192
+const VIEW_Y = 46
+const STATUS_H = 20
+function Control({ win, t, w, h, live }) {
   const id = wid(win, 'tiles')
   const lit = hoverKeys(t, id + ':h')
   const sel = selectionOf(t, id)[0]
@@ -97,18 +103,20 @@ function Control({ win, t, h, live }) {
       <div style={{ position: 'absolute', left: 200, top: 18, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'classic'), value: !classic })}>
         {classic ? 'all' : 'pick a'} <span style={{ fontWeight: 500, color: C.heading }}>{classic ? 'applets' : 'category'}</span>
       </div>
-      {APPLETS.map((a, i) => (
-        <div
-          key={a.key}
-          style={classic ? { position: 'absolute', left: 200 + (i % 6) * 86, top: 52 + Math.floor(i / 6) * 84, width: 80, height: 76 } : { position: 'absolute', left: 196 + (i % 2) * 262, top: 50 + Math.floor(i / 2) * 66 }}
-          onPointerEnter={(e) => emit('hover', { id: id + ':h', key: a.key, on: true, ...pt(e) })}
-          onPointerLeave={() => emit('hover', { id: id + ':h', key: a.key, on: false })}
-          onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id + ':sel', value: { keys: [a.key], anchor: a.key } })}
-          onClick={() => openApplet(a.key)}
-        >
-          {classic ? <Icon a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} /> : <Tile a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} />}
-        </div>
-      ))}
+      <ScrollView id={wid(win, 'view')} x={VIEW_X} y={VIEW_Y} w={w - VIEW_X - 4} h={h - VIEW_Y - STATUS_H - 2} contentH={classic ? 6 + Math.ceil(APPLETS.length / 6) * 84 : 4 + Math.ceil(APPLETS.length / 2) * 66}>
+        {APPLETS.map((a, i) => (
+          <div
+            key={a.key}
+            style={classic ? { position: 'absolute', left: 8 + (i % 6) * 86, top: 6 + Math.floor(i / 6) * 84, width: 80, height: 76 } : { position: 'absolute', left: 4 + (i % 2) * 258, top: 4 + Math.floor(i / 2) * 66 }}
+            onPointerEnter={(e) => emit('hover', { id: id + ':h', key: a.key, on: true, ...pt(e) })}
+            onPointerLeave={() => emit('hover', { id: id + ':h', key: a.key, on: false })}
+            onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id + ':sel', value: { keys: [a.key], anchor: a.key } })}
+            onClick={() => openApplet(a.key)}
+          >
+            {classic ? <Icon a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} /> : <Tile a={a} lit={lit.get(a.key) || 0} sel={sel === a.key} />}
+          </div>
+        ))}
+      </ScrollView>
       <div style={{ position: 'absolute', left: 0, right: 0, top: h - 20, height: 20, lineHeight: '20px', textAlign: 'center', fontFamily: FONT, fontWeight: 500, fontSize: 11, color: '#7f8db0' }}>{APPLETS.length} objects</div>
     </div>
   )
@@ -154,6 +162,6 @@ export default {
   size: { w: 730, h: 470 },
   position: { x: 90, y: 70 },
   minSize: { w: 720, h: 420 },
-  explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search my for...', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null, menus: (win, t) => controlMenus(win, t) },
+  explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search for…', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null, menus: (win, t) => controlMenus(win, t) },
   Content: scoped(Control, {}),
 }

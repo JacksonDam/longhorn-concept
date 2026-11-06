@@ -34,7 +34,7 @@ function CharMap({ win, t, w, h }) {
     <div style={{ position: 'absolute', inset: 0, background: C.body }}>
       <div style={{ position: 'absolute', left: 12, top: 12, fontFamily: FONT, fontSize: 11, color: C.text }} onPointerDown={(e) => e.button === 0 && dropBelow(id('dd'), e.currentTarget, fontItems)}>Font:</div>
       <div
-        style={{ position: 'absolute', left: 48, top: 9, width: 200, height: 20, borderRadius: 3, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, fontFamily: `'${font}'`, fontSize: 12, lineHeight: '20px', paddingLeft: 6, boxSizing: 'border-box' }}
+        style={{ position: 'absolute', left: 48, top: 9, width: 200, height: 20, borderRadius: 3, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, fontFamily: `'${font}'`, fontSize: 12, lineHeight: '20px', paddingLeft: 6, paddingRight: 20, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', boxSizing: 'border-box' }}
         onPointerDown={(e) => e.button === 0 && dropBelow(id('dd'), e.currentTarget, fontItems)}
       >
         {font}

@@ -138,9 +138,9 @@ function tasksFor(win, path, node, selNode) {
     groups.push([
       ['system', 'tasks'],
       [
-        ['View system', 'information', 'computer', () => openWin('about', 'about')],
-        ['Add or remove', 'programs', 'programs', () => openWin('cpl:programs', 'applet', { applet: 'programs' })],
-        ['Change a', 'setting', 'display', () => openWin('control', 'control')],
+        ['View system', 'information', 'sysinfo', () => openWin('about', 'about')],
+        ['Add or remove', 'programs', 'addremove', () => openWin('cpl:programs', 'applet', { applet: 'programs' })],
+        ['Change a', 'setting', 'setting', () => openWin('control', 'control')],
       ],
     ])
   } else if (special === 'pictures') {
@@ -148,27 +148,27 @@ function tasksFor(win, path, node, selNode) {
       ['picture', 'tasks'],
       [
         ['View as a', 'slide show', 'slideshow', () => openWin('viewer', 'viewer', { pic: selNode?.pic, slideshow: true })],
-        ['Order prints', 'online', 'ie', () => openUrl('www.ofoto.com')],
-        ['Print', 'pictures', 'print', () => noPrinter()],
-        ['Copy all items', 'to CD', 'cd', () => openWin('burncd', 'burncd', { what: 'pictures' })],
+        ['Order prints', 'online', 'orderprints', () => openUrl('www.ofoto.com')],
+        ['Print', 'pictures', 'printpics', () => noPrinter()],
+        ['Copy all items', 'to CD', 'cdr', () => openWin('burncd', 'burncd', { what: 'pictures' })],
       ],
     ])
   } else {
     groups.push([
       ['file', 'tasks'],
       [
-        ['Make a new', 'folder', 'folder', () => newFolder(path)],
-        ['Publish this folder', 'to the Web', 'ie', () => openUrl('www.msn.com')],
+        ['Make a new', 'folder', 'newfolder', () => newFolder(path)],
+        ['Publish this folder', 'to the Web', 'publish', () => openUrl('www.msn.com')],
         ['Share this', 'folder', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: path[path.length - 1] })],
       ],
     ])
   }
   const places = []
-  if (k !== pathKey(MY_DOCS)) places.push(['my', 'Documents', 'folder', () => go(win, MY_DOCS)])
-  places.push(['my', 'Pictures', 'picture', () => openWin('pictures', 'pictures')])
-  places.push(['my', 'Music', 'music', () => openMusic()])
+  if (k !== pathKey(MY_DOCS)) places.push(['my', 'Documents', 'mydocs', () => go(win, MY_DOCS)])
+  places.push(['my', 'Pictures', 'mypics', () => openWin('pictures', 'pictures')])
+  places.push(['my', 'Music', 'mymusic', () => openMusic()])
   if (k !== 'my Computer') places.push(['my', 'Computer', 'computer', () => go(win, ['my Computer'])])
-  places.push(['Control', 'Panel', 'programs', () => openWin('control', 'control')])
+  places.push(['Control', 'Panel', 'control', () => openWin('control', 'control')])
   groups.push([['other', 'places'], places.slice(0, 4)])
   return groups
 }
@@ -258,8 +258,8 @@ function FolderTree({ win, path, h, t }) {
 }
 
 export const iconOf = (n) =>
-  ({ computer: 'computer', camera: 'camera', drive: 'drive', cd: 'cd', floppy: 'floppy', shared: 'shared', doc: 'doc', text: 'text', picture: 'picture', video: 'picture', music: 'music' })[n.kind] ||
-  (n.special === 'pictures' ? 'picture' : n.special === 'music' ? 'music' : 'folder')
+  ({ computer: 'computer', camera: 'camera', drive: 'drive', cd: 'cd', floppy: 'floppy', shared: 'shared', doc: 'doc', text: 'text', picture: 'picture', video: 'video', music: 'music' })[n.kind] ||
+  (n.special === 'pictures' ? 'mypics' : n.special === 'music' ? 'mymusic' : n.special === 'documents' ? 'mydocs' : n.name === 'my Videos' ? 'myvideos' : 'folder')
 
 // ---- item views -------------------------------------------------------------------------------
 const VIEWS = { tiles: [214, 54], thumbs: [118, 112], icons: [86, 76] }
@@ -511,7 +511,7 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
       crumbs: (win, t) => crumbsOf(navOf(t, win, root).path),
       crumbMenus: (win, t) => crumbMenusOf(win, t, navOf(t, win, root).path),
       menus: (win, t) => explorerModel(win, t, root, view).menus,
-      search: search ?? 'search my for...',
+      search: search ?? 'search for…',
       commands: [
         { id: 'hide', label: 'Hide Tasks', icon: 'hide' },
         { id: 'up', label: 'Up a Folder', icon: 'up' },
