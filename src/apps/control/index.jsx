@@ -9,15 +9,16 @@ import { Ico } from '../lib/icons.jsx'
 import { openWin, openUrl } from '../lib/common.js'
 import { getWindow } from '../../os/wm.js'
 
+// icon: the applet's own icon (classic view), cat: its XP category-view art (shell32 270-279)
 export const APPLETS = [
-  { key: 'display', label: 'Display', desc: 'Change the desktop background and the look of your screen', icon: 'display' },
-  { key: 'datetime', label: 'Date and Time', desc: 'Set the date, time and time zone', icon: 'clock' },
-  { key: 'sound', label: 'Sounds and Audio Devices', desc: 'Change the speaker volume', icon: 'sound' },
-  { key: 'mouse', label: 'Mouse', desc: 'Customize your mouse buttons and double-click speed', icon: 'mouse' },
-  { key: 'users', label: 'User Accounts', desc: 'See the people who use this computer', icon: 'users' },
-  { key: 'network', label: 'Network Connections', desc: 'See your network and Internet connections', icon: 'network' },
-  { key: 'programs', label: 'Add or Remove Programs', desc: 'See the programs installed on this computer', icon: 'programs' },
-  { key: 'printers', label: 'Printers and Faxes', desc: 'Add a printer or see the ones installed', icon: 'printer' },
+  { key: 'display', label: 'Display', desc: 'Change the desktop background and the look of your screen', icon: 'display', cat: 'cat-appearance' },
+  { key: 'datetime', label: 'Date and Time', desc: 'Set the date, time and time zone', icon: 'clock', cat: 'cat-datetime' },
+  { key: 'sound', label: 'Sounds and Audio Devices', desc: 'Change the speaker volume', icon: 'sound', cat: 'cat-sound' },
+  { key: 'mouse', label: 'Mouse', desc: 'Customize your mouse buttons and double-click speed', icon: 'mouse', cat: 'cat-hardware' },
+  { key: 'users', label: 'User Accounts', desc: 'See the people who use this computer', icon: 'users', cat: 'cat-users' },
+  { key: 'network', label: 'Network Connections', desc: 'See your network and Internet connections', icon: 'network', cat: 'cat-network' },
+  { key: 'programs', label: 'Add or Remove Programs', desc: 'See the programs installed on this computer', icon: 'programs', cat: 'cat-addremove' },
+  { key: 'printers', label: 'Printers and Faxes', desc: 'Add a printer or see the ones installed', icon: 'printer', cat: 'cat-hardware' },
 ]
 export function openApplet(key) {
   if (key === 'display') openWin('display', 'display')
@@ -29,7 +30,7 @@ const Tile = memo(function Tile({ a, lit, sel }) {
     <div style={{ position: 'relative', width: 250, height: 58 }}>
       {(lit > 0 || sel) && <div style={{ position: 'absolute', inset: 0, borderRadius: 5, opacity: sel ? 1 : lit, background: sel ? C.rowSel : C.rowHover, boxShadow: sel ? `inset 0 0 0 1px ${C.rowSelEdge}` : 'none' }} />}
       <div style={{ position: 'absolute', left: 6, top: 7 }}>
-        <Ico kind={a.icon} size={42} />
+        <Ico kind={a.cat} size={42} />
       </div>
       <div style={{ position: 'absolute', left: 58, top: 9, fontFamily: HEAVY, fontSize: 12, color: '#2c6cc4', whiteSpace: 'nowrap' }}>{a.label}</div>
       <div style={{ position: 'absolute', left: 58, top: 26, width: 186, fontFamily: FONT, fontSize: 10, lineHeight: '13px', color: '#8b91a6' }}>{a.desc}</div>
@@ -68,7 +69,7 @@ const Pane = memo(function Pane({ classic, onClassic, fold, onFold }) {
   const out = [head('cp', 'control', 'panel', y)]
   y += 28
   if (!fold.cp) {
-    out.push(link('classic', classic ? 'Switch to Category View' : 'Switch to Classic View', 'programs', onClassic, y))
+    out.push(link('classic', classic ? 'Switch to Category View' : 'Switch to Classic View', 'control', onClassic, y))
     y += 24
     out.push(<div key="d" style={{ position: 'absolute', left: 14, top: y, width: 160, fontFamily: FONT, fontSize: 10.5, lineHeight: '15px', color: C.textDark }} onPointerDown={(e) => e.button === 0 && onClassic()}>Pick a task below to change how your computer looks and works.</div>)
     y += 40
@@ -77,7 +78,7 @@ const Pane = memo(function Pane({ classic, onClassic, fold, onFold }) {
   out.push(head('sa', 'see', 'also', y))
   y += 28
   if (!fold.sa) {
-    out.push(link('wu', 'Windows Update', 'ie', () => openUrl('windowsupdate.microsoft.com'), y))
+    out.push(link('wu', 'Windows Update', 'winupdate', () => openUrl('windowsupdate.microsoft.com'), y))
     out.push(link('help', 'Help and Support', 'help', () => openWin('help', 'help', { topic: 'background' }), y + 20))
     out.push(link('pc', 'my Computer', 'computer', () => openWin('computer', 'computer'), y + 40))
   }

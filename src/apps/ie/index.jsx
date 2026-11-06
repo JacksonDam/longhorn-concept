@@ -333,14 +333,14 @@ function IE({ win, t, w, h }) {
           w={w}
           left={
             <>
-              <Ico kind="ie" size={14} />
+              <Ico kind="webpage" size={16} />
               <span>{nav.loading ? `Finding site: ${hostOf(nav.url)}...` : nav.stopped ? 'Action canceled' : 'Done'}</span>
               {nav.loading && <Progress k={(t - nav.at) / LOAD} />}
             </>
           }
           right={
             <>
-              <Ico kind="ie" size={14} />
+              <Ico kind="internet" size={16} />
               <span onPointerDown={(e) => e.button === 0 && zoneBox()}>Internet</span>
             </>
           }

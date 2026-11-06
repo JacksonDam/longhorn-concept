@@ -235,11 +235,11 @@ function TaskPane({ win, t, st, calendar = true }) {
       <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
         <Head a="enjoy" b="pictures" y={8} />
       </div>
-      {L('show', 30, 'View Slide show', 'display', () => slideshow(null, true))}
-      {L('album', 46, 'Create an Album', 'picture', () => openWin('album', 'album'))}
-      {L('dvd', 62, 'Burn DVD', 'cd', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
+      {L('show', 30, 'View Slide show', 'slideshow', () => slideshow(null, true))}
+      {L('album', 46, 'Create an Album', 'wmp-album', () => openWin('album', 'album'))}
+      {L('dvd', 62, 'Burn DVD', 'wmp-burn', () => openWin('burncd', 'burncd', { what: 'dvd' }))}
       {L('share', 78, 'Share Pictures', 'shared', () => openWin('sharemusic', 'sharemusic', { folder: 'my Pictures & Videos' }))}
-      {L('print', 94, 'Print Pictures', 'print', printBox)}
+      {L('print', 94, 'Print Pictures', 'printpics', printBox)}
       {L('camera', 110, 'Get Pictures from Camera', 'camera', () => openCamera(now()))}
       <div onPointerDown={(e) => e.button === 0 && focusField(wid(win, 'words'))}>
         <Head a="find" b="pictures" y={132} />
@@ -252,9 +252,9 @@ function TaskPane({ win, t, st, calendar = true }) {
       <div style={{ ...small, left: PANE_X - 8, top: 282 }} onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: wid(win, 'cal'), value: { ...st.cal, sel: null } })}>Refine By Date:</div>
       {calendar ? <Calendar id={wid(win, 'cal')} x={PANE_X - 8} y={297} w={136} /> : <div style={{ position: 'absolute', left: PANE_X - 8, top: 297, width: 136, height: 150, borderRadius: 4, background: 'linear-gradient(180deg, #ffffff, #eef4fc)', boxShadow: `inset 0 0 0 1px ${C.borderLight}` }} />}
       <div style={{ ...small, left: PANE_X - 8, top: 450 }} onPointerDown={(e) => e.button === 0 && set(win, 'type', 'all')}>Of this file type:</div>
-      {L('tpic', 466, 'Pictures', 'picture', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
-      <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'display', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
-      {L('talb', 484, 'Albums', 'folder', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
+      {L('tpic', 466, 'Pictures', 'image', () => set(win, 'type', st.type === 'picture' ? 'all' : 'picture'), st.type === 'picture')}
+      <div style={{ position: 'absolute', left: PANE_X + 64, top: 0 }}>{L('tvid', 466, 'Videos', 'wmp-video', () => set(win, 'type', st.type === 'video' ? 'all' : 'video'), st.type === 'video')}</div>
+      {L('talb', 484, 'Albums', 'wmp-album', () => set(win, 'type', st.type === 'album' ? 'all' : 'album'), st.type === 'album')}
     </>
   )
 }
