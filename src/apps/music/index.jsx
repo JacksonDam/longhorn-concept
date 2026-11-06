@@ -7,6 +7,7 @@ import { FPS } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { asset } from '../../core/preload.js'
 import { Txt } from '../../os/text.jsx'
+import { titleBaseline, CAP_BOOK } from '../../os/frame.js'
 import { EXPLORER_TOP, PLACES } from '../../os/ExplorerChrome.jsx'
 import * as I from '../../os/icons.jsx'
 import { scoped, TextField, wid, valueOf, textOf } from '../../ui/index.js'
@@ -131,31 +132,34 @@ function copyKey(win, t) {
     valueOf(t, wid(win, 'mv.sec.enjoy'), 0), valueOf(t, wid(win, 'mv.sec.guide'), 0), valueOf(t, wid(win, 'mv.sec.other'), 0)].join('|')
 }
 
-// title: the equaliser glyph and "my Music" (light "my", heavy "Music"), as measured
+// title: the equaliser glyph and "my Music" (light "my", heavy "Music"), as measured across;
+// vertically centred on the window buttons by its cap height (os/frame.js), the glyph with it
+const TITLE_Y = titleBaseline(13.5, CAP_BOOK)
 const MusicTitle = memo(function MusicTitle({ w = 777 }) {
   const x = 348 + (w - 777) / 2
   return (
     <>
-      <div style={{ position: 'absolute', left: x, top: 4, width: 13, height: 10 }}>
+      <div style={{ position: 'absolute', left: x, top: 4 + TITLE_Y - 13.5, width: 13, height: 10 }}>
         <I.TitleEq />
       </div>
-      <Txt x={x + 16} y={13.5} size={13.5} w={400} sx={0.95} c="#e3f3ff" parts={[['my ', { w: 300 }], ['Music', { w: 600 }]]} />
+      <Txt x={x + 16} y={TITLE_Y} size={13.5} w={400} sx={0.95} c="#e3f3ff" parts={[['my ', { w: 300 }], ['Music', { w: 600 }]]} />
     </>
   )
 })
 
-// the search field in the address bar (filters the albums); the video's grey hint when empty
-function MusicSearch({ win, t }) {
+// the search field in the address bar (filters the albums); a grey hint when empty. x: where the
+// field starts, after the breadcrumbs (os/ExplorerChrome)
+function MusicSearch({ win, t, x = 389, w = 777 }) {
   const id = wid(win, 'search')
   const text = textOf(t, id)
   return (
     <>
       {!text && (
-        <Txt x={389} y={89.5} size={11} w={400} c="#8ab0d8">
-          search my for...
+        <Txt x={x} y={89.5} size={11} w={400} c="#8ab0d8">
+          search for…
         </Txt>
       )}
-      <TextField id={id} x={386} y={78} w={370} h={17} variant="bare" size={11} pad={3} color="#2a4d80" />
+      <TextField id={id} x={x - 3} y={78} w={Math.max(60, w - 21 - (x - 3))} h={17} variant="bare" size={11} pad={3} color="#2a4d80" />
     </>
   )
 }

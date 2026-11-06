@@ -704,7 +704,7 @@ export default {
   minSize: { w: 700, h: 560 },
   explorer: {
     crumbs: ['my Stuff', 'my Pictures & Videos'],
-    search: 'search my for...',
+    search: 'search for…',
     commands: [
       { id: 'hide', label: 'Hide Picture Tasks', icon: 'hide' },
       { id: 'up', label: 'Up a Folder', icon: 'up' },

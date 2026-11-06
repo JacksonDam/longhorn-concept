@@ -206,7 +206,7 @@ export default {
   minSize: { w: 700, h: 460 },
   explorer: {
     crumbs: ['my Computer', 'my Programs & Services'],
-    search: 'search my for...',
+    search: 'search for…',
     commands: [
       { id: 'hide', label: 'Hide Program Tasks', icon: 'hide' },
       { id: 'up', label: 'Up a Folder', icon: 'up' },

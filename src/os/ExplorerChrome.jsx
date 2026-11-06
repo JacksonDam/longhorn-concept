@@ -5,12 +5,13 @@
 //
 // App config (`explorer` in the app registry; every field optional, defaults = my Music):
 //   { crumbs: ['my Computer', 'my Pictures'] | (win, t) => [...],
-//     search: 'search my for...' | (win, t) => string,
+//     search: 'search for…' | (win, t) => string,
 //     commands: [{ id, label, icon: 'hide' | 'up' | 'folders' | 'find' | 'preview' | <component> }],
 //     pressed: 'preview' | ['a', 'b'] | (win, t) => command id(s) shown pressed,
 //     menus: { File: items, Edit: items, View: items, Help: items } | (win, t) => {...}  (ui kit items),
 //     crumbMenus: [items for crumb 0, items for crumb 1] | (win, t) => [...],
-//     Search: ({ win, t, copy }) => node   (replaces the search field text, window-local px;
+//     Search: ({ win, t, copy, x, w }) => node   (replaces the search field text, window-local
+//             px; x: where the field starts, after the breadcrumbs; w: the window's width;
 //             copy: drawn in a motion-blur copy, no input handling needed) }
 //   A command may carry onClick(win) (called on click, besides the event).
 // Clicks emit events the app or the shell handles:
@@ -22,7 +23,7 @@
 // Search opens the Search window, Favorites drops the Favorites list ('explorer.menu' Favorites).
 import { memo } from 'react'
 import { emit } from '../core/events.js'
-import { DropMenu, dropBelow, wid } from '../ui/index.js'
+import { DropMenu, dropBelow, wid, textWidth } from '../ui/index.js'
 import { Txt, Texts, abs, HEAVY } from './text.jsx'
 import * as I from './icons.jsx'
 
@@ -37,7 +38,8 @@ const label = { size: 11, w: 400, f: HEAVY, sx: 1, c: '#e4f4ff', style: { filter
 
 const ie = (url) => () => emit('win.open', { id: 'ie', app: 'ie', props: { url } })
 
-// the toolbar's link buttons (icon box, label x); Favorites only on windows at least 760 px wide
+// the toolbar's link buttons (icon box, label x); a narrower window shows the ones whose label
+// ends 14 px inside its right edge (Favorites only from 760 px, as the video's 777 px window)
 const TOOLS = [
   { ix: 90, iy: 22, iw: 34, ih: 36, tx: 133, text: 'Home', Icon: I.HomeIcon, onClick: ie('www.msn.com') },
   { ix: 149, iy: 29, iw: 50, ih: 26, tx: 209, text: 'Search', Icon: I.SearchIcon, onClick: () => emit('win.open', { id: 'search', app: 'search' }) },
@@ -48,7 +50,12 @@ const TOOLS = [
   { ix: 659, iy: 25, iw: 30, ih: 30, tx: 695, text: 'Favorites', Icon: I.StarIcon, fav: true },
 ]
 const BF = { x: 10, y: 19 }
-const toolsFor = (w) => TOOLS.filter((it) => !it.fav || w >= 760)
+const fits = (it, w) => it.tx + textWidth(it.text, { size: label.size, w: label.w, f: label.f, sx: label.sx }) <= w - 14 && (!it.fav || w >= 760)
+function toolsFor(w) {
+  let n = 0
+  while (n < TOOLS.length && fits(TOOLS[n], w)) n++
+  return TOOLS.slice(0, n)
+}
 
 // The toolbar's icons (back / forward and the link icons with their reflections, as I.Reflected
 // draws them) are one SVG image, made on first use: an image is rasterised once and shared by
@@ -76,8 +83,8 @@ function iconMarkup(node) {
   }
   return `<${type}${attrs}>${iconMarkup(props.children)}</${type}>`
 }
-function toolbarImage(fav) {
-  const items = TOOLS.filter((it) => fav || !it.fav)
+function toolbarImage(n) {
+  const items = TOOLS.slice(0, n)
   const w = Math.max(...items.map((it) => it.ix + it.iw)) + 4
   const defs = [`<g id="bf">${iconMarkup(<I.BackForward />)}</g>`]
   const body = [`<use href="#bf" x="${BF.x}" y="${BF.y}"/>`]
@@ -92,10 +99,11 @@ function toolbarImage(fav) {
   const doc = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${TOOL_IMG_H}" viewBox="0 0 ${w} ${TOOL_IMG_H}"><defs>${defs.join('')}</defs>${body.join('')}</svg>`
   return { src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(doc), w }
 }
-let toolImgs = null
-const toolImg = (fav) => {
-  toolImgs ??= [toolbarImage(false), toolbarImage(true)]
-  return toolImgs[fav ? 1 : 0]
+// (one image per number of link buttons shown, made on first use)
+const toolImgs = []
+const toolImg = (n) => {
+  toolImgs[n] ??= toolbarImage(n)
+  return toolImgs[n]
 }
 
 const DEFAULT_COMMANDS = [
@@ -167,6 +175,9 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
   const menus0 = val(cfg.menus, win, t, null) || defaultMenus(win)
   const menus = menus0.Favorites ? menus0 : { ...menus0, Favorites: FAVORITES }
   const crumbMenus = val(cfg.crumbMenus, win, t, null) || [PLACES, PLACES]
+  const L = crumbLayout(crumbs[0] ?? '', crumbs[1])
+  const tools = toolsFor(w)
+  const img = toolImg(tools.length)
   const menuId = (m) => wid(win, 'xmenu.' + m)
   const menu = (m) => (e) => {
     e.stopPropagation()
@@ -188,12 +199,12 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
             'linear-gradient(180deg, rgba(255,255,255,0.28) 0, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 64px, rgba(255,255,255,0.06) 68px, rgba(255,255,255,0.1) 70px, rgba(0,0,0,0) 72px)',
         })}
       />
-      <img alt="" src={toolImg(w >= 760).src} width={toolImg(w >= 760).w} height={TOOL_IMG_H} style={abs(0, 0, toolImg(w >= 760).w, TOOL_IMG_H)} />
+      <img alt="" src={img.src} width={img.w} height={TOOL_IMG_H} style={abs(0, 0, img.w, TOOL_IMG_H)} />
       {!copy && <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />}
       {!copy && <div data-hit="nav:forward" style={abs(50, 32, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
-      <Texts style={label.style} items={toolsFor(w).map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
+      <Texts style={label.style} items={tools.map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
       {!copy &&
-        toolsFor(w).map((it) => (
+        tools.map((it) => (
           <div key={it.text} data-hit={'tool:' + it.text} style={abs(it.ix - 2, 22, it.tx - it.ix + it.text.length * 6.5 + 4, 40, { cursor: 'default' })} onClick={it.fav ? menu('Favorites') : it.onClick} />
         ))}
 
@@ -218,8 +229,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
           boxShadow: '0 -1px 0 rgba(20,55,105,0.75), inset 0 1px 1px rgba(10,40,100,0.35), 0 1px 0 rgba(170,210,255,0.35)',
         })}
       />
-      <Crumbs id={id} crumbs={crumbs} search={Search ? '' : val(cfg.search, win, t, 'search my for...')} menuIds={copy ? null : [0, 1].map((i) => wid(win, 'xcrumb.' + i))} crumbMenus={crumbMenus} copy={copy} />
-      {Search && <Search win={win} t={t} copy={copy} />}
+      <Crumbs id={id} crumbs={crumbs} L={L} search={Search ? '' : val(cfg.search, win, t, 'search for…')} menuIds={copy ? null : [0, 1].map((i) => wid(win, 'xcrumb.' + i))} crumbMenus={crumbMenus} copy={copy} />
+      {Search && <Search win={win} t={t} copy={copy} x={L.search} w={w} />}
       {!copy && Object.keys(menus).map((m) => (
         <DropMenu key={m} id={menuId(m)} items={menus[m]} />
       ))}
@@ -252,8 +263,36 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
   )
 })
 
+// The breadcrumb's layout: each crumb's drop-down arrow sits ARROW_GAP px after its measured
+// text, the segments end a few px after their arrows, and the search field follows. The video's
+// crumbs ("my Computer", "my Pictures") come out where it shows them (arrows at 291 / 378,
+// segments ending at 302 / 386).
+const CRUMB = { size: 11.5, w: 400, f: HEAVY, sx: 1 }
+const ARROW_GAP = 6
+// (layouts cached by the measured widths, so equal widths share one object and the Crumbs memo
+// holds; a width measured before the face loaded gives its own entry)
+const layoutCache = new Map()
+function crumbLayout(c0, c1) {
+  const w0 = textWidth(c0, CRUMB)
+  const w1 = c1 == null ? -1 : textWidth(c1, CRUMB)
+  const key = w0 + '|' + w1
+  let L = layoutCache.get(key)
+  if (L) return L
+  const a0 = Math.round(217 + w0 + ARROW_GAP)
+  const e0 = a0 + 7 + 4
+  L = { a0, e0, t1: e0 + 10, a1: 0, e1: e0 }
+  if (c1 != null) {
+    L.a1 = Math.round(L.t1 + w1 + ARROW_GAP)
+    L.e1 = L.a1 + 7 + 1
+  }
+  L.search = L.e1 + 4
+  if (layoutCache.size > 200) layoutCache.clear()
+  layoutCache.set(key, L)
+  return L
+}
+
 // the breadcrumb: the first crumb on a light-blue segment, the next on a darker one, then the search field
-const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus, copy }) {
+const Crumbs = memo(function Crumbs({ id, crumbs, L, search, menuIds, crumbMenus, copy }) {
   const open = (i) => (e) => {
     e.stopPropagation()
     emit('explorer.crumb', { id, index: i })
@@ -263,36 +302,36 @@ const Crumbs = memo(function Crumbs({ id, crumbs, search, menuIds, crumbMenus, c
   return (
     <>
       <div
-        style={abs(198, 78, 104, 17, {
+        style={abs(198, 78, L.e0 - 198, 17, {
           borderRadius: '9px 0 0 9px',
           background: 'linear-gradient(180deg, #86c8ff 0, #6cb2f6 45%, #5ca2ea 100%)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)',
         })}
       />
-      {c1 != null && <div style={abs(302, 78, 83, 17, { background: 'linear-gradient(180deg, #6ea2df 0, #5b8fd2 50%, #5486c8 100%)' })} />}
+      {c1 != null && <div style={abs(L.e0, 78, L.e1 - L.e0, 17, { background: 'linear-gradient(180deg, #6ea2df 0, #5b8fd2 50%, #5486c8 100%)' })} />}
       <svg width="10" height="10" style={{ position: 'absolute', left: 205, top: 82, overflow: 'visible' }}>
         <path d="M4.5 1 L8 5 L6 5 L6 8.5 L3 8.5 L3 5 L1 5 Z" fill="#ffffff" />
       </svg>
       <Txt x={217} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#ffffff">
         {c0}
       </Txt>
-      <div style={abs(291, 85, 7, 4)}>
+      <div style={abs(L.a0, 85, 7, 4)}>
         <I.DropArrow c="#e8f4ff" />
       </div>
-      {!copy && <div data-hit="crumb:0" style={abs(200, 78, 102, 17)} onClick={open(0)} />}
+      {!copy && <div data-hit="crumb:0" style={abs(200, 78, L.e0 - 200, 17)} onClick={open(0)} />}
       {c1 != null && (
         <>
-          <Txt x={312} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#f0f6ff">
+          <Txt x={L.t1} y={90} size={11.5} w={400} f={HEAVY} sx={1} c="#f0f6ff">
             {c1}
           </Txt>
-          <div style={abs(377, 85, 7, 4)}>
+          <div style={abs(L.a1, 85, 7, 4)}>
             <I.DropArrow c="#e8f4ff" />
           </div>
-          {!copy && <div data-hit="crumb:1" style={abs(302, 78, 83, 17)} onClick={open(1)} />}
+          {!copy && <div data-hit="crumb:1" style={abs(L.e0, 78, L.e1 - L.e0, 17)} onClick={open(1)} />}
         </>
       )}
       {search && (
-        <Txt x={389} y={89.5} size={11} w={400} c="#8ab0d8">
+        <Txt x={L.search} y={89.5} size={11} w={400} c="#8ab0d8">
           {search}
         </Txt>
       )}
