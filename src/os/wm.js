@@ -21,6 +21,7 @@
 // demo's and the scripted scenarios' that follow the video), and those exist minimised from the
 // first frame (no animation), as RUNNING_AT_LOGIN describes them. A real login never has them.
 import { getLog, getVersion, getEpoch, countAt } from '../core/events.js'
+import { LOGOFF_REVERSE } from './session.js'
 
 export const RUNNING_AT_LOGIN = [
   { id: 'inbox', app: 'outlook' },
@@ -56,6 +57,7 @@ function foldInto(st, log, from, to) {
       case 'login.submit':
         wins.clear()
         st.session = t
+        st.ended = null
         for (const r of RUNNING_AT_LOGIN.filter((r) => e.running?.includes(r.id))) {
           wins.set(r.id, {
             id: r.id, app: r.app, props: { ...(r.props || {}) }, x: null, y: null, z: ++st.z,
@@ -65,9 +67,16 @@ function foldInto(st, log, from, to) {
         }
         break
       case 'session.logoff':
+      case 'session.switch':
+        // the windows stay, frozen, under the login screen coming back (os/session.js
+        // LOGOFF_REVERSE); stateAt drops them once it has
+        st.session = null
+        st.ended = t
+        break
       case 'session.shutdown':
         wins.clear()
         st.session = null
+        st.ended = null
         break
       case 'win.open': {
         const w = wins.get(e.id)
@@ -163,10 +172,10 @@ function foldInto(st, log, from, to) {
   }
   return st
 }
-const freshState = () => ({ wins: new Map(), z: 0, session: null })
+const freshState = () => ({ wins: new Map(), z: 0, session: null, ended: null })
 // a copy of a fold state (records are replaced, never their props objects mutated, so a shallow
 // copy of each record is enough)
-const cloneState = (st) => ({ wins: new Map([...st.wins].map(([k, w]) => [k, { ...w }])), z: st.z, session: st.session })
+const cloneState = (st) => ({ wins: new Map([...st.wins].map(([k, w]) => [k, { ...w }])), z: st.z, session: st.session, ended: st.ended })
 
 // The state after the first n events, cached per n (a few entries, so looking back in time, as
 // os/focus.js does during a cross-fade, doesn't evict the current frame's state). While the log
@@ -202,11 +211,14 @@ function stateAt(t) {
     if (to % CHECK === 0 && !fold.checks.some((k) => k.n === to)) fold.checks.push({ n: to, st: cloneState(fold.st) })
   }
   const r = fold.st
-  // freeze copies so callers can't mutate the cache
-  const list = [...r.wins.values()].map((w) => Object.freeze({ ...w, props: Object.freeze({ ...w.props }) }))
+  // freeze copies so callers can't mutate the cache (a logged-off session's windows: none once
+  // the login screen has come back over them)
+  const gone = r.session == null && r.ended != null && t >= r.ended + LOGOFF_REVERSE
+  const list = gone ? [] : [...r.wins.values()].map((w) => Object.freeze({ ...w, props: Object.freeze({ ...w.props }) }))
   const value = { list, byId: new Map(list.map((w) => [w.id, w])), session: r.session }
   if (cache.size >= 6) cache.delete(cache.keys().next().value)
-  cache.set(lo, value)
+  // (cached per event count, except after a log off: whether its windows still show depends on t)
+  if (r.ended == null) cache.set(lo, value)
   return value
 }
 

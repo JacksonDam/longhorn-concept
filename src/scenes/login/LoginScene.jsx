@@ -15,6 +15,7 @@ import { rowState } from './select.js'
 import { currentSelection, submitEvent, passwordLength } from './state.js'
 import { LOGIN_EXIT, layerOpacity, chromeExit } from './exit.js'
 import { POINT } from '../../core/point.js'
+import { logoffReverse } from '../../os/session.js'
 import { toStage } from '../../core/Stage.jsx'
 
 export { LOGIN_EXIT }
@@ -116,8 +117,9 @@ export function LoginScene({ visible = true }) {
 
 const LoginContent = memo(function LoginContent({ t, visible }) {
   const submit = submitEvent(t)
-  // exit clock: seconds into the exit after submit
-  const exitK = (tt) => (submit ? tt - submit.t : null)
+  // the exit clock: seconds since the submit; after a log off it unwinds instead (the login
+  // transition in reverse, os/session.js logoffReverse), k from the exit's end down to 0
+  const exitK = (tt) => (submit ? tt - submit.t : logoffReverse(tt)?.k ?? null)
   const k = exitK(t)
   const row = rowState(t)
   const submitT = submit ? submit.t : null

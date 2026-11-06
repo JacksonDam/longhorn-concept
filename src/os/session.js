@@ -40,7 +40,9 @@ export const userPicture = (id) => asset(`img/login/users/${id}.webp`)
 export const userPictureWashed = (id) => asset(`img/login/users/${id}-hover.webp`)
 
 // Screen timings (seconds), from the second reference video (ref2, days-video.md, f02775-f02888):
-// log off is a hard cut from the desktop to the login screen; shutting down shows the login screen
+// log off is a hard cut from the desktop to the login screen there; here it plays the login
+// transition in reverse (LOGOFF_REVERSE: the login layer comes back over the desktop the way it
+// left, scenes/login/exit.js, while the desktop stays as it was); shutting down shows the login screen
 // (held 28 frames when coming from the desktop) and fades it linearly to black over 61 frames.
 // Booting (in neither video; the second one ends black) shows the Longhorn boot screen for one
 // fade-in and one pass of its blocks, then fades the login screen in from black.
@@ -48,6 +50,7 @@ const FRAME = 1001 / 30000
 export const SHUTDOWN_HOLD = 28 * FRAME
 export const SHUTDOWN_FADE = 61 * FRAME
 export const BOOT_DUR = 30 * FRAME
+export const LOGOFF_REVERSE = 12 * FRAME // the login exit's length (scenes/login/exit.js LOGIN_EXIT)
 export const BOOT_SCREEN = BOOT_FADE + BOOT_SWEEP // the power button's boot screen, before BOOT_DUR
 export const bootScreenDur = (s) => (s.cold ? 0 : BOOT_SCREEN)
 export const shutdownDur = (s) => (s.from === 'desktop' ? SHUTDOWN_HOLD : 0) + SHUTDOWN_FADE
@@ -102,6 +105,15 @@ function settle(out, t) {
 export function screen(t) {
   const s = screens(t)
   return s[s.length - 1]
+}
+
+// during the reverse login transition after a log off (or switch user): the seconds of the login
+// exit still to unwind (LOGOFF_REVERSE down to 0), and the desktop screen being left; else null
+export function logoffReverse(t) {
+  const s = screens(t)
+  const cur = s[s.length - 1]
+  if (cur.name !== 'login' || cur.from !== 'desktop' || t >= cur.t0 + LOGOFF_REVERSE) return null
+  return { k: LOGOFF_REVERSE - (t - cur.t0), desktop: s[s.length - 2] }
 }
 
 // the screen before the current one (for cross-fades), or null
