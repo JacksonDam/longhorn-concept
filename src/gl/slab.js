@@ -15,10 +15,10 @@ let renderer = null
 let glCanvas = null
 const MAX = 2048 // largest render (px per side)
 
-// The one GL context: its drawing buffer is kept at the size of the latest render (not MAX x MAX:
-// 16 MB plus depth for a 2048 square), and only the latest two render-target sizes stay allocated
-// (the login's full-stage slab canvas needs ~200 MB of multisampled targets at DPR 1.5; they go
-// when my Music's slabs, a quarter of the size, take over)
+// The one GL context: its drawing buffer is sized for the renders in use (the largest render
+// target size), not MAX x MAX (16 MB plus depth for a 2048 square). Render targets are kept per
+// size (the login's full-stage slab canvas, my Music's header box): freeing and reallocating the
+// login's ~200 MB of multisampled targets stalls a frame for hundreds of ms.
 function getRenderer() {
   if (renderer) return renderer
   glCanvas = document.createElement('canvas')
@@ -224,23 +224,25 @@ const accumQuad = (() => {
   }
 })()
 
-const rtCache = new Map() // size -> targets, most recently used last
+const rtCache = new Map() // size -> { sample, accum, w, h }
 function targets(w, h) {
   const key = w + 'x' + h
   let t = rtCache.get(key)
-  if (t) rtCache.delete(key)
-  else {
+  if (!t) {
     const opts = { type: THREE.HalfFloatType, depthBuffer: true, samples: 4 }
-    t = { sample: new THREE.WebGLRenderTarget(w, h, opts), accum: new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType }) }
-    for (const [k, old] of rtCache) {
-      if (rtCache.size < 2) break
-      old.sample.dispose()
-      old.accum.dispose()
-      rtCache.delete(k)
-    }
+    t = { sample: new THREE.WebGLRenderTarget(w, h, opts), accum: new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType }), w, h }
+    rtCache.set(key, t)
   }
-  rtCache.set(key, t)
   return t
+}
+// the drawing buffer: as large as the largest target size in use (resizing it reallocates it)
+function bufferSize() {
+  let w = 1, h = 1
+  for (const t of rtCache.values()) {
+    w = Math.max(w, t.w)
+    h = Math.max(h, t.h)
+  }
+  return [w, h]
 }
 
 export class SlabScene {
@@ -363,8 +365,9 @@ export function renderSlabs(ctx2d, slabScene, items, times, view) {
     r.setViewport(0, 0, pw, ph)
     r.render(q.scene, q.cam)
   }
-  // accum -> default framebuffer (at this render's size) -> 2D canvas
-  if (glCanvas.width !== pw || glCanvas.height !== ph) r.setSize(pw, ph, false)
+  // accum -> default framebuffer -> 2D canvas
+  const [bw, bh] = bufferSize()
+  if (glCanvas.width !== bw || glCanvas.height !== bh) r.setSize(bw, bh, false)
   r.setRenderTarget(null)
   r.setViewport(0, 0, pw, ph)
   r.setScissorTest(true)
