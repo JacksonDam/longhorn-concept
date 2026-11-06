@@ -22,7 +22,9 @@ draws exactly what `?capture` draws for the same time.
 - `node tools/bench.mjs [frames] --url http://localhost:<port>/longhorn-concept/` steps the
   capture path one video frame per animation frame with vsync off at 1440x1080 and prints
   per-segment p50/p95/max frame cost and the frames over 6.94 ms. Use all frames of your segments
-  (e.g. `694-716,1353-1415`), not every 3rd.
+  (e.g. `694-716,1353-1415`), not every 3rd. The bench pins the frame at scale 1; `--scaled` fits it
+  to the window instead (s = 1.5 at 1440x1080), `--query stage=zoom` measures Safari's zoom
+  (ARCHITECTURE.md Stage) in Chrome.
 - `UNCAPPED=1 node tools/perf.mjs <base url>` plays `?demo` in real time with vsync off.
 - Interactive features (new windows, menus, drags) must be benched too: add a short scripted
   input to the bench (or a demo-like event list behind a URL flag) for what you build, so its
@@ -42,6 +44,15 @@ draws exactly what `?capture` draws for the same time.
 - Slabs (gl/slab.js): render once per frame per distinct slab and share the result between DOM
   copies; crop canvases to the slab's bounds; keep accumulation samples only where the video
   shows blur.
+- Full resolution has a cost (the stage's zoom in Safari, ARCHITECTURE.md Stage): layers are
+  backed at the shown size (Playwright WebKit, desktop 1440x1080, scale 1.5: peak 1.3-1.5 GB against
+  0.77 GB under the transform, more long frames while every app opens). Chrome keeps the transform:
+  forced to zoom (`?stage=zoom`) it merges fewer paint chunks into a layer, so a window's
+  motion-blur copies split into more layers (mid-minimise at scale 1.5: 189 composited layers
+  against 113; `[Overlap]` 59 vs 28, no reason 50 vs 5) and minimise / restore at 1512x982 DPR 2
+  had 109 frames over 6.94 ms against 71 (four cycles, dragbench) with 4.4 GB GPU + renderer peak
+  against 2.9. Fewer layers inside a copy (no canvas or will-change under text in Content) is the
+  lever if Chrome is ever moved to zoom.
 - Filters (`filter: blur()`, SVG filters, backdrop-filter) on large or moving elements are
   expensive: prefer pre-blurred images or WebGL.
 - You may change the tech (WebGL / three.js / WebGPU / OffscreenCanvas / canvas 2D) for any part
@@ -108,7 +119,8 @@ did that on iPhones at boot, with my Music open and with many windows open. Budg
 500 MB peak for the heaviest scenario at iPhone size (390x844, DPR 3).
 - `node tools/memory.mjs --engine chrome|webkit|ios --url <prod build> [--device
   iphone|land|ipad|desktop] [--quick] [--query rehearse=all] [--json out.json] [--shots dir]`
-  plays `?demo&scenario=windows` (src/demo/windows.js: boot, log in, my Music, an album,
+  plays `?demo&scenario=windows` (`--unpinned`: with `&fit`, at the device's shape rather than the
+  video's frame letterboxed) (src/demo/windows.js: boot, log in, my Music, an album,
   minimise / restore, every launcher app opened and left open, three minutes of use) and prints
   the peak footprint (phys_footprint, what iOS's limit counts) per phase and per process kind,
   the long frames per phase, the boot's timings, the page's layout and page errors. chrome:
@@ -136,8 +148,9 @@ did that on iPhones at boot, with my Music open and with many windows open. Budg
   the settled desktop's layers went from 63 to 25 MB (one buffer each). A hidden subtree that
   stays mounted skips rendering (`content-visibility: hidden`, the login scene under the desktop).
 - Canvas sizes: devicePixelRatio already includes the page zoom on a phone (index.html), so
-  size canvases by `stage scale x devicePixelRatio` and never multiply by
-  `visualViewport.scale` as well (that drew the my Music slabs at 0.17 of their shown pixels).
+  size canvases by `stage scale x devicePixelRatio` (`core/Stage.jsx deviceScale(s)`: capped at 3
+  on phones, 4 on desktops) and never multiply by `visualViewport.scale` as well (that drew the
+  my Music slabs at 0.17 of their shown pixels).
 - No rehearsal on WebKit (ARCHITECTURE.md, Boot): its long frames per phase were the same with
   a full, a video or no rehearsal (Playwright WebKit and the simulator), and a full one ran to
   the 10 s deadline on the simulator. Chrome keeps it (its GPU pipeline compiles are what the

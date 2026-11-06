@@ -7,7 +7,7 @@
 import { useLayoutEffect, useRef, useMemo } from 'react'
 import { useTime } from '../core/time.jsx'
 import { FPS } from '../core/clock.js'
-import { useStageScale } from '../core/Stage.jsx'
+import { useStageScale, deviceScale } from '../core/Stage.jsx'
 import { renderSlabs, SlabScene } from './slab.js'
 
 export function Slab3D({
@@ -29,8 +29,8 @@ export function Slab3D({
   const { s } = useStageScale()
   // device px per stage px: the stage's scale times the device pixel ratio (on a phone, whose page
   // is laid out 960 wide and zoomed out, index.html has devicePixelRatio include the page zoom:
-  // it is the device px per CSS px actually shown)
-  const scale = Math.min(3, s * (window.devicePixelRatio || 1))
+  // it is the device px per CSS px actually shown), capped (core/Stage.jsx deviceScale)
+  const scale = deviceScale(s)
   useLayoutEffect(() => {
     const c = ref.current
     if (!c) return

@@ -10,7 +10,7 @@
 //
 // usage: node tools/memory.mjs [--engine chrome|webkit|ios] [--device iphone|land|ipad|desktop]
 //          [--url http://127.0.0.1:5311/longhorn-concept/] [--query extra=1] [--seconds n]
-//          [--sim "iPhone Duo"] [--json out.json] [--quick]
+//          [--sim "iPhone Duo"] [--json out.json] [--quick] [--unpinned]
 //   chrome: headless Chrome with the device emulated (iphone = 390x844 at DPR 3, mobile)
 //   webkit: Playwright WebKit (devDependency `playwright`; once: npx playwright install webkit)
 //   ios:    Mobile Safari on an iOS Simulator (Xcode with an iOS runtime: xcodebuild
@@ -20,6 +20,9 @@
 //   --shots dir: (ios) a simulator screenshot every 10 s; --query rehearse=all forces a first
 //   visit's boot where the browser keeps its data (Safari on the simulator)
 //   --query adds to the page's URL (e.g. rehearse=none|video|all)
+//   --unpinned: the scenario at the screen's shape like the real OS (?demo&fit: the stage
+//   widened or heightened to the device's aspect, core/Stage.jsx), not the video's frame
+//   letterboxed
 // The page posts its clock, boot timings, animation frames and errors to the harness
 // (?report=<sink>, src/core/report.js), so the simulator's Safari reports them too.
 // Prints the peak (total, and each process kind), the peak and the long frames (over 50 / 100 ms)
@@ -41,6 +44,7 @@ const device = opt('--device', 'iphone')
 const base = opt('--url', 'http://127.0.0.1:5311/longhorn-concept/')
 const extra = opt('--query', '')
 const quick = args.includes('--quick')
+const unpinned = args.includes('--unpinned')
 const seconds = +opt('--seconds', 0)
 const simName = opt('--sim', 'iPhone Duo')
 const jsonOut = opt('--json', null)
@@ -69,7 +73,7 @@ const sink = createServer((req, res) => {
 })
 await new Promise((r) => sink.listen(0, '127.0.0.1', r))
 const report = `http://127.0.0.1:${sink.address().port}/`
-const url = base + (base.includes('?') ? '&' : '?') + 'demo&scenario=windows' + (extra ? '&' + extra : '') + '&report=' + encodeURIComponent(report)
+const url = base + (base.includes('?') ? '&' : '?') + 'demo&scenario=windows' + (unpinned ? '&fit' : '') + (extra ? '&' + extra : '') + '&report=' + encodeURIComponent(report)
 const pageUrl = url.replace(/&report=[^&]*/, '')
 const PHASES = [['login', 1], ['my Music', 150], ['album', 260], ['minimise, restore', 340], ['open every app', 480], ['use', 1380], ['end', 6800]]
 const END = quick ? 1500 : 6800 // video frames of the scenario to play
@@ -273,7 +277,7 @@ const fmt = (s) => `${s.total.toFixed(0).padStart(5)} MB (${kinds.map((k) => `${
 console.log(`memory: ${engine} ${device === 'iphone' && engine !== 'ios' ? 'iPhone 390x844 DPR 3' : engine === 'ios' ? simName : device} ${pageUrl}`)
 if (E.note) console.log(E.note)
 const v = reports.view
-if (v) console.log(`page: ${v.w}x${v.h} CSS px, zoom ${v.zoom?.toFixed(3)}, ${v.dpr?.toFixed(2)} device px per CSS px, stage scale ${v.stage?.toFixed(3)} (screen ${v.screen}, viewport tag: ${v.meta})`)
+if (v) console.log(`page: ${v.w}x${v.h} CSS px, zoom ${v.zoom?.toFixed(3)}, ${v.dpr?.toFixed(2)} device px per CSS px, stage ${v.stageSize ?? ''} at scale ${v.stage?.toFixed(3)}${v.stageMode ? ' (' + v.stageMode + ')' : ''} (screen ${v.screen}, viewport tag: ${v.meta})`)
 const b = reports.boot
 if (b) console.log(`boot: level ${b.level}, assets ${b.assets} ms, rehearsal ${b.rehearsal} ms (${b.frames} states${b.timedOut ? ', timed out' : ''}), total ${b.total} ms`)
 else console.log('boot: no report from the page')

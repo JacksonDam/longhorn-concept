@@ -6,24 +6,75 @@
 // y + dh, centred ones at + dw / 2, + dh / 2); full-stage things cover w x h.
 // ?capture and ?bench pin the frame at scale 1 at 0,0; ?demo (the video's input replayed, with its
 // cursor) keeps the frame's own size, letterboxed, unless &fit is given too (a scripted scenario
-// played at the screen's shape, for checks on phones and the simulator: ?demo&scenario=shell&fit).
+// played at the screen's shape, for checks on phones and the simulator: ?demo&scenario=shell&fit;
+// the video's own cursor, drawn for the frame, is hidden then).
+//
+// How the scale is applied. Safari's WebKit backs each composited layer at its size before any
+// CSS transform x devicePixelRatio and stretches it, so under a scale transform the live site was
+// blurry in Safari at any scale above 1. There the stage is scaled with CSS zoom instead: the page
+// is laid out at its shown size and every layer, glyph, border and image is rasterised at the
+// screen's density. Zoom's semantics (checked in Chrome, Playwright WebKit and the system WebKit):
+// every length inside is multiplied (transforms' px, filters, shadows; borders snap down to whole
+// device px), getBoundingClientRect and event clientX / Y are in viewport px (so toStage maps
+// both), offsetWidth, scrollTop, ResizeObserver and getComputedStyle stay in stage px. A layer
+// placed by a fractional translate is composited resampled (soft): put resting ones on a device
+// pixel with seam(). Chrome keeps the transform: it rasterises transformed layers at the screen's
+// density already (the same pixels at rest), while under zoom it merged fewer paint chunks, so a
+// window's motion-blur copies made ~1.7x the layers and its minimise / restore cost ~1.5x the
+// frames over budget and 1.5 GB more GPU memory (docs/briefs/perf.md). (One soft case under the
+// transform: my Music's window after its album page opened, a will-change layer left at a stale
+// raster scale.) Firefox, an engine with the old zoom (rects divided by the zoom) and phones keep
+// the transform too: index.html lays a phone's page out at the stage's size with a page zoom, so
+// the stage's own scale is 1 there. ?stage=transform|zoom forces either (comparisons).
 import { useEffect, useState, createContext, useContext } from 'react'
-import { CAPTURE } from './clock.js'
+import { CAPTURE, BENCH } from './clock.js'
 
 export const W = 960
 export const H = 720
 const q = new URLSearchParams(location.search)
+// ?demo&fit: the demo at the screen's shape
+export const FIT = !CAPTURE && q.has('demo') && q.has('fit')
 const PINNED = CAPTURE || (q.has('demo') && !q.has('fit'))
+// ?bench&scaled: the bench's frame fitted to the window (letterboxed, like ?demo) instead of at
+// scale 1, to measure the stage's scaling (tools/bench.mjs --scaled); capture never scales
+const SCALED = BENCH && q.has('scaled')
+
+// standard zoom: an element inside a zoom: 2 box reports its rect at twice its size
+function standardZoom() {
+  try {
+    if (!CSS.supports('zoom', '2')) return false
+    const a = document.createElement('div')
+    a.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;visibility:hidden;zoom:2'
+    const b = document.createElement('div')
+    b.style.cssText = 'width:10px;height:10px'
+    a.appendChild(b)
+    document.documentElement.appendChild(a)
+    const w = b.getBoundingClientRect().width
+    a.remove()
+    return Math.abs(w - 20) < 0.5
+  } catch {
+    return false
+  }
+}
+const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+const force = q.get('stage')
+// 'zoom' | 'transform'
+// Safari's engine (every iOS browser too, but phones are coarse)
+const WEBKIT = /AppleWebKit\//.test(navigator.userAgent) && !/Chrome\/|Chromium\//.test(navigator.userAgent)
+export const STAGE_MODE = force === 'transform' || force === 'zoom' ? force : (!CAPTURE || SCALED) && !coarse && WEBKIT && standardZoom() ? 'zoom' : 'transform'
+const ZOOM = STAGE_MODE === 'zoom'
 
 const FRAME = { s: 1, x: 0, y: 0, w: W, h: H, dw: 0, dh: 0 }
 const ScaleCtx = createContext(FRAME)
 // { s (CSS px per stage px), x, y (the stage's corner in the page), w, h (the stage's size in
-// stage px), dw, dh (w - W, h - H) }; components that read it redraw when it changes
+// stage px), dw, dh (w - W, h - H), dpr (device px per CSS px when fitted) }; components that
+// read it redraw when it changes
 export const useStageScale = () => useContext(ScaleCtx)
 export const useStageSize = useStageScale
 
 function fit() {
-  if (CAPTURE) return FRAME
+  const dpr = window.devicePixelRatio || 1
+  if (CAPTURE && !SCALED) return FRAME
   const vw = innerWidth, vh = innerHeight
   let s, w = W, h = H
   if (PINNED) s = Math.min(vw / W, vh / H)
@@ -35,12 +86,12 @@ function fit() {
     h = Math.max(H, Math.round(vh / s))
   }
   // the stage's corner on a whole device pixel (see seam)
-  const dpr = window.devicePixelRatio || 1
   const px = (v) => Math.round(v * dpr) / dpr
-  return { s, x: px((vw - w * s) / 2), y: px((vh - h * s) / 2), w, h, dw: w - W, dh: h - H }
+  return { s, x: px((vw - w * s) / 2), y: px((vh - h * s) / 2), w, h, dw: w - W, dh: h - H, dpr }
 }
 
-// client (page) coordinates -> stage coordinates
+// client (page) coordinates -> stage coordinates (pointer events' clientX / Y, and under standard
+// zoom or a transform getBoundingClientRect's values too)
 let current = fit()
 export const toStage = (cx, cy) => ({ x: (cx - current.x) / current.s, y: (cy - current.y) / current.s })
 export const stageScale = () => current.s
@@ -57,29 +108,79 @@ export const seam = (v) => {
   const d = current.s * (window.devicePixelRatio || 1)
   return Math.round(v * d) / d
 }
+// Device px per stage px for sizing a canvas drawn at the stage scale s (useStageScale().s): the
+// screen's density, capped for memory at 3 on phones (DPR 3 at a page zoom of ~1) and at 4 on
+// desktops (a 5K display's full screen; a 6K one draws at 85%). devicePixelRatio includes a
+// phone's page zoom (index.html): never multiply visualViewport.scale in as well.
+export const deviceScale = (s) => Math.min(coarse ? 3 : 4, s * (window.devicePixelRatio || 1))
 
 export function Stage({ children }) {
   const [f, setF] = useState(fit)
   useEffect(() => {
     const on = () => {
-      current = fit()
-      setF(current)
+      const n = fit()
+      // (a phone's devicePixelRatio follows its pinch zoom, index.html: that alone redraws nothing,
+      // as before, or every canvas would grow while zoomed in)
+      const same = coarse
+        ? Math.abs(n.x - current.x) < 0.5 && Math.abs(n.y - current.y) < 0.5
+        : n.x === current.x && n.y === current.y && n.dpr === current.dpr
+      if (same && n.s === current.s && n.w === current.w && n.h === current.h) return
+      current = n
+      setF(n)
     }
-    addEventListener('resize', on)
-    return () => removeEventListener('resize', on)
+    // (a resize can come before the layout has its new size: Mobile Safari applying index.html's
+    // viewport tag left the stage fitted to an earlier 787 px layout inside the 960 px page, at
+    // 0.82, in the simulator; so the size is checked again a frame later, and once after mounting)
+    let raf = 0
+    const later = () => {
+      on()
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(on)
+    }
+    addEventListener('resize', later)
+    window.visualViewport?.addEventListener('resize', later)
+    raf = requestAnimationFrame(on)
+    // a new device pixel ratio without a resize (the window moved to another display): canvases
+    // and seams follow it
+    let mq = null
+    const watch = () => {
+      mq?.removeEventListener('change', onDpr)
+      mq = matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+      mq.addEventListener('change', onDpr)
+    }
+    const onDpr = () => (on(), watch())
+    watch()
+    return () => {
+      removeEventListener('resize', later)
+      window.visualViewport?.removeEventListener('resize', later)
+      cancelAnimationFrame(raf)
+      mq?.removeEventListener('change', onDpr)
+    }
   }, [])
   current = f
+  const zoom = ZOOM && f.s !== 1
   return (
     <ScaleCtx.Provider value={f}>
       <div
         id="stage"
+        // (tools read the stage's geometry here: tools/interact.mjs, audit.mjs, core/report.js)
+        data-s={f.s}
+        data-x={f.x}
+        data-y={f.y}
+        data-w={f.w}
+        data-h={f.h}
+        data-mode={STAGE_MODE}
         style={{
           position: 'absolute',
-          left: f.x,
-          top: f.y,
+          // (zoom multiplies the element's own lengths too: its corner is given in zoomed px)
+          left: zoom ? f.x / f.s : f.x,
+          top: zoom ? f.y / f.s : f.y,
           width: f.w,
           height: f.h,
-          transform: `scale(${f.s})`,
+          zoom: zoom ? f.s : undefined,
+          // (under zoom an identity transform: the stage stays the stacking context and containing
+          // block it is under the transform)
+          transform: `scale(${ZOOM ? 1 : f.s})`,
           transformOrigin: '0 0',
           overflow: 'hidden',
           background: '#000',

@@ -35,7 +35,7 @@ if (sink) {
     const on = !!(lh && lh.booted)
     const st = document.getElementById('stage')
     // the page's layout: CSS px, the page zoom, device px per CSS px, the stage's scale
-    const view = { w: innerWidth, h: innerHeight, zoom: window.visualViewport ? visualViewport.scale : null, dpr: devicePixelRatio, stage: st ? st.getBoundingClientRect().width / 960 : null, screen: screen.width + 'x' + screen.height, meta: document.querySelector('meta[name=viewport]')?.content }
+    const view = { w: innerWidth, h: innerHeight, zoom: window.visualViewport ? visualViewport.scale : null, dpr: devicePixelRatio, stage: st ? +st.dataset.s : null, stageSize: st ? st.dataset.w + 'x' + st.dataset.h : null, stageMode: st ? st.dataset.mode : null, screen: screen.width + 'x' + screen.height, meta: document.querySelector('meta[name=viewport]')?.content }
     const body = { seq: seq++, app: on ? lh.now() : null, boot: on ? { ...lh.bootStats, trace: undefined } : null, frames: { n, max: Math.round(max), over50, over100 }, errors: errors.splice(0), view, ua: seq === 1 ? navigator.userAgent : undefined }
     n = max = over50 = over100 = 0
     try {

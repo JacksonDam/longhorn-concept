@@ -3,8 +3,9 @@
 //
 // usage: node tools/audit.mjs [--url base] [--scenarios desktop,music,...] [--out out/audit]
 //        [--step 8] [--limit 0] [--size 960x720]
-// --size: the window's size in CSS px (default 960x720, the video's frame); another shape gives
-// the stage the screen's shape (core/Stage.jsx), to audit the shell on wide or tall screens.
+// --size: the window's CSS size (default 960x720: the stage is the frame at scale 1); at another
+// shape the stage is scaled and wider or taller than the frame (core/Stage.jsx), and the grid of
+// targets covers all of it.
 // Scenarios are reached by emitting events (window.__lh.emit) from a fresh interactive page; after
 // each click the event log is restored to the scenario's snapshot (UI state is derived from the
 // log), so every click starts from the same state.
@@ -183,13 +184,13 @@ async function runScenario(name) {
       console.log(`  ERROR after clicking ${JSON.stringify(tg.text)} at ${Math.round(tg.x)},${Math.round(tg.y)}:\n    ${error.split('\n').slice(0, 6).join('\n    ')}`)
       // the page may be broken: rebuild the scenario from scratch
       await restore(true)
-      await mouse('mouseMoved', 959, 1)
+      await mouse('mouseMoved', VW - 1, 1)
       await sleep(500)
       continue
     }
     // restore the scenario
     await restore()
-    await mouse('mouseMoved', 959, 1)
+    await mouse('mouseMoved', VW - 1, 1)
     await sleep(500)
   }
   const dead = results.filter((r) => !r.live)

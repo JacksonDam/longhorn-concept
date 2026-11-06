@@ -4,7 +4,10 @@
 // size; each frame's interval is its cost. 144 Hz needs every frame under 6.94 ms.
 //
 // usage: node tools/bench.mjs [frames, default 1-1529] [--size 1440x1080] [--dpr 1] [--url base]
-//        [--repeat 2] [--json out.json]
+//        [--repeat 2] [--json out.json] [--scaled] [--query stage=zoom]
+// --scaled: the frame fitted to the window (s = 1.5 at 1440x1080) instead of pinned at scale 1,
+// to measure the stage's scaling (?bench&scaled, core/Stage.jsx: Chrome scales by a transform,
+// --query stage=zoom measures Safari's zoom in Chrome); --query adds to the page's URL.
 // Prints per-segment p50 / p95 / max and the worst frames. Each frame is measured `repeat` times
 // (after a warm-up pass over the range) and the minimum is kept, to filter scheduler noise.
 // Also prints the peak memory (physical footprint of the renderer + GPU processes, tools/lib/
@@ -28,6 +31,9 @@ const dpr = +opt('--dpr', 1)
 const base = opt('--url', 'http://127.0.0.1:5299/longhorn-concept/')
 const repeat = +opt('--repeat', 2)
 const jsonOut = opt('--json', null)
+const extra = opt('--query', '')
+const scaled = args.includes('--scaled')
+if (scaled) args.splice(args.indexOf('--scaled'), 1)
 const spec = args[0] || '1-1529'
 const frames = []
 for (const part of spec.split(',')) {
@@ -78,7 +84,7 @@ try {
   await send('Page.enable')
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: dpr, mobile: false })
-  await send('Page.navigate', { url: base + (base.includes('?') ? '&' : '?') + 'bench' })
+  await send('Page.navigate', { url: base + (base.includes('?') ? '&' : '?') + 'bench' + (scaled ? '&scaled' : '') + (extra ? '&' + extra : '') })
   for (let i = 0; i < 600 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
   for (let i = 0; i < 600 && !(await evaluate('!!(window.__lh && window.__lh.seekFrame)')); i++) await sleep(100)
   await evaluate('window.__lh.ready()')

@@ -337,7 +337,7 @@ async function play(cdp, runName) {
     await sleep(50)
   }
   if (!(await evaluate('!!(window.__cs && window.__cs.visibleAt != null)').catch(() => false))) throw new Error('the login screen never showed')
-  rect = await evaluate(`(() => { const b = document.getElementById('stage').getBoundingClientRect(); return { x: b.x, y: b.y, s: b.width / 960 } })()`)
+  rect = await evaluate(`(() => { const e = document.getElementById('stage'), b = e.getBoundingClientRect(); return { x: b.x, y: b.y, s: +e.dataset.s || b.width / 960 } })()`)
   await sleep(flow === 'boot' ? 1000 : 3000) // the login screen as it first shows (phase 'intro')
   await shot('intro')
   if (flow === 'all' || flow === 'login') {
