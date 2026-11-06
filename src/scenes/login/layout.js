@@ -22,7 +22,7 @@ export const SLOTS5 = [363.2, 463.2, 563.2, 663.2, 763.2]
 export const SLOTS4 = [341.5, 438.3, 535, 631.7]
 
 export const SHUTDOWN = { cx: 65.2, cy: 641.8, r: 14.7, labelY: 678 }
-export const CLOCK = { left: 826, top: 632, width: 98, height: 26 }
+export const CLOCK = { left: 825.5, top: 632, width: 101.5, height: 27.5 }
 
 // Selected user: slab resting place and the password panel
 export const SLAB = { cx: 380, cy: 342, w: 158, h: 160, d: 26 }

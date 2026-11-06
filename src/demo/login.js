@@ -30,6 +30,8 @@ export const loginDemo = [
   hover(116, 'angela', false, false),
   // pick Sondra
   { frame: 168, type: 'login.select', id: 'sondra' },
+  // the cursor over the go button (its pulse starts)
+  { frame: 333, type: 'login.gohover', id: 'sondra' },
   // type the password, one bullet every 7 frames
   { frame: 395, type: 'login.pw', len: 1 },
   { frame: 402, type: 'login.pw', len: 2 },
