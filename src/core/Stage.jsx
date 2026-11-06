@@ -23,7 +23,7 @@
 // stage's size with a page zoom, so the stage's own scale is 1 there and nothing changes.
 // ?stage=transform|zoom overrides the choice (comparisons).
 import { useEffect, useState, createContext, useContext } from 'react'
-import { CAPTURE } from './clock.js'
+import { CAPTURE, BENCH } from './clock.js'
 
 export const W = 960
 export const H = 720
@@ -31,6 +31,9 @@ const q = new URLSearchParams(location.search)
 // ?demo&fit: the demo at the screen's shape
 export const FIT = !CAPTURE && q.has('demo') && q.has('fit')
 const PINNED = CAPTURE || (q.has('demo') && !q.has('fit'))
+// ?bench&scaled: the bench's frame fitted to the window (letterboxed, like ?demo) instead of at
+// scale 1, to measure the stage's scaling (tools/bench.mjs --scaled); capture never scales
+const SCALED = BENCH && q.has('scaled')
 
 // standard zoom: an element inside a zoom: 2 box reports its rect at twice its size
 function standardZoom() {
@@ -52,7 +55,7 @@ function standardZoom() {
 const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 const force = q.get('stage')
 // 'zoom' | 'transform'
-export const STAGE_MODE = force === 'transform' || force === 'zoom' ? force : !CAPTURE && !coarse && standardZoom() ? 'zoom' : 'transform'
+export const STAGE_MODE = force === 'transform' || force === 'zoom' ? force : (!CAPTURE || SCALED) && !coarse && standardZoom() ? 'zoom' : 'transform'
 const ZOOM = STAGE_MODE === 'zoom'
 
 const FRAME = { s: 1, x: 0, y: 0, w: W, h: H, dw: 0, dh: 0 }
@@ -65,7 +68,7 @@ export const useStageSize = useStageScale
 
 function fit() {
   const dpr = window.devicePixelRatio || 1
-  if (CAPTURE) return FRAME
+  if (CAPTURE && !SCALED) return FRAME
   const vw = innerWidth, vh = innerHeight
   let s, w = W, h = H
   if (PINNED) s = Math.min(vw / W, vh / H)
