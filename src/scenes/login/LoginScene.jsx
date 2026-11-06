@@ -18,7 +18,8 @@ import { POINT } from '../../core/point.js'
 import { logoffReverse, screen } from '../../os/session.js'
 import { asset } from '../../core/preload.js'
 import { clamp } from '../../core/anim.js'
-import { toStage } from '../../core/Stage.jsx'
+import { toStage, stageSize, useStageScale } from '../../core/Stage.jsx'
+import { frameOffset, rightOffset, bottomOffset, centreOffset } from './layout.js'
 import { popupState } from '../desktop/shellState.js'
 
 export { LOGIN_EXIT }
@@ -32,7 +33,8 @@ const NOBAR = params.has('nobar') // local fitting aid: the aurora without the b
 const refFrame = (t) => `${import.meta.env.BASE_URL}ref/frames/f${String(Math.round(t * (30000 / 1001)) + 1).padStart(5, '0')}.png`
 
 // The pointer for the selected slab's tilt (Selected.jsx, core/tilt.js): 'login.pointer' events
-// in stage px, at most one per animation frame, only while a user is selected and nothing is
+// in the video frame's px as the login places it on the stage (layout.js frameOffset: the slab's
+// own coordinates), at most one per animation frame, only while a user is selected and nothing is
 // submitted; { gone: true } when it leaves the page. Never under ?demo / ?capture (the video's
 // slab doesn't follow the mouse).
 function usePointerSamples(active) {
@@ -56,7 +58,8 @@ function usePointerSamples(active) {
     }
     const onMove = (e) => {
       const p = toStage(e.clientX, e.clientY)
-      queue({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })
+      const o = frameOffset(stageSize())
+      queue({ x: Math.round((p.x - o.x) * 10) / 10, y: Math.round((p.y - o.y) * 10) / 10 })
     }
     const onOut = (e) => {
       if (!e.relatedTarget && !gone) queue({ gone: true })
@@ -121,11 +124,11 @@ export function LoginScene({ visible = true }) {
 // Longhorn 4015's shutting-down screen (guidebookgallery.org, assets-src/longhorn-shutdown),
 // measured at 800x600 and scaled to the stage (x 1.2): the flag 40x34 centred at (400, 270), the
 // text's cap height 12 px centred on x 400 at y 303-315, white with a soft dark shadow; the face
-// is Tahoma's (single-storey g), Verdana where there is no Tahoma
+// is Tahoma's (single-storey g), Verdana where there is no Tahoma; centred on the screen
 const FLAG = asset('img/desktop/flag.svg')
-const ShuttingDown = memo(function ShuttingDown({ o }) {
+const ShuttingDown = memo(function ShuttingDown({ o, x, y }) {
   return (
-    <div style={{ ...POINT, opacity: o, pointerEvents: 'none' }}>
+    <div style={{ ...POINT, left: x, top: y, opacity: o, pointerEvents: 'none' }}>
       <img
         src={FLAG}
         alt=""
@@ -155,6 +158,12 @@ const ShuttingDown = memo(function ShuttingDown({ o }) {
 })
 
 const LoginContent = memo(function LoginContent({ t, visible, glKeep }) {
+  // where the frame's parts sit on a wider or taller stage (layout.js)
+  const stage = useStageScale()
+  const mid = frameOffset(stage)
+  const right = rightOffset(stage)
+  const bottom = bottomOffset(stage)
+  const centre = centreOffset(stage)
   const submit = submitEvent(t)
   // the exit clock: seconds since the submit; after a log off it unwinds instead (the login
   // transition in reverse, os/session.js logoffReverse), k from the exit's end down to 0
@@ -181,26 +190,32 @@ const LoginContent = memo(function LoginContent({ t, visible, glKeep }) {
       }}
     >
       {REFBG ? (
-        <img src={refFrame(t)} alt="" style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720 }} />
+        <img src={refFrame(t)} alt="" style={{ position: 'absolute', left: mid.x, top: mid.y, width: 960, height: 720 }} />
       ) : (
         <Aurora paused={!visible} keep={glKeep} />
       )}
       {/* (static, so it adds no layer: an opacity group only while shutting down) */}
       <div style={{ opacity: ui, visibility: ui > 0 ? undefined : 'hidden' }}>
-        {!REFBG && !NOBAR && <BarBand />}
-        <Logo t={t} exitK={exitK} />
-        {/* (a point, not a full-stage box: core/point.js) */}
+        {!REFBG && !NOBAR && <BarBand w={stage.w} dh={bottom} />}
+        {/* (points, not full-stage boxes: core/point.js) */}
+        <div style={{ ...POINT, left: right }}>
+          <Logo t={t} exitK={exitK} />
+        </div>
         <div style={{ ...POINT, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
-          <div style={{ pointerEvents: 'auto' }}>
+          <div style={{ ...POINT, top: bottom, pointerEvents: 'auto' }}>
             <ShutDown onClick={shutDown} />
           </div>
-          <Clock text={clockText(DEMO)} />
+          <div style={{ ...POINT, left: right, top: bottom }}>
+            <Clock text={clockText(DEMO)} />
+          </div>
         </div>
-        <TileRow t={t} row={row} exitK={exitK} />
-        <Panel t={t} row={row} submitT={submitT} />
-        <Selected t={t} records={row.records} submitT={submitT} />
+        <div style={{ ...POINT, left: mid.x, top: mid.y }}>
+          <TileRow t={t} row={row} exitK={exitK} />
+          <Panel t={t} row={row} submitT={submitT} />
+          <Selected t={t} records={row.records} submitT={submitT} />
+        </div>
       </div>
-      {msg > 0 && <ShuttingDown o={msg} />}
+      {msg > 0 && <ShuttingDown o={msg} x={centre.x} y={centre.y} />}
     </div>
   )
 })

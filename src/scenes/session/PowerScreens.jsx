@@ -7,8 +7,14 @@ import { CAPTURE } from '../../core/clock.js'
 import { emit } from '../../core/events.js'
 import { SHUTDOWN_HOLD, SHUTDOWN_FADE, BOOT_DUR, bootScreenDur } from '../../os/session.js'
 import { logoSVG, BLOCKS_SVG, FADE, INTERIOR, BLOCKS_X0, GROUP, sweepOffset } from './bootScreen.js'
+import { useStageScale } from '../../core/Stage.jsx'
+import { centreOffset } from '../login/layout.js'
 
-const fill = { position: 'absolute', left: 0, top: 0, width: 960, height: 720 }
+// the whole stage (the screen: wider or taller than the video's frame, core/Stage.jsx), and the
+// video's 960x720 frame centred in it, where the screens' artwork sits (a 4:3 boot screen, the
+// power button: centred on the screen, like index.html's boot screen)
+const fill = { position: 'absolute', inset: 0 }
+const frame = { position: 'absolute', left: 0, top: 0, width: 960, height: 720 }
 
 // black over the login screen: fading in while shutting down, out while booting
 export function blackLevel(screen, t) {
@@ -58,6 +64,7 @@ const PowerOrb = memo(function PowerOrb() {
 
 // the off screen: black, with the power button fading in and breathing slowly
 export function OffScreen({ t0, t, hover }) {
+  const c = centreOffset(useStageScale())
   const k = t - t0
   const show = clamp((k - 0.4) / 0.8)
   const pulse = 0.85 + 0.15 * Math.sin(k * ((2 * Math.PI) / 3))
@@ -74,8 +81,8 @@ export function OffScreen({ t0, t, hover }) {
         onPointerLeave={() => !CAPTURE && emit('power.hover', { on: false })}
         style={{
           position: 'absolute',
-          left: 480 - 42,
-          top: 360 - 42,
+          left: c.x + 480 - 42,
+          top: c.y + 360 - 42,
           width: 84,
           height: 84,
           borderRadius: 42,
@@ -98,13 +105,14 @@ const S = 1.5 // the bitmap's 640x480 -> stage px
 const LOGO = <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: logoSVG('lhr') }} />
 const BLOCKS = <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: BLOCKS_SVG }} />
 export function BootScreen({ t0, t }) {
+  const c = centreOffset(useStageScale())
   const k = t - t0
   const x = k < FADE ? null : sweepOffset(k - FADE)
   return (
     <div style={{ ...fill, background: '#000', pointerEvents: 'auto' }}>
-      <div style={{ ...fill, opacity: clamp(k / FADE) }}>{LOGO}</div>
+      <div style={{ ...frame, left: c.x, top: c.y, opacity: clamp(k / FADE) }}>{LOGO}</div>
       {x != null && (
-        <div style={{ position: 'absolute', left: INTERIOR.x * S, top: INTERIOR.y * S, width: INTERIOR.w * S, height: INTERIOR.h * S, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', left: c.x + INTERIOR.x * S, top: c.y + INTERIOR.y * S, width: INTERIOR.w * S, height: INTERIOR.h * S, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: (BLOCKS_X0 - INTERIOR.x) * S, width: GROUP.w * S, height: GROUP.h * S, transform: `translateX(${x * S}px)` }}>{BLOCKS}</div>
         </div>
       )}

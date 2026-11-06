@@ -63,10 +63,30 @@ const SLAB_PATH = [
   [9, [860, 15, 0.52, 450]],
   [10, [950, 0, 0.45, 500]],
 ]
-export function slabExit(k, pose) {
+// how far along its path the slab is (0..1 by distance travelled), per path key
+const SLAB_ALONG = (() => {
+  const out = [[SLAB_PATH[0][0], 0]]
+  let d = 0
+  for (let i = 1; i < SLAB_PATH.length; i++) {
+    const [, [x0, y0]] = SLAB_PATH[i - 1], [f1, [x1, y1]] = SLAB_PATH[i]
+    d += Math.hypot(x1 - x0, y1 - y0)
+    out.push([f1, d])
+  }
+  return out.map(([f, v]) => [f, v / d])
+})()
+// corner: { x, y } where the stage's top right corner is past the frame's (in the slab's own
+// coordinates; layout.js: on a wider or taller stage the slab sits in the frame's middle, moved
+// +dw / 2, +dh): the path bends over to it, more the further along it the slab is, so the slab
+// still leaves by the screen's corner
+export function slabExit(k, pose, corner = null) {
   const f = k * FPS
   if (f <= 1) return pose
-  const [x, y, s, rot] = keys(SLAB_PATH, f)
+  let [x, y, s, rot] = keys(SLAB_PATH, f)
+  if (corner) {
+    const u = keys(SLAB_ALONG, f)
+    x += corner.x * u
+    y += corner.y * u
+  }
   const w = clamp((f - 1) / 1)
   return {
     ...pose,

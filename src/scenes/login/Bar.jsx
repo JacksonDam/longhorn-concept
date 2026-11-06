@@ -2,20 +2,41 @@
 import { memo } from 'react'
 import { asset, preload } from '../../core/preload.js'
 import { BAR, SHUTDOWN, CLOCK } from './layout.js'
+import { seam } from '../../core/Stage.jsx'
 
 // The band is a translucent overlay fitted to the reference over the aurora (tools/login/fit_bar.py):
 // a soft colour/alpha field (4 px cells across, 1 px rows so the thin top and bottom lines stay sharp).
 const BAR_IMG = asset('img/login/bar.png')
 preload([BAR_IMG])
 
-export const BarBand = memo(function BarBand() {
+// The band on a wider stage: its ends stay at the stage's ends (the highlight line's fade-in and
+// Shut Down's part on the left, the line's fade-out and the clock's part on the right) and the
+// soft middle between them stretches across (a 4 px-cell field, smooth along x; its rows, the
+// thin lines, keep their heights). The three parts meet on whole device pixels (seam): Safari
+// rounds each composited layer's edges to device pixels on its own at a phone's page zoom, and
+// parts meeting inside a pixel could leave a column of the aurora between them. At the frame's
+// width it is the image as fitted.
+const BAR_H = 720 - BAR.top
+const ENDS = [120, 160] // stage px of the band at its left and right ends kept as they are
+const barImg = { position: 'absolute', top: 0, height: BAR_H, maxWidth: 'none' }
+export const BarBand = memo(function BarBand({ w = 960, dh = 0 }) {
+  const top = BAR.top + dh
+  if (w <= 960)
+    return <img src={BAR_IMG} alt="" draggable={false} style={{ position: 'absolute', left: 0, top, width: 960, height: BAR_H, pointerEvents: 'none' }} />
+  const [a, b] = ENDS
+  const f = (w - a - b) / (960 - a - b) // the middle's stretch
+  const x1 = seam(a), x2 = seam(w - b)
+  const part = (left, right, imgLeft, imgWidth) => (
+    <div style={{ position: 'absolute', left, top, width: right - left, height: BAR_H, overflow: 'hidden', pointerEvents: 'none' }}>
+      <img src={BAR_IMG} alt="" draggable={false} style={{ ...barImg, left: imgLeft - left, width: imgWidth }} />
+    </div>
+  )
   return (
-    <img
-      src={BAR_IMG}
-      alt=""
-      draggable={false}
-      style={{ position: 'absolute', left: 0, top: BAR.top, width: 960, height: 720 - BAR.top, pointerEvents: 'none' }}
-    />
+    <>
+      {part(0, x1, 0, 960)}
+      {part(x1, x2, a - a * f, 960 * f)}
+      {part(x2, w, w - 960, 960)}
+    </>
   )
 })
 
