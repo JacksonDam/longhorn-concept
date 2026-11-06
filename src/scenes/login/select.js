@@ -91,7 +91,9 @@ const FLIGHT = [
 const col = (j) => FLIGHT.map((r) => [r[0], r[j]])
 const FX = col(1), FY = col(2), FS = col(3), FR = col(4), FB = col(5), FU = col(6), FA = col(7)
 
-export function slabPose(k, i, t, from) {
+// tilt (optional): { yaw, pitch } (deg) toward the pointer and sway (0..1) how much of the idle
+// sway remains (Selected.jsx: the pointer takes over from the video's sway)
+export function slabPose(k, i, t, from, tilt = null) {
   const tileY = TILE.top + TILE.size / 2
   const x0 = from ?? SLOTS5[i], y0 = tileY
   const tileSize = TILE.size
@@ -112,16 +114,19 @@ export function slabPose(k, i, t, from) {
   const x = cr(FX, k) + off, y = cr(FY, k), size = cr(FS, k)
   let ry = cr(FR, k)
   const idle = idlePose(t, k)
+  const sw = tilt ? tilt.sway : 1
+  const yaw = tilt ? tilt.yaw : 0, pitch = tilt ? tilt.pitch : 0
   const rz = REST_RZ * clamp((k - LAUNCH) / 8)
-  // flight lighting until it lands, then the idle sway lighting
-  let light = swayLight(idle.sway)
+  // flight lighting until it lands, then the idle sway lighting (the light follows the turn;
+  // yaw, like sway, is + for the right side toward the viewer, which is -ry here)
+  let light = swayLight(idle.sway * sw + yaw)
   if (k < 30) light = { brightness: lin(FB, k), faceBand: { u: lin(FU, k), w: 0.13, a: lin(FA, k) } }
   return {
     x: x + idle.x,
     y: y + idle.y,
     size,
-    ry: ((ry + idle.ry) * Math.PI) / 180,
-    rx: (idle.rx * Math.PI) / 180,
+    ry: ((ry + idle.ry * sw - yaw) * Math.PI) / 180,
+    rx: ((idle.rx * sw - pitch) * Math.PI) / 180,
     rz: (rz * Math.PI) / 180,
     ...light,
     inBar: false,

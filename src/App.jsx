@@ -12,7 +12,7 @@ import { DesktopScene } from './scenes/desktop/DesktopScene.jsx'
 import { ErrorBoundary } from './os/ErrorBoundary.jsx'
 import { getVersion } from './core/events.js'
 import { OffScreen, Black, blackLevel, BootScreen } from './scenes/session/PowerScreens.jsx'
-import { screen, bootScreenDur } from './os/session.js'
+import { screen, bootScreenDur, logoffReverse } from './os/session.js'
 import { emit } from './core/events.js'
 import { frameTime } from './core/clock.js'
 import { sessionScenario } from './demo/session.js'
@@ -71,7 +71,9 @@ function Scenes() {
   const t = useTime()
   useEvents()
   const cur = screen(t)
-  const desk = cur.name === 'desktop' ? cur : null
+  // (log off: the desktop stays, as it was, while the login screen comes back over it)
+  const rev = logoffReverse(t)
+  const desk = cur.name === 'desktop' ? cur : rev ? rev.desktop : null
   const loginVisible = cur.name !== 'off' && (cur.name !== 'desktop' || t < cur.t0 + LOGIN_EXIT)
   const booting = !booted
   const black = Math.max(blackLevel(cur, t), booting ? BOOT_BLACK : 0)

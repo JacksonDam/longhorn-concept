@@ -30,6 +30,8 @@ export const loginDemo = [
   hover(116, 'angela', false, false),
   // pick Sondra
   { frame: 168, type: 'login.select', id: 'sondra' },
+  // the cursor over the go button (its pulse starts)
+  { frame: 333, type: 'login.gohover', id: 'sondra' },
   // type the password, one bullet every 7 frames
   { frame: 395, type: 'login.pw', len: 1 },
   { frame: 402, type: 'login.pw', len: 2 },
@@ -37,5 +39,6 @@ export const loginDemo = [
   { frame: 416, type: 'login.pw', len: 4 },
   { frame: 423, type: 'login.pw', len: 5 },
   { frame: 430, type: 'login.pw', len: 6 },
-  { frame: 510, type: 'login.submit', id: 'sondra' },
+  // (the video's session starts with these apps already in its taskbar: os/wm.js)
+  { frame: 510, type: 'login.submit', id: 'sondra', running: ['inbox', 'yahoo', 'doc1', 'winamp'] },
 ]

@@ -84,10 +84,14 @@ export const Clock = memo(function Clock({ text }) {
     <div style={{ position: 'absolute', left, top, width, height }}>
       <svg width={width} height={height} style={{ position: 'absolute', left: 0, top: 0 }}>
         <defs>
+          {/* an inset pill (measured on frames 290-320): darkest at the top, lighter towards a
+              light rim at the bottom */}
           <linearGradient id="ck-body" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#2b6fea" />
-            <stop offset="0.6" stopColor="#3376ee" />
-            <stop offset="1" stopColor="#4c8bf2" />
+            <stop offset="0" stopColor="#2e6ce6" />
+            <stop offset="0.25" stopColor="#2768e8" />
+            <stop offset="0.65" stopColor="#2a6be6" />
+            <stop offset="0.9" stopColor="#3e7cf1" />
+            <stop offset="1" stopColor="#5a90f0" />
           </linearGradient>
           <linearGradient id="ck-band" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#4a86ec" />
@@ -100,8 +104,9 @@ export const Clock = memo(function Clock({ text }) {
           </linearGradient>
         </defs>
         <rect x="0.5" y="0" width={width - 1} height={height} rx="5" fill="url(#ck-body)" />
-        <path d={`M5 0.5 H18 L15 ${height - 0.5} H5 Z`} fill="url(#ck-band)" opacity="0.9" />
-        <rect x={width - 15} y="1.5" width="12" height={height - 6} rx="3" fill="url(#ck-cap)" />
+        <rect x="1" y="0.5" width={width - 2} height={height - 1} rx="4.5" fill="none" stroke="#7aa8f4" strokeOpacity="0.45" />
+        <path d={`M5 0.5 H15.5 L20 ${height - 0.5} H5 Z`} fill="url(#ck-band)" opacity="0.8" />
+        <rect x={width - 17.5} y="2" width="15" height={height - 4.5} rx="3.5" fill="url(#ck-cap)" />
       </svg>
       <div
         style={{
@@ -112,8 +117,8 @@ export const Clock = memo(function Clock({ text }) {
           textAlign: 'center',
           fontFamily: 'Libre Franklin',
           fontSize: 14.5,
-          fontWeight: 400,
-          color: 'rgb(90,156,255)',
+          fontWeight: 600,
+          color: 'rgb(80,144,250)',
           lineHeight: '17px',
           whiteSpace: 'nowrap',
         }}

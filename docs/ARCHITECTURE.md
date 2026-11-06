@@ -82,9 +82,14 @@ OS in the same style. Everything still derives from (time, event log).
   (`BOOT_SCREEN`, drawn from the clock by `PowerScreens.jsx` `BootScreen`), then the login fades in;
   the page load's own boot (a log starting with `session.boot` at t = 0) only fades in.
   `src/scenes/session/` draws the power screens. App.jsx keeps the login and desktop scenes
-  mounted (hidden) so switching between them never mounts a scene.
-- `src/os/wm.js`: window state from 'win.*' events (legacy 'music.*' aliases); the four
-  running-at-login windows exist minimised. `src/os/taskbar.js`: where each window's taskbar
+  mounted (hidden) so switching between them never mounts a scene. Leaving the desktop (log off,
+  switch user, shut down) plays the login transition in reverse (`logoffReverse`: the login exit's
+  keys unwound over the desktop, which keeps its windows until the login layer is back). Shut
+  down goes through the logon screen's shutting-down state (4015's: the background, a white flag,
+  "Windows is shutting down..."), then the hold and fade to black.
+- `src/os/wm.js`: window state from 'win.*' events (legacy 'music.*' aliases). A session starts
+  with no windows; the video's four running apps come from its input log ('login.submit'
+  { running: [ids] }) and exist minimised. `src/os/taskbar.js`: where each window's taskbar
   button is (the shell registers a locator), so windows minimise into their own button.
 - `src/os/apps.js`: auto-registry of `src/apps/*/index.{js,jsx}`. An app is
   `{ id, title, taskbarLabel, icon, size, position, explorer, Content, usesActive?, ... }`;
@@ -139,6 +144,9 @@ OS in the same style. Everything still derives from (time, event log).
   in one small layer per window whose opacity alone cross-fades; a lighter shadow). Blur copies
   always draw the active look.
 - `src/os/media.js`: the silent media player shared by the sidebar strip, flyout, my Music, Winamp.
+- `src/core/tilt.js`: a surface turning toward the pointer (critically damped, deterministic from
+  the pointer samples in the log): the selected login slab ('login.pointer' events, real input
+  only), my Music's slabs.
 - `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
   tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
 - `src/scenes/desktop/`: wallpaper, sidebar, taskbar, Start menu, flyouts, desktop menu.

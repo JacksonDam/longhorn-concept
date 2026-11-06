@@ -5,7 +5,7 @@
 import { memo } from 'react'
 import { clamp } from '../../core/anim.js'
 import { FPS, CAPTURE } from '../../core/clock.js'
-import { emit } from '../../core/events.js'
+import { emit, all } from '../../core/events.js'
 import { userById, passwordLength } from './state.js'
 import { panelExit } from './exit.js'
 import { blur, layerHint } from './blur.js'
@@ -52,40 +52,74 @@ const Field = memo(function Field() {
   return (
     <svg width="200" height="34" style={{ position: 'absolute', left: 516 - P.left - 6, top: 360 - P.top, overflow: 'visible' }}>
       <defs>
+        {/* an inset field (measured on frames 290-320): light-blue rim, a bright line under the
+            top edge, a flat neutral grey, a darker line over the bottom rim */}
         <linearGradient id="pw-field" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#c2dcff" />
-          <stop offset="0.12" stopColor="#f0f6ff" />
-          <stop offset="0.45" stopColor="#e6e8ec" />
-          <stop offset="0.85" stopColor="#dfe8f6" />
-          <stop offset="1" stopColor="#c6d7ec" />
+          <stop offset="0" stopColor="#6fa6e2" />
+          <stop offset="0.07" stopColor="#cddff4" />
+          <stop offset="0.13" stopColor="#e6f4ff" />
+          <stop offset="0.22" stopColor="#dfe4e7" />
+          <stop offset="0.8" stopColor="#dfe4e8" />
+          <stop offset="0.87" stopColor="#d0d4dc" />
+          <stop offset="0.94" stopColor="#86b8ea" />
+          <stop offset="1" stopColor="#5b8fd0" />
         </linearGradient>
-        <radialGradient id="pw-orb" cx="0.5" cy="0.72" r="0.6">
-          <stop offset="0" stopColor="#58d6ff" />
-          <stop offset="0.5" stopColor="#36a8ff" />
-          <stop offset="1" stopColor="#1878ee" />
+        {/* glass: a deep saturated blue, light gathered in a crescent at the bottom right, the
+            highlight at the top (measured on frames 290-320) */}
+        <radialGradient id="pw-orb" cx="0.72" cy="0.82" r="0.62">
+          <stop offset="0" stopColor="#6edcff" />
+          <stop offset="0.45" stopColor="#52c6ff" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#2a9cff" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="pw-orb-top" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#d4f6ff" stopOpacity="0.95" />
           <stop offset="1" stopColor="#8fd0ff" stopOpacity="0" />
         </linearGradient>
-        <linearGradient id="pw-glow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#a8c8ff" stopOpacity="0" />
-          <stop offset="0.5" stopColor="#a8c8ff" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#a8c8ff" stopOpacity="0" />
-        </linearGradient>
       </defs>
-      {/* soft light under the field and the tail running into the orb */}
+      {/* the light bridging the field's end to the orb, and the tail curving under into it */}
       {/* (soft shapes drawn with gradients rather than SVG blur filters: cheap to rasterise) */}
-      <rect x="5" y="14.3" width="156" height="12.4" rx="6.2" fill="url(#pw-glow)" />
-      <path d="M150 22 C 162 24, 168 26, 178 25" stroke="#9fc4ff" strokeWidth="4.5" fill="none" opacity="0.35" strokeLinecap="round" />
-      <rect x="6" y="6" width="150.5" height="14" rx="7" fill="url(#pw-field)" />
+      <rect x="150" y="9" width="22" height="9" rx="4.5" fill="#6aa0ee" opacity="0.28" />
+      <path d="M152 22.5 C 162 26.5, 172 27, 182 23" stroke="#9fc4ff" strokeWidth="4" fill="none" opacity="0.3" strokeLinecap="round" />
+      {/* the light rim around the field, then the field */}
+      <rect x="4.6" y="4.1" width="153.3" height="18.8" rx="9.4" fill="#a9cdfa" opacity="0.35" />
+      <rect x="6" y="5.5" width="150.5" height="16" rx="8" fill="url(#pw-field)" />
       {/* go button */}
       <g transform="translate(178.5 11)">
-        <circle r="13.6" fill="#0a3f96" opacity="0.55" />
+        <circle r="13.6" fill="#0a3f96" opacity="0.5" />
+        <circle r="12" fill="#1189f8" />
         <circle r="12" fill="url(#pw-orb)" />
         <ellipse cx="-0.5" cy="-4.2" rx="9" ry="6.8" fill="url(#pw-orb-top)" />
-        <path d="M-2 -3 L2.5 0.5 L-2 4" stroke="#9fe4ff" strokeWidth="1.3" fill="none" opacity="0.45" strokeLinecap="round" />
+        <path d="M-2 -3 L2.5 0.5 L-2 4" stroke="#9fe4ff" strokeWidth="1.3" fill="none" opacity="0.3" strokeLinecap="round" />
       </g>
+    </svg>
+  )
+})
+
+// The go button pulses once the pointer has been over it (the reference: from its hover at
+// frame 333 its cyan glow swings between two levels, a 60-frame period, 2 s): a cyan overlay
+// whose opacity follows a sine, 48 frames past the hover at its rising midpoint.
+const PULSE = { period: 60, lag: 48, mid: 0.5, amp: 0.2 }
+function pulseOpacity(t, since) {
+  const f = (t - since) * FPS - PULSE.lag
+  return PULSE.mid + PULSE.amp * Math.sin((2 * Math.PI * f) / PULSE.period)
+}
+const GoPulse = memo(function GoPulse({ o }) {
+  return (
+    <svg width="28" height="28" viewBox="-14 -14 28 28" style={{ position: 'absolute', left: 688.5 - P.left - 14, top: 371 - P.top - 14, opacity: o }}>
+      <defs>
+        <radialGradient id="pw-pulse" cx="0.5" cy="0.6" r="0.5">
+          <stop offset="0" stopColor="#3cf8ff" />
+          <stop offset="0.7" stopColor="#30e4ff" stopOpacity="0.8" />
+          <stop offset="1" stopColor="#20c8ff" stopOpacity="0.35" />
+        </radialGradient>
+        <linearGradient id="pw-pulse-top" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#e4fbff" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#9fe8ff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <circle r="12" fill="url(#pw-pulse)" />
+      {/* the orb's highlight stays on top of the glow */}
+      <ellipse cx="-0.5" cy="-4.2" rx="9" ry="6.8" fill="url(#pw-pulse-top)" />
     </svg>
   )
 })
@@ -100,7 +134,8 @@ const Bullet = memo(function Bullet({ i }) {
           <stop offset="1" stopColor="#7d9cc4" />
         </radialGradient>
       </defs>
-      <circle r="4.7" fill={`url(#pw-b${i})`} />
+      <circle r="5.5" fill="#f4fbff" opacity="0.5" />
+      <circle r="4.2" fill={`url(#pw-b${i})`} />
       <ellipse cx="-1.2" cy="-2" rx="2.6" ry="1.7" fill="#e8f6ff" opacity="0.75" />
     </svg>
   )
@@ -147,11 +182,17 @@ export function Panel({ t, row, submitT }) {
     if (kk < 25.3) return { transform: 'translateX(0px)', opacity: 0.004 }
     return { transform: `translateX(${sweep(kk).toFixed(2)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
   }
+  // the first hover of the go button since this selection starts its pulse
+  const hovered = all(t, (e) => e.type === 'login.gohover' && e.t >= change.t)[0]
   const body = (
     <>
       <PanelBody id={id} len={len} />
+      {hovered && <GoPulse o={Math.round(pulseOpacity(t, hovered.t) * 100) / 100} />}
       <div
         title="Go"
+        onPointerEnter={() => {
+          if (!CAPTURE && submitT == null && !hovered) emit('login.gohover', { id })
+        }}
         onPointerDown={(e) => {
           e.stopPropagation()
           if (!CAPTURE && submitT == null) emit('login.submit', { id })

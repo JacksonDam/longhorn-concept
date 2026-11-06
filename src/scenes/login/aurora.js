@@ -95,9 +95,40 @@ export const keysReady = Promise.all([
       }
       ribbonKeys.push(a)
     }
+    findSwitches()
   }
   return !!(c && r)
 })
+
+// The fit numbers its ribbons per keyframe, and now and then a slot passes from one ribbon to
+// another between two keys (its centreline jumps 35-470 px, where a ribbon itself moves at most
+// ~30 px a key). Interpolated across, that ribbon slid across the screen in 4 frames: the strips
+// that suddenly changed position. Such a slot is treated as two ribbons there: the one before the
+// switch carries on (its motion extrapolated) and fades out over the interval while the one after
+// fades in (ribbonsAt), and no interpolation reads a key across a switch.
+const SWITCH = 32 // px: more than any ribbon moves in a key
+let switches = null // Uint8Array(NS * keys): 1 where slot s switches between keys k - 1 and k
+function findSwitches() {
+  const K = ribbonKeys.length
+  switches = new Uint8Array(NS * K)
+  const xs = [60, 240, 480, 720, 900]
+  const yAt = (key, o, x) => {
+    const u = (x - BX0) / BSX + 1
+    const i = Math.floor(u)
+    const f = u - i
+    const w = [(1 - f) ** 3 / 6, (3 * f ** 3 - 6 * f ** 2 + 4) / 6, (-3 * f ** 3 + 3 * f ** 2 + 3 * f + 1) / 6, f ** 3 / 6]
+    let y = 0
+    for (let m = 0; m < 4; m++) y += w[m] * key[o + Math.max(0, Math.min(KX - 1, i - 1 + m))]
+    return y
+  }
+  for (let sl = 0; sl < NS; sl++)
+    for (let k = 1; k < K; k++) {
+      const o = sl * PER
+      let d = 0
+      for (const x of xs) d = Math.max(d, Math.abs(yAt(ribbonKeys[k], o, x) - yAt(ribbonKeys[k - 1], o, x)))
+      if (d > SWITCH) switches[sl * K + k] = 1
+    }
+}
 waitFor(keysReady)
 
 // Catmull-Rom across keyframes at aurora frame a into `out`
@@ -146,17 +177,68 @@ let ribTex = null // Float32Array (KX+1) x MAXR x RGBA: per ribbon its control p
 // (y, r, g, b amplitude) and, in the last column, 1/(2 sigma^2): ~10 KB per frame to upload
 let ribY = null // y and slope factor at the MC columns, for the tile masks
 
+// One slot at aurora frame a into `out` (PER values): Catmull-Rom over keys i1-1..i1+2 that
+// never reads a key across a switch; a missing key continues the centreline linearly from the
+// near side and holds the rest. part 0: the ribbon of key i1, part 1: the ribbon of key i1+1
+// (only where a switch lies between them). Returns the part's weight: 1 and 0 without a switch,
+// a smoothstep crossfade over the interval with one.
+let Q = null
+function slotAt(sl, a, part, out) {
+  const K = ribbonKeys.length
+  const u = (a - 1) / KEY_STEP
+  const i1 = Math.max(0, Math.min(K - 1, Math.floor(u)))
+  const f = Math.max(0, Math.min(1, u - i1))
+  const o = sl * PER
+  const sw = (k) => k > 0 && k < K && switches[sl * K + k] === 1 // between keys k - 1 and k
+  const copy = (q, k) => {
+    const src = ribbonKeys[Math.max(0, Math.min(K - 1, k))]
+    for (let v = 0; v < PER; v++) q[v] = src[o + v]
+  }
+  const cont = (q, near, far) => {
+    for (let v = 0; v < PER; v++) q[v] = v < KX ? 2 * near[v] - far[v] : near[v]
+  }
+  const [q0, q1, q2, q3] = Q
+  if (part === 0) {
+    copy(q1, i1)
+    if (!sw(i1)) copy(q0, i1 - 1)
+    else if (sw(i1 + 1)) cont(q0, q1, q1)
+    else copy(q2, i1 + 1), cont(q0, q1, q2)
+    if (sw(i1 + 1)) cont(q2, q1, q0), cont(q3, q2, q1)
+    else if (copy(q2, i1 + 1), sw(i1 + 2)) cont(q3, q2, q1)
+    else copy(q3, i1 + 2)
+  } else {
+    copy(q2, i1 + 1)
+    if (sw(i1 + 2)) cont(q3, q2, q2)
+    else copy(q3, i1 + 2)
+    cont(q1, q2, q3)
+    cont(q0, q1, q2)
+  }
+  const f2 = f * f, f3 = f2 * f
+  const w0 = -0.5 * f3 + f2 - 0.5 * f
+  const w1 = 1.5 * f3 - 2.5 * f2 + 1
+  const w2 = -1.5 * f3 + 2 * f2 + 0.5 * f
+  const w3 = 0.5 * f3 - 0.5 * f2
+  for (let v = 0; v < PER; v++) out[v] = w0 * q0[v] + w1 * q1[v] + w2 * q2[v] + w3 * q3[v]
+  if (!sw(i1 + 1)) return part === 0 ? 1 : 0
+  const sm = f * f * (3 - 2 * f)
+  return part === 0 ? 1 - sm : sm
+}
+
 // evaluate the ribbons of aurora frame a, amplitudes scaled by w, into rows from `row`
-function ribbonsAt(a, w, row) {
-  if (!ribbonKeys || w <= 0) return row
+function ribbonsAt(a, w0, row) {
+  if (!ribbonKeys || w0 <= 0) return row
   if (!rib) {
-    rib = new Float32Array(NS * PER)
+    rib = new Float32Array(2 * PER)
     ribTex = new Float32Array((KX + 1) * MAXR * 4)
     ribY = new Float32Array(MC * 2)
+    Q = [0, 1, 2, 3].map(() => new Float32Array(PER))
   }
-  interpKeys(ribbonKeys, a, rib)
-  for (let s = 0; s < NS && row < MAXR; s++) {
-    const o = s * PER
+  for (let s = 0, part = 0; s < NS && row < MAXR; part ? (s++, (part = 0)) : (part = 1)) {
+    const wp = slotAt(s, a, part, rib)
+    if (part === 0 && wp === 1) part = 1 // no switch here: the slot is one ribbon
+    if (wp <= 0) continue
+    const w = w0 * wp
+    const o = 0
     let amax = 0
     for (let q = KX; q < 4 * KX; q++) amax = Math.max(amax, Math.abs(rib[o + q]))
     if (amax * w < 0.5) continue
@@ -323,6 +405,12 @@ export class AuroraRenderer {
     gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32UI, TX, TY)
     this.u = {}
     for (const n of ['uGrid', 'uRib', 'uTiles', 'uCount', 'uDim']) this.u[n] = gl.getUniformLocation(prog, n)
+  }
+
+  // the context's GPU memory goes now (Aurora.jsx: while the login screen is away)
+  dispose() {
+    this.gl.getExtension('WEBGL_lose_context')?.loseContext()
+    this.gl = null
   }
 
   render(t, w, h) {
