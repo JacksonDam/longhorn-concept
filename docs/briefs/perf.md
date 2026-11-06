@@ -115,7 +115,8 @@ did that on iPhones at boot, with my Music open and with many windows open. Budg
 500 MB peak for the heaviest scenario at iPhone size (390x844, DPR 3).
 - `node tools/memory.mjs --engine chrome|webkit|ios --url <prod build> [--device
   iphone|land|ipad|desktop] [--quick] [--query rehearse=all] [--json out.json] [--shots dir]`
-  plays `?demo&scenario=windows` (src/demo/windows.js: boot, log in, my Music, an album,
+  plays `?demo&scenario=windows` (`--unpinned`: with `&fit`, at the device's shape rather than the
+  video's frame letterboxed) (src/demo/windows.js: boot, log in, my Music, an album,
   minimise / restore, every launcher app opened and left open, three minutes of use) and prints
   the peak footprint (phys_footprint, what iOS's limit counts) per phase and per process kind,
   the long frames per phase, the boot's timings, the page's layout and page errors. chrome:
