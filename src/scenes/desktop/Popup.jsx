@@ -23,14 +23,19 @@ export function popupPhase(t, id, kind) {
   return { st, df, visible, moving, din, dout }
 }
 
-function pose(kind, open, ff, din, dout, box, origin) {
+// a sliding popup's travel fraction h (1 = fully hidden) and opacity at ff frames
+export function popupTravel(open, ff, din, dout) {
+  const h = open ? (ff >= din ? 0 : RISE_IN(Math.max(0, ff) * (4 / din))) : ease.in(clamp(ff / dout))
+  const op = open ? 1 : 1 - 0.6 * ease.in(clamp(ff / dout))
+  return { h, op }
+}
+
+export function popupPose(kind, open, ff, din, dout, box, origin) {
   if (kind === 'fade') {
     const k = open ? ease.out(clamp(ff / din)) : 1 - ease.in(clamp(ff / dout))
     return { opacity: k, transform: `scale(${0.94 + 0.06 * k})`, transformOrigin: origin || '0 0' }
   }
-  // travel fraction (1 = fully hidden)
-  const h = open ? (ff >= din ? 0 : RISE_IN(Math.max(0, ff) * (4 / din))) : ease.in(clamp(ff / dout))
-  const op = open ? 1 : 1 - 0.6 * ease.in(clamp(ff / dout))
+  const { h, op } = popupTravel(open, ff, din, dout)
   if (kind === 'rise') return { transform: `translateY(${h * box.height}px)`, opacity: op }
   if (kind === 'drop') return { transform: `translateY(${-h * box.height}px)`, opacity: op }
   return { transform: `translateX(${h * box.width}px)`, opacity: op }
@@ -55,7 +60,7 @@ export function Popup({ t, id, kind, box, n = 10, children, live, front, hits, o
           n={n}
           moving={visible && moving}
           hidden={!visible}
-          pose={(ff) => pose(kind, st.open, ff, din, dout, box, origin)}
+          pose={(ff) => popupPose(kind, st.open, ff, din, dout, box, origin)}
           live={visible ? live : null}
           front={front}
         >

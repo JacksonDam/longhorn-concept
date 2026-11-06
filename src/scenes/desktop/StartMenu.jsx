@@ -3,12 +3,14 @@
 // user picture, big name, "switch user", round red "shut down" and amber "log off" buttons.
 // Left column: pinned programs with big icons (title + subtitle), a small-icon list and
 // "All Programs & Services". Right column (lighter glass): places, then Search, Control Panel,
-// Help & Support, Run..., Windows Tour, Top 10 Tasks. Hover = a thin red outline box, as in
-// the mock-up. Only entries that open something the OS has.
+// Help & Support, Run..., Windows Tour, Top 10 Tasks. Hover = a light box (the mock-up's thin red
+// outline was dropped). Only entries that open something the OS has. The panel is live glass like
+// the sidebar and the taskbar: StartGlass blurs whatever is behind it.
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { hasApp } from '../../os/apps.js'
-import { Popup } from './Popup.jsx'
+import { Popup, popupPhase, popupTravel } from './Popup.jsx'
+import { GLASS_BLUR } from './glassFit.js'
 import { closePopups, hover, hoverOn, hoverOff } from './shellState.js'
 import { launch, openApp } from './appInfo.jsx'
 import {
@@ -176,7 +178,7 @@ function Live({ t }) {
           opacity: lv,
           borderRadius: r.round ? 12 : 2,
           background: 'rgba(170,210,255,0.2)',
-          boxShadow: r.round ? 'inset 0 0 0 1px rgba(255,255,255,0.7)' : 'inset 0 0 0 1px rgba(232,72,92,0.95)',
+          boxShadow: r.round ? 'inset 0 0 0 1px rgba(255,255,255,0.7)' : 'inset 0 0 0 1px rgba(200,230,255,0.4)',
         }}
       />
     )
@@ -204,25 +206,56 @@ const eater = (
   <div style={{ position: 'absolute', left: START.x, top: START.y, width: START.w, height: START.h, pointerEvents: 'auto' }} onPointerDown={(e) => e.stopPropagation()} />
 )
 
+// The panel's live glass (the sidebar's and the taskbar's material, scenes/desktop/Sidebar.jsx
+// Glass): one element under the panel that blurs the backdrop with the glass's radius; the
+// panel's own translucent layers (in the Popup's blur copies) tint it. It follows the panel's
+// rise at the shutter's middle pose with the panel's opacity, and stops at the taskbar's top as
+// the panel's clip does. It carries its own position and opacity and is never inside the
+// Popup's groups: an ancestor with opacity, a filter, a mask, a clip or isolation would become
+// the backdrop root and the blur would see nothing (docs/ARCHITECTURE.md, Glass).
+const BLUR = `blur(${GLASS_BLUR}px)`
+const BOX = { left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }
+const CLIP_Y = 699 // the taskbar's top: the panel rises from behind it
+function StartGlass({ t }) {
+  const { st, df, visible, din, dout } = popupPhase(t, 'start', 'rise')
+  const p = visible ? popupTravel(st.open, df, din, dout) : null
+  const top = START.y + (p ? p.h * BOX.height : 0)
+  const h = Math.max(0, Math.min(START.h, CLIP_Y - top))
+  const op = p ? p.op : 0
+  const on = op > 0 && h > 0
+  return (
+    <div
+      style={{
+        position: 'absolute', left: START.x, top: Math.min(top, CLIP_Y), width: START.w, height: h,
+        borderRadius: '7px 7px 0 0', backdropFilter: BLUR, WebkitBackdropFilter: BLUR,
+        opacity: op, visibility: on ? 'visible' : 'hidden', pointerEvents: 'none',
+      }}
+    />
+  )
+}
+
 export function StartMenu({ t, user }) {
   const items = rows()
   return (
-    <Popup
-      t={t}
-      id="start"
-      kind="rise"
-      n={10}
-      box={{ left: START.x, top: START.y - 4, width: START.w + 12, height: START.h + 4 }}
-      live={<Live t={t} />}
-      hits={
-        <>
-          {eater}
-          <Hits items={items} />
-        </>
-      }
-    >
-      <Panel user={user} list={EMPTY} />
-    </Popup>
+    <>
+      <StartGlass t={t} />
+      <Popup
+        t={t}
+        id="start"
+        kind="rise"
+        n={10}
+        box={BOX}
+        live={<Live t={t} />}
+        hits={
+          <>
+            {eater}
+            <Hits items={items} />
+          </>
+        }
+      >
+        <Panel user={user} list={EMPTY} />
+      </Popup>
+    </>
   )
 }
 const EMPTY = []
