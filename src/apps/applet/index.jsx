@@ -8,6 +8,7 @@ import { scoped, wid, valueOf, Tabs, TabPanel, Button, Checkbox, Slider, ListVie
 import { USERS, userPicture, currentUser } from '../../os/session.js'
 import { Ico } from '../lib/icons.jsx'
 import { closeWin, messageBox } from '../lib/common.js'
+import { LAND, MAP_W, MAP_H } from './worldMap.js'
 
 const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
 const TITLES = {
@@ -52,6 +53,59 @@ const Clock = memo(function Clock({ h, m, s }) {
       {hand(m * 6, 32, 2.5, '#1d3557')}
       {hand(s * 6, 36, 1, '#d0442c')}
       <circle cx="50" cy="50" r="2.5" fill="#1d3557" />
+    </svg>
+  )
+})
+
+// The Time Zone tab's world map, after XP's: a shaded flat world (Natural Earth land, Miller
+// projection, ./worldMap.js) centred on the selected zone, whose 15-degree band is lit with its
+// land picked out. One static SVG (gradients, no filters).
+const ZONE = { offset: -8 } // (GMT-08:00) Pacific Time
+const SIZE = { w: 420, h: 330 }
+const SIZE_DT = { w: 420, h: 350 }
+const WorldMap = memo(function WorldMap({ w, h, offset }) {
+  const cx = 180 + offset * 15 // the zone's centre meridian, map x
+  const vx = cx - MAP_W / 2
+  const band = { x: cx - 7.5, w: 15 }
+  // the land drawn where the view needs it (the map wraps around)
+  const copies = [-MAP_W, 0, MAP_W].filter((dx) => dx + MAP_W > vx && dx < vx + MAP_W)
+  const land = (fill, extra) => copies.map((dx) => <use key={dx} href="#cpl-tz-land" x={dx} fill={fill} {...extra} />)
+  return (
+    <svg width={w} height={h} viewBox={`${vx} 0 ${MAP_W} ${MAP_H}`} preserveAspectRatio="none" style={{ position: 'absolute', left: 0, top: 0 }}>
+      <defs>
+        <path id="cpl-tz-land" d={LAND} fillRule="evenodd" />
+        <linearGradient id="cpl-tz-sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#5d9be6" />
+          <stop offset="0.5" stopColor="#3f7fd6" />
+          <stop offset="1" stopColor="#2a62b8" />
+        </linearGradient>
+        <linearGradient id="cpl-tz-ground" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#a9d97a" />
+          <stop offset="0.45" stopColor="#7fbf55" />
+          <stop offset="1" stopColor="#5a9a3a" />
+        </linearGradient>
+        <linearGradient id="cpl-tz-lit" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f4ffc4" />
+          <stop offset="1" stopColor="#cfe98a" />
+        </linearGradient>
+        <linearGradient id="cpl-tz-sheen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.3" />
+          <stop offset="0.35" stopColor="#fff" stopOpacity="0.06" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id="cpl-tz-band">
+          <rect x={band.x} y="0" width={band.w} height={MAP_H} />
+        </clipPath>
+      </defs>
+      <rect x={vx} y="0" width={MAP_W} height={MAP_H} fill="url(#cpl-tz-sea)" />
+      {/* shallow water around the coasts, the ground with a darker coastline */}
+      {land('none', { stroke: 'rgba(170,215,255,0.45)', strokeWidth: 3.2, strokeLinejoin: 'round' })}
+      {land('url(#cpl-tz-ground)', { stroke: '#3d7a2c', strokeWidth: 0.7, strokeLinejoin: 'round' })}
+      {/* the selected zone */}
+      <rect x={band.x} y="0" width={band.w} height={MAP_H} fill="rgba(255,255,255,0.2)" />
+      <g clipPath="url(#cpl-tz-band)">{land('url(#cpl-tz-lit)', { stroke: '#8fb84a', strokeWidth: 0.7, strokeLinejoin: 'round' })}</g>
+      <path d={`M${band.x} 0 V${MAP_H} M${band.x + band.w} 0 V${MAP_H}`} stroke="rgba(255,255,255,0.65)" strokeWidth="0.5" fill="none" />
+      <rect x={vx} y="0" width={MAP_W} height={MAP_H} fill="url(#cpl-tz-sheen)" />
     </svg>
   )
 })
@@ -102,13 +156,11 @@ function DateTime({ win, t, w, h }) {
         ) : (
           <>
             <div style={{ position: 'absolute', left: 14, top: 14, right: 14, height: 20, borderRadius: 3, background: '#fff', boxShadow: `inset 0 0 0 1px ${C.border}`, ...txt, lineHeight: '20px', paddingLeft: 6 }}>(GMT-08:00) Pacific Time (US &amp; Canada); Tijuana</div>
-            <div style={{ position: 'absolute', left: 14, top: 46, right: 14, height: 120, borderRadius: 6, background: 'linear-gradient(180deg, #7fb8ec, #4f8ad9)', overflow: 'hidden' }}>
-              {[[20, 30, 90, 55], [130, 25, 70, 70], [215, 40, 60, 45], [290, 30, 40, 40]].map(([x, y, ww, hh], i) => (
-                <div key={i} style={{ position: 'absolute', left: x, top: y, width: ww, height: hh, borderRadius: '40% 50% 45% 55%', background: '#8fc46a', opacity: 0.9 }} />
-              ))}
-              <div style={{ position: 'absolute', left: 38, top: 0, bottom: 0, width: 22, background: 'rgba(255,255,255,0.35)' }} />
+            {/* the map fills the panel's width at the projection's own aspect */}
+            <div style={{ position: 'absolute', left: 14, top: 42, width: w - 48, height: Math.round(((w - 48) * MAP_H) / MAP_W), borderRadius: 3, overflow: 'hidden', boxShadow: `0 0 0 1px ${C.border}` }}>
+              <WorldMap w={w - 48} h={Math.round(((w - 48) * MAP_H) / MAP_W)} offset={ZONE.offset} />
             </div>
-            <Checkbox id={id('dst')} label="Automatically adjust clock for daylight saving changes" x={14} y={180} def checked={dst} onChange={(v) => emit('ui.value', { id: id('dst'), value: v })} />
+            <Checkbox id={id('dst')} label="Automatically adjust clock for daylight saving changes" x={14} y={52 + Math.round(((w - 48) * MAP_H) / MAP_W)} def checked={dst} onChange={(v) => emit('ui.value', { id: id('dst'), value: v })} />
           </>
         )}
       </TabPanel>
@@ -281,7 +333,8 @@ export default {
   title: (p) => TITLES[p.applet] || 'Control Panel',
   taskbarLabel: (p) => TITLES[p.applet] || 'Control Panel',
   icon: null,
-  size: { w: 420, h: 330 },
+  // (Date and Time is taller: its Time Zone tab holds the world map)
+  size: (p) => (p.applet === 'datetime' ? SIZE_DT : SIZE),
   position: { x: 260, y: 150 },
   explorer: false,
   background: '#f6f9fe',

@@ -7,6 +7,9 @@ import { closeWin } from '../lib/common.js'
 import { userName } from '../lib/user.js'
 
 const line = { fontFamily: FONT, fontSize: 11, lineHeight: '16px', color: C.text }
+// The wordmark: "Microsoft®" starts where the big word's first letter does (its M has a 1.26 px
+// left side bearing at 13 px, Franklin Gothic's W -0.23 px at 32 px, I 1.51 px at 24 px), and the
+// two lines' ink (Microsoft's cap top to the big word's baseline) is centred on the logo's.
 
 const WindowsAbout = memo(function WindowsAbout({ user }) {
   return (
@@ -14,8 +17,8 @@ const WindowsAbout = memo(function WindowsAbout({ user }) {
       <div style={{ position: 'absolute', left: 0, top: 0, right: 0, height: 86, background: 'linear-gradient(180deg, #2f6fc9 0, #4b8ee0 60%, #6aa8f0 100%)' }} />
       <div style={{ position: 'absolute', left: 0, top: 84, right: 0, height: 2, background: 'linear-gradient(90deg, #f29a3c, #ffd36b 40%, #8fd24c 70%, #4aa3ef)' }} />
       <img src={asset('img/desktop/flag.svg')} alt="" draggable={false} style={{ position: 'absolute', left: 24, top: 18, width: 54, height: 48, filter: 'drop-shadow(0 2px 3px rgba(0,30,90,0.4))' }} />
-      <div style={{ position: 'absolute', left: 92, top: 20, fontFamily: FONT, fontSize: 13, color: '#d8ecff' }}>Microsoft®</div>
-      <div style={{ position: 'absolute', left: 90, top: 32, fontFamily: HEAVY, fontSize: 32, color: '#ffffff', letterSpacing: -0.5 }}>Windows</div>
+      <div style={{ position: 'absolute', left: 88.5, top: 23, fontFamily: FONT, fontSize: 13, color: '#d8ecff' }}>Microsoft®</div>
+      <div style={{ position: 'absolute', left: 90, top: 35, fontFamily: HEAVY, fontSize: 32, color: '#ffffff', letterSpacing: -0.5 }}>Windows</div>
       <div style={{ position: 'absolute', left: 22, top: 102, right: 22, ...line }}>
         <div>Microsoft® Windows</div>
         <div>Version 6.0 (Build 4051)</div>
@@ -37,8 +40,8 @@ const IEAbout = memo(function IEAbout({ user }) {
       <div style={{ position: 'absolute', left: 26, top: 20 }}>
         <Ico kind="ie" size={48} />
       </div>
-      <div style={{ position: 'absolute', left: 92, top: 22, fontFamily: FONT, fontSize: 13, color: '#d8ecff' }}>Microsoft®</div>
-      <div style={{ position: 'absolute', left: 90, top: 36, fontFamily: HEAVY, fontSize: 24, color: '#ffffff' }}>Internet Explorer 6</div>
+      <div style={{ position: 'absolute', left: 90.25, top: 26, fontFamily: FONT, fontSize: 13, color: '#d8ecff' }}>Microsoft®</div>
+      <div style={{ position: 'absolute', left: 90, top: 40, fontFamily: HEAVY, fontSize: 24, color: '#ffffff' }}>Internet Explorer 6</div>
       <div style={{ position: 'absolute', left: 22, top: 102, right: 22, ...line }}>
         <div>Version: 6.0.2800.1106</div>
         <div>Cipher Strength: 128-bit</div>
