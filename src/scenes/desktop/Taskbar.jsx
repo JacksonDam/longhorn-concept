@@ -85,17 +85,19 @@ export const TaskHits = memo(function TaskHits({ buttons, onClick, onContext }) 
   ))
 })
 
+// the group's band runs flush with the bar (its top edge on the bar's top row, 699), not 1 px
+// above it as in the video
 export const GroupBg = memo(function GroupBg({ x0, x1 }) {
   return (
     <div
       style={{
         position: 'absolute',
         left: x0,
-        top: 698,
+        top: BAR_TOP,
         width: x1 - x0,
-        height: 22,
+        height: 720 - BAR_TOP,
         background:
-          'linear-gradient(to bottom, rgb(150,190,205) 0px, rgb(172,214,223) 1px, rgb(172,214,223) 2px, rgb(108,178,250) 2px, rgb(112,181,252) 12px, rgb(116,177,242) 13px, rgb(112,173,238) 20px, rgb(84,132,201) 21px, rgb(84,132,201) 22px)',
+          'linear-gradient(to bottom, rgb(172,214,223) 0px, rgb(172,214,223) 1px, rgb(108,178,250) 1px, rgb(112,181,252) 11px, rgb(116,177,242) 12px, rgb(112,173,238) 19px, rgb(84,132,201) 20px, rgb(84,132,201) 21px)',
       }}
     />
   )

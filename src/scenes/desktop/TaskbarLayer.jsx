@@ -67,13 +67,14 @@ function StartGlow({ t }) {
 
 const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
 
-function realTime(upper) {
+// the taskbar's own format, "10:35 pm", from the first frame after login (the video's entrance
+// shows the login screen's "7:09 PM" first; in real time the clock is lower case throughout)
+function realTime() {
   const d = new Date()
   let h = d.getHours() % 12
   if (h === 0) h = 12
   const m = String(d.getMinutes()).padStart(2, '0')
-  const ap = d.getHours() < 12 ? 'am' : 'pm'
-  return `${h}:${m} ${upper ? ap.toUpperCase() : ap}`
+  return `${h}:${m} ${d.getHours() < 12 ? 'am' : 'pm'}`
 }
 
 export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
@@ -88,8 +89,8 @@ export function TaskbarLayer({ t, f, sidebarHidden, sidebarAt }) {
   const chevron = ramp(f, 567.6, 574.2)
   const start = ramp(f, 569.4, 574.8)
   const built = ramp(f, 568.5, 574)
-  const oldClock = DEMO ? '7:09 PM' : realTime(true)
-  const newLabel = DEMO ? '11:31 am' : realTime(false)
+  const oldClock = DEMO ? '7:09 PM' : realTime()
+  const newLabel = DEMO ? '11:31 am' : realTime()
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       <Bar o={bar} />

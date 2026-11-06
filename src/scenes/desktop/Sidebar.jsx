@@ -52,7 +52,9 @@ export const MAIL_DY = 18.8
 
 export const BUDDIES = [
   { name: 'Hank', pic: 'kick', y: 351.5 },
-  { name: '', pic: 'orange', y: 370.25 },
+  // (the video and the second reference draw no name in this row; the user-supplied Start menu
+  // mock-up, ref3/insp1.png, shows the same sidebar with this orange tile named "Jennifer")
+  { name: 'Jennifer', pic: 'orange', y: 370.25 },
   { name: 'Harold', pic: 'away', y: 389 },
   { name: 'Swimmer Dude', pic: 'swimmer', y: 407.75 },
   { name: 'Anthony', pic: 'dog', y: 426.5 },
