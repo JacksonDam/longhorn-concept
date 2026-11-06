@@ -9,7 +9,7 @@ import { closePopups } from './shellState.js'
 import { asset } from '../../core/preload.js'
 import {
   IEIcon, WordIcon, MusicIcon, OutlookIcon, WinampIcon, DocumentsIcon, PicturesIcon, ComputerIcon,
-  DisplayIcon, ControlIcon, HelpIcon, SearchIcon, RunIcon, BuddyIcon, DialogIcon,
+  DisplayIcon, ControlIcon, HelpIcon, SearchIcon, RunIcon, BuddyIcon, DialogIcon, appXpIcon,
 } from './appIcons.jsx'
 
 // label: what the taskbar button says; Icon: 16 px icon component
@@ -47,7 +47,7 @@ function urlIcon(url) {
   return C
 }
 
-export const appOf = (win) => APPS[win.app] || { label: () => win.app || win.id, Icon: DialogIcon }
+export const appOf = (win) => APPS[win.app] || { label: () => win.app || win.id, Icon: appXpIcon(win.app) || DialogIcon }
 export function taskLabel(win) {
   if (!isVideo(win) && hasApp(win.app)) {
     const a = getApp(win.app)

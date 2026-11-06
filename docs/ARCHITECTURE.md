@@ -147,6 +147,9 @@ OS in the same style. Everything still derives from (time, event log).
 - `src/core/tilt.js`: a surface turning toward the pointer (critically damped, deterministic from
   the pointer samples in the log): the selected login slab ('login.pointer' events, real input
   only), my Music's slabs.
+- `src/os/xp.jsx`: real Windows XP / Office 2003 icon art from size-design sprites (`<XpIcon name size />`,
+  built by tools/icons/xpicons.py; docs/desktop-spec.md "XP icon art"). Apps reach it through
+  `<Ico kind>` (apps/lib/icons.jsx).
 - `src/ui/`: Plex controls (menus, dialogs, fields, sliders, list views, tabs, scroll views,
   tooltips). Apps wrap Content in `scoped()` and use `wid(win, name)` ids.
 - `src/scenes/desktop/`: wallpaper, sidebar, taskbar, Start menu, flyouts, desktop menu.

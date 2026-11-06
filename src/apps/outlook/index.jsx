@@ -9,6 +9,10 @@ import { AppTop, appTopHeight, StatusBar, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
 import { mailState, messageFor, FOLDERS } from './mail.js'
+import { XpIcon } from '../../os/xp.jsx'
+
+// Outlook 2003's own folder-list icons (outllib.dll), 16 px design
+const OL_FOLDER = { inbox: 'ol-inbox', unread: 'ol-search', sent: 'ol-sent', outbox: 'ol-outbox', deleted: 'ol-deleted', drafts: 'ol-drafts', junk: 'ol-junk' }
 
 const NAV_W = 168
 const LIST_W = 262
@@ -16,23 +20,13 @@ const LIST_W = 262
 let composeN = 0
 export const compose = (mode, ref) => openWin(`compose:${Math.round(now() * 1000)}:${composeN++}`, 'compose', { mode, ref })
 
-const Envelope = ({ open }) =>
-  open ? (
-    <svg width="16" height="14" viewBox="0 0 16 14">
-      <path d="M1 6 L8 1.5 L15 6 V13 H1 Z" fill="#f4f7fb" stroke="#8a9bb8" strokeWidth="0.8" />
-      <path d="M1 6 L8 10 L15 6" fill="none" stroke="#8a9bb8" strokeWidth="0.8" />
-    </svg>
-  ) : (
-    <svg width="16" height="12" viewBox="0 0 16 12">
-      <rect x="0.5" y="0.5" width="15" height="11" rx="1" fill="#f6e9a8" stroke="#a88a2a" strokeWidth="0.8" />
-      <path d="M1 1 L8 6.5 L15 1" fill="none" stroke="#a88a2a" strokeWidth="0.8" />
-    </svg>
-  )
+// Outlook 2003's message icons (outllib.dll): a closed envelope unread, an open one read
+const Envelope = ({ open }) => <XpIcon name={open ? 'ol-read' : 'ol-unread'} size={16} />
 
 const Row = memo(function Row({ m, unread, w }) {
   return (
     <div style={{ position: 'relative', width: w, height: 36, lineHeight: '15px', whiteSpace: 'nowrap' }}>
-      <div style={{ position: 'absolute', left: 7, top: 4 }}>
+      <div style={{ position: 'absolute', left: 7, top: 3 }}>
         <Envelope open={!unread} />
       </div>
       <div style={{ position: 'absolute', left: 30, top: 3, width: w - 120, overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: unread ? HEAVY : FONT, fontSize: 11, color: '#2d3550' }}>{m.own ? `To: ${m.to || '(none)'}` : m.from}</div>
@@ -101,8 +95,8 @@ function NavPane({ win, t, folder, ms, top, h }) {
             onPointerDown={(e) => e.button === 0 && (k === 'root' ? toggle('root') : emit('ui.value', { id: wid(win, 'folder'), value: fk }))}
           >
             {(on || l > 0) && <div style={{ position: 'absolute', inset: 0, borderRadius: 3, background: on ? C.rowSel : C.rowHover, opacity: on ? 1 : l, boxShadow: on ? `inset 0 0 0 1px ${C.rowSelEdge}` : 'none' }} />}
-            <div style={{ position: 'absolute', left: indent - 14, top: 2 }}>
-              <Ico kind={k === 'root' ? 'computer' : fk === 'inbox' || fk === 'unread' ? 'mailbig' : fk === 'deleted' ? 'recycle' : 'folder'} size={14} />
+            <div style={{ position: 'absolute', left: indent - 15, top: 1 }}>
+              <Ico kind={k === 'root' ? 'ol-root' : OL_FOLDER[fk] || 'ol-folder'} size={16} />
             </div>
             <div style={{ position: 'absolute', left: indent + 4, top: 0, lineHeight: '18px', fontFamily: n ? HEAVY : FONT, fontSize: 11, color: on ? '#1d3f78' : '#3a4260', whiteSpace: 'nowrap' }}>
               {label}
@@ -161,7 +155,7 @@ function Outlook({ win, t, w, h, active }) {
     })
   const toolbar = [
     { id: id('new'), icon: 'newmail', label: 'New', onClick: () => compose('new') },
-    { id: id('print'), icon: 'print', onClick: () => noPrinter(), tip: 'Print' },
+    { id: id('print'), icon: 'oe-print', onClick: () => noPrinter(), tip: 'Print' },
     { id: id('del'), icon: 'del', onClick: () => del(selIn), disabled: !selIn, tip: 'Delete' },
     '|',
     { id: id('reply'), icon: 'reply', label: 'Reply', onClick: () => reply('reply'), disabled: !selIn },
@@ -169,7 +163,7 @@ function Outlook({ win, t, w, h, active }) {
     { id: id('fwd'), icon: 'fwd', label: 'Forward', onClick: () => reply('forward'), disabled: !selIn },
     '|',
     { id: id('sr'), icon: 'sendrecv', label: 'Send/Receive', onClick: sendRecv },
-    { id: id('findb'), icon: 'find', label: 'Find', onClick: () => emit('ui.value', { id: id('find'), value: !finder }), active: finder },
+    { id: id('findb'), icon: 'oe-find', label: 'Find', onClick: () => emit('ui.value', { id: id('find'), value: !finder }), active: finder },
   ]
   const goF = (k) => () => emit('ui.value', { id: id('folder'), value: k })
   const folderItems = [...FOLDERS.map((f) => ({ label: f.label, radio: folder === f.key, onClick: goF(f.key) })), '-', { label: 'Unread Mail', radio: folder === 'unread', onClick: goF('unread') }]

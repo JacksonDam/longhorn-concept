@@ -63,7 +63,7 @@ export default {
   id: 'display',
   title: () => 'Display Properties',
   taskbarLabel: () => 'Display Properties',
-  icon: asset('img/desktop/ic-display.svg'),
+  icon: null, // the shell's Display icon (XP desk.cpl, scenes/desktop/appIcons.jsx)
   size: { w: 380, h: 400 },
   position: { x: 250, y: 120 },
   minSize: { w: 340, h: 360 },
