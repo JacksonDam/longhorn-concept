@@ -14,20 +14,38 @@
       ;(function () {
         if (!matchMedia('(pointer: coarse)').matches) return
         var m = document.getElementById('lh-viewport')
+        // device px per CSS px before the zoom (read first: some engines fold the zoom in)
+        var pd = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio') || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(window), 'devicePixelRatio')
+        var native = function () { return pd && pd.get ? pd.get.call(window) : 1 }
+        var dpr = native() || 1
+        var vv = window.visualViewport, seen = 0
         var fit = function () {
-          var a = screen.width, b = screen.height
-          var land = matchMedia('(orientation: landscape)').matches
-          var sw = land ? Math.max(a, b) : Math.min(a, b), sh = land ? Math.min(a, b) : Math.max(a, b)
+          // the visible area in device-width px (the visual viewport times its zoom: the same at
+          // any zoom), not the screen's (a browser's window can be narrower)
+          var z = vv ? vv.scale : 1
+          var sw = (vv ? vv.width : innerWidth) * z, sh = (vv ? vv.height : innerHeight) * z
+          if (Math.abs(sw - seen) < 1) return
+          seen = sw
           var w = Math.max(960, Math.ceil((720 * sw) / sh)), k = sw / w
           m.setAttribute('content', 'width=' + w + ', initial-scale=' + k + ', minimum-scale=' + k)
-          return w
         }
-        // (a browser that ignores the tag keeps its own layout width: then nothing changes)
-        var w = fit()
-        if (Math.abs(innerWidth - w) > 2) return m.setAttribute('content', 'width=device-width, initial-scale=1')
-        addEventListener('orientationchange', function () { setTimeout(fit, 50) })
-        var dpr = window.devicePixelRatio || 1, vv = window.visualViewport
-        Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: function () { return dpr * (vv ? vv.scale : 1) } })
+        // (Mobile Safari applies the new tag at its next layout. A browser that ignores the tag
+        // keeps its own layout width and a zoom of 1: then nothing changes.) Text autosizing
+        // off: a wide page zoomed out would get its text enlarged.
+        fit()
+        document.documentElement.style.webkitTextSizeAdjust = '100%'
+        document.documentElement.style.textSizeAdjust = '100%'
+        // a rotation or a new window width: fitted again (a toolbar showing or hiding changes
+        // only the height)
+        addEventListener('resize', function () { setTimeout(fit, 50) })
+        // the device px per CSS px that the zoom gives (an engine that already folds it in: its own)
+        Object.defineProperty(window, 'devicePixelRatio', {
+          configurable: true,
+          get: function () {
+            var n = native()
+            return Math.abs(n - dpr) > 0.01 ? n : dpr * (vv ? vv.scale : 1)
+          },
+        })
       })()
     </script>
     <title>Longhorn</title>
