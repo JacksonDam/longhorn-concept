@@ -9,7 +9,6 @@ import { now, FPS } from '../../core/clock.js'
 import {
   scoped, wid, valueOf, hoverKeys, pt, TextField, Slider, Scrollbar, DropMenu, dropBelow, ContextMenu, contextHandler, Button, C, FONT, HEAVY, find, focusField,
 } from '../../ui/index.js'
-import { MessageIcon } from '../../ui/Dialog.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { Swoosh } from '../music/Header.jsx'
 import { SlabCanvas } from '../music/SlabCanvas.jsx'
