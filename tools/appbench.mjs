@@ -1,6 +1,6 @@
 // Per-app window animation costs: runs tools/bench.mjs over ?apps=every (each app opened,
 // minimised, restored and closed in turn, src/apps/lib/benchScript.js) and prints, per app and
-// phase, the p95 and max frame cost and the frames over 6.94 ms.
+// phase, the p95 and max frame cost and the frames over 6.94 ms, and the run's peak memory.
 //
 // usage: node tools/appbench.mjs [--url http://127.0.0.1:5312/longhorn-concept/] [--dpr 1.5]
 //        [--size 1440x1080] [--repeat 2] [--json out.json]
@@ -47,4 +47,6 @@ apps.forEach((app, i) => {
   console.log(line)
 })
 console.log('(per phase: p95, max ms; frames over 6.94 ms)  over: ' + (worst.join(' ') || 'none'))
+const mem = (r.stdout.match(/^mem peak.*$/m) || [])[0]
+if (mem) console.log(mem)
 console.log('json:', out)

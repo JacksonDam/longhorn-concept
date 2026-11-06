@@ -2,7 +2,7 @@
 // headless Chrome with vsync and the frame-rate limit off, a window dragged by its title bar
 // with CDP mouse events at a mouse's report rate (144 Hz, or 500-1000 Hz for gaming mice), as a
 // user drags. Each animation frame's interval is its cost; prints p50 / p95 / max and the frames
-// over 6.94 ms (144 Hz) per run.
+// over 6.94 ms (144 Hz) per run, and the session's peak memory (renderer + GPU, tools/lib/memory.mjs).
 //
 // usage: node tools/dragbench.mjs [--url http://127.0.0.1:5312/longhorn-concept/] [--dpr 1.5,2]
 //        [--size 1440x1080] [--rate 144,1000] [--scenario wallpaper,windows,glass,music,outlook,
@@ -22,6 +22,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { memorySampler } from './lib/memory.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -113,13 +114,15 @@ async function session(dpr) {
   await send('Page.enable')
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: dpr, mobile: false })
+  // peak memory of the renderer + GPU processes over the session (tools/lib/memory.mjs)
+  const mem = memorySampler(chrome.pid)
   const close = async () => {
     ws.close()
     chrome.kill()
     await sleep(300)
     try { rmSync(profile, { recursive: true, force: true }) } catch { /* still in use */ }
   }
-  return { send, post, evaluate, events, close, traceStart: () => { traceChunks = []; return send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.frame', 'blink', 'cc', 'gpu', 'viz', 'v8.execute'] } }) }, traceStop: () => new Promise((r) => { traceDone = () => r(traceChunks); send('Tracing.end') }) }
+  return { send, post, evaluate, events, close, mem, traceStart: () => { traceChunks = []; return send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.frame', 'blink', 'cc', 'gpu', 'viz', 'v8.execute'] } }) }, traceStop: () => new Promise((r) => { traceDone = () => r(traceChunks); send('Tracing.end') }) }
 }
 
 // where the frame time went, per thread, from trace events within [t0, t1] (us)
@@ -258,8 +261,10 @@ for (const dpr of dprs) {
           for (let i = 1; i < ts.length; i++) if (ts[i] > tStart && ts[i] <= tEnd) ms.push(ts[i] - ts[i - 1])
           const st = stats(ms)
           const row = { dpr, scen, prefill, rate, log0: logLen0, events: logLen1 - logLen0, ...st }
+          const m = await s.mem.stop()
+          row.memPeak = m?.peak
           results.push(row)
-          console.log(`dpr ${dpr} ${scen.padEnd(9)} log ${String(logLen0).padStart(6)} +${String(logLen1 - logLen0).padStart(4)} rate ${String(rate).padStart(4)} Hz | frames ${String(st.n).padStart(4)} p50 ${st.p50.toFixed(2)} p95 ${st.p95.toFixed(2)} p99 ${st.p99.toFixed(2)} max ${st.max.toFixed(2)} ms | over 6.94: ${st.over}, over 16.7: ${st.over16}`)
+          console.log(`dpr ${dpr} ${scen.padEnd(9)} log ${String(logLen0).padStart(6)} +${String(logLen1 - logLen0).padStart(4)} rate ${String(rate).padStart(4)} Hz | frames ${String(st.n).padStart(4)} p50 ${st.p50.toFixed(2)} p95 ${st.p95.toFixed(2)} p99 ${st.p99.toFixed(2)} max ${st.max.toFixed(2)} ms | over 6.94: ${st.over}, over 16.7: ${st.over16} | mem peak ${m ? m.peak + ' MB' : 'n/a'}`)
           if (traceEvs) {
             let t1 = 0
             for (const e of traceEvs) if (e.ph === 'X' && e.ts > t1) t1 = e.ts

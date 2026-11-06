@@ -7,10 +7,13 @@
 //        [--repeat 2] [--json out.json]
 // Prints per-segment p50 / p95 / max and the worst frames. Each frame is measured `repeat` times
 // (after a warm-up pass over the range) and the minimum is kept, to filter scheduler noise.
+// Also prints the peak memory (physical footprint of the renderer + GPU processes, tools/lib/
+// memory.mjs) over the run; with --json, writes it next to the rows as <name>.mem.json.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { memorySampler, fmtMem } from './lib/memory.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -41,6 +44,8 @@ const chrome = spawn(CHROME, [
   `--window-size=${W},${H}`, `--force-device-scale-factor=${dpr}`, '--enable-gpu', '--ignore-gpu-blocklist',
   '--disable-gpu-vsync', '--disable-frame-rate-limit', 'about:blank',
 ], { stdio: 'ignore' })
+// peak memory of the renderer and GPU processes over the whole run (load, boot, the passes)
+const mem = memorySampler(chrome.pid)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let list
 for (let i = 0; i < 80 && !list; i++) {
@@ -103,7 +108,12 @@ try {
   const worst = [...rows].sort((p, q) => q.ms - p.ms).slice(0, 12)
   console.log('worst:', worst.map((r) => `${r.n}:${r.ms.toFixed(1)}`).join(' '))
   console.log(`frames over 6.94 ms: ${fail} of ${rows.length}`)
-  if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows))
+  const m = await mem.stop()
+  console.log(fmtMem(m))
+  if (jsonOut) {
+    writeFileSync(jsonOut, JSON.stringify(rows))
+    writeFileSync(jsonOut.replace(/\.json$/, '') + '.mem.json', JSON.stringify(m))
+  }
   for (const e of events.filter((e) => e.method === 'Runtime.exceptionThrown'))
     console.error('page error:', e.params.exceptionDetails.exception?.description ?? e.params.exceptionDetails.text)
 } finally {
