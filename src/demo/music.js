@@ -3,7 +3,8 @@
 const VIDEO = [
   // the Tweet tile (row 2, column 3) is clicked; the header turns into its album page 22.5 frames later
   { frame: 945.5, type: 'music.album', id: 10 },
-  // title-bar minimise
+  // title-bar minimise (the pointer reaches the button first: the window prepares its copies)
+  { frame: 1344, type: 'win.prepare', id: 'music' },
   { frame: 1354.5, type: 'music.minimize' },
 ]
 

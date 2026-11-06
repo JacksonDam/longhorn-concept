@@ -240,7 +240,6 @@ const music = {
   copyKey,
   relevant: (e) => e.type.startsWith('media.') || e.type === 'explorer.nav',
   copies: 10,
-  prewarm: true,
 }
 export default music
 export { DEFAULTS }
