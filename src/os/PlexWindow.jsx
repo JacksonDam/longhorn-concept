@@ -569,6 +569,10 @@ function layersAt(win, app, t, N) {
   if (inAnim) {
     const p = prepStart(win, span[0])
     from = Math.min(span[0], p ?? Infinity)
+  } else if (from != null && span && from < span[1]) {
+    // prepared during the last animation (a restore prepared while the minimise plays): its
+    // layers stay mounted from then on, none unmounts in between
+    from = Math.min(from, span[0], prepStart(win, span[0]) ?? Infinity)
   }
   const shows = win.state === 'open' && win.lastAction !== 'initial'
   if (from == null) return shows ? 1 : 0
