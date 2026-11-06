@@ -13,8 +13,8 @@
 // WebKit, Firefox 126+), so the page is laid out at its shown size and every layer, glyph, border
 // and image is rasterised at the screen's density. Under a scale transform WebKit backs each
 // composited layer at its untransformed size x devicePixelRatio and stretches it (the live site
-// was blurry in Safari at any scale above 1), and Chrome keeps a will-change: transform layer at
-// the raster scale it was first drawn at. Zoom's semantics (checked in Chrome, Playwright WebKit
+// was blurry in Safari at any scale above 1), and Chrome can keep a will-change: transform layer
+// at a stale raster scale (my Music's window was soft once its album page had opened). Zoom's semantics (checked in Chrome, Playwright WebKit
 // and the system WebKit): every length inside is multiplied (transforms' px, filters, shadows,
 // borders, which snap to whole device px), getBoundingClientRect and event clientX/Y are in
 // viewport px (so toStage maps both), while offsetWidth, scrollTop, ResizeObserver and

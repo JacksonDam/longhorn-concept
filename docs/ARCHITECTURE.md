@@ -17,7 +17,9 @@ Vite + React app deployed to GitHub Pages (base `/longhorn-concept/`).
   Safari's WebKit, Firefox 126+; others, phones and the pinned modes keep `transform: scale`), so
   the page is laid out at its shown size and every layer, glyph and border is rasterised at the
   screen's density: under a scale transform WebKit backs each composited layer at its
-  untransformed size x devicePixelRatio and stretches it (the site was blurry in Safari). Inside,
+  untransformed size x devicePixelRatio and stretches it (the site was blurry in Safari), and
+  Chrome left a will-change layer at a stale raster scale after some animations (my Music's
+  window once its album page had opened). Inside,
   lengths are stage px as before; getBoundingClientRect and pointer clientX/Y are viewport px
   (`toStage` maps both), offsetWidth, scrollTop, ResizeObserver and getComputedStyle stay stage px;
   1 px borders snap down to whole device px. A layer placed by a transform at rest should sit on a
