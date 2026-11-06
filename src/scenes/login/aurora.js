@@ -161,20 +161,26 @@ export const keysReady = Promise.all([
 // switch carries on (its motion extrapolated) and fades out over the interval while the one after
 // fades in (ribbonsAt), and no interpolation reads a key across a switch.
 const SWITCH = 32 // px: more than any ribbon moves in a key
+// a slot's centreline at frame x (key: a key's or an interpolated slot's values, o: its offset)
+function yAt(key, o, x) {
+  const u = (x - BX0) / BSX + 1
+  const i = Math.floor(u)
+  const f = u - i
+  const w = [(1 - f) ** 3 / 6, (3 * f ** 3 - 6 * f ** 2 + 4) / 6, (-3 * f ** 3 + 3 * f ** 2 + 3 * f + 1) / 6, f ** 3 / 6]
+  let y = 0
+  for (let m = 0; m < 4; m++) y += w[m] * key[o + Math.max(0, Math.min(KX - 1, i - 1 + m))]
+  return y
+}
+// The fit gave the bar's thin highlight line (y 573.5-575.5, Bar.jsx) a ribbon of its own: one
+// lying along y 571-577 across the whole frame (slot 7, sigma 1.6, in every key). The bar covers it
+// wherever the frame sits at its own scale; on a taller stage the frame is scaled up and that line
+// would show as a faint horizontal stroke above the bar, so there it is left out.
+const alongBar = (r) => [0, 240, 480, 720, 960].every((x) => Math.abs(yAt(r, 0, x) - 575) < 20)
 let switches = null // Uint8Array(NS * keys): 1 where slot s switches between keys k - 1 and k
 function findSwitches() {
   const K = ribbonKeys.length
   switches = new Uint8Array(NS * K)
   const xs = [60, 240, 480, 720, 900]
-  const yAt = (key, o, x) => {
-    const u = (x - BX0) / BSX + 1
-    const i = Math.floor(u)
-    const f = u - i
-    const w = [(1 - f) ** 3 / 6, (3 * f ** 3 - 6 * f ** 2 + 4) / 6, (-3 * f ** 3 + 3 * f ** 2 + 3 * f + 1) / 6, f ** 3 / 6]
-    let y = 0
-    for (let m = 0; m < 4; m++) y += w[m] * key[o + Math.max(0, Math.min(KX - 1, i - 1 + m))]
-    return y
-  }
   for (let sl = 0; sl < NS; sl++)
     for (let k = 1; k < K; k++) {
       const o = sl * PER
@@ -400,6 +406,7 @@ function ribbonsAt(v, a, w0, row) {
     let amax = 0
     for (let q = KX; q < 4 * KX; q++) amax = Math.max(amax, Math.abs(rib[o + q]))
     if (amax * w < 0.5) continue
+    if (sc > 1 && alongBar(rib)) continue
     const sig = Math.max(0.8, rib[o + 4 * KX])
     const inv = 1 / (2 * sig * sig)
     const r0 = row * (KX + 1) * 4
