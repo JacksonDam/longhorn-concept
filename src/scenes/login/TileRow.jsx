@@ -129,9 +129,10 @@ export function TileRow({ t, row, exitK }) {
           const ke = exitK(tt)
           const e = ke != null ? tileExit(ke, i, sel) : null
           return {
-            // while sliding, whole device pixels: a composited copy rasterised once then only
-            // translated by whole pixels looks the same whatever frame it was first drawn on
-            transform: `translateX(${(st.sliding ? snap(x - base) : x - base).toFixed(3)}px)` + (e ? e.transform : ''),
+            // whole device pixels, sliding or not: a layer rasterised once and then only moved
+            // looks the same whatever frame it was first drawn on, and a resting tile's edges
+            // anti-alias the same whether the row was drawn before or not (capture order)
+            transform: `translateX(${snap(x - base).toFixed(3)}px)` + (e ? e.transform : ''),
             transformOrigin: '50% 37%',
             opacity: e ? e.opacity : 1,
           }

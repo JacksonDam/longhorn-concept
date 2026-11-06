@@ -3,15 +3,15 @@
 // another) flies back the same way, reversed. All slabs share one full-stage Slab3D canvas.
 import { Slab3D } from '../../gl/Slab3D.jsx'
 import { loadTexture, renderSlabs, SlabScene, texturesReady } from '../../gl/slab.js'
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { clamp, F } from '../../core/anim.js'
 import { FPS } from '../../core/clock.js'
 import { pic } from './Tile.jsx'
-import { preload } from '../../core/preload.js'
 import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
 import { slabExit } from './exit.js'
 import { blur } from './blur.js'
+import { useStageScale } from '../../core/Stage.jsx'
 import { all, last } from '../../core/events.js'
 import { tiltAt } from '../../core/tilt.js'
 
@@ -92,14 +92,18 @@ function poseFor(rec, submitT) {
 }
 
 // soft white halo behind the resting slab: the glow of a 157 px rounded box (two box-shadow
-// style glows, nothing inside the box), drawn once into an image at load; per frame it is only
-// moved, rotated and scaled (a bitmap draw, no blur work, same pixels for any seek order)
+// style glows, nothing inside the box), drawn once into a bitmap at load; per frame that bitmap
+// is drawn, moved, rotated and scaled, into a canvas around the slab. (As a transformed <img>
+// it came out different depending on which frames had been drawn before: Chrome reuses an image
+// decode made at an earlier frame's scale, so a seek and a playthrough disagreed at its edges.
+// A canvas draw from the bitmap itself is the same whatever came before.)
 const HALO = 157
 const HM = 80 // glow margin around the box
-const haloUrl = (() => {
+const D = HALO + 2 * HM
+const haloBitmap = (() => {
   const S = 2
   const c = document.createElement('canvas')
-  c.width = c.height = (HALO + 2 * HM) * S
+  c.width = c.height = D * S
   const g = c.getContext('2d')
   g.scale(S, S)
   const rr = (x, y, w, h, r) => {
@@ -123,34 +127,45 @@ const haloUrl = (() => {
   g.globalCompositeOperation = 'destination-out'
   rr(HM, HM, HALO, HALO, 18)
   g.fill()
-  return c.toDataURL('image/png')
+  return c
 })()
-preload([haloUrl])
+// the canvas: a fixed box around the slab's centre, room for the halo scaled up to ~1.1 and
+// turned a few degrees
+const HR = Math.ceil(D * 0.6)
 
 function Halo({ t, rec, submitT }) {
+  const ref = useRef(null)
+  const { s: ss } = useStageScale()
+  const ds = Math.min(3, ss * (window.devicePixelRatio || 1))
   const k = (t - rec.t0) * FPS
   let a = clamp((k - 26) / 8)
   if (rec.back != null) a *= 1 - clamp(((t - rec.back) * FPS) / 3)
   if (submitT != null) a *= 1 - clamp(((t - submitT) * FPS - 0.5) / 1.5)
-  const p = slabPose(Math.max(k, 26), rec.index, t, rec.xAt ? rec.xAt(t) : rec.from)
+  const tilt = rec.back == null ? pointerTilt(rec, t) : null
+  const p = slabPose(Math.max(k, 26), rec.index, t, rec.xAt ? rec.xAt(t) : rec.from, tilt)
   const w = p.size * Math.abs(Math.cos(p.ry)) + 30 * (p.size / BASE) * Math.abs(Math.sin(p.ry)) - 8
   const h = p.size - 8
-  const D = HALO + 2 * HM
+  const left = Math.round(p.x) - HR, top = Math.round(p.y) - HR
+  useLayoutEffect(() => {
+    const c = ref.current
+    if (!c) return
+    const px = Math.round(2 * HR * ds)
+    if (c.width !== px) c.width = c.height = px
+    const g = c.getContext('2d')
+    g.setTransform(1, 0, 0, 1, 0, 0)
+    g.clearRect(0, 0, px, px)
+    if (a <= 0) return
+    g.imageSmoothingQuality = 'high'
+    g.setTransform(ds, 0, 0, ds, 0, 0)
+    g.translate(p.x - left, p.y - top)
+    g.rotate(p.rz ?? 0)
+    g.scale(w / HALO, h / HALO)
+    g.drawImage(haloBitmap, -D / 2, -D / 2, D, D)
+  })
   return (
-    <img
-      src={haloUrl}
-      alt=""
-      draggable={false}
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        width: D,
-        height: D,
-        transform: `translate(${(p.x - D / 2).toFixed(2)}px, ${(p.y - D / 2).toFixed(2)}px) rotate(${(((p.rz ?? 0) * 180) / Math.PI).toFixed(3)}deg) scale(${(w / HALO).toFixed(4)}, ${(h / HALO).toFixed(4)})`,
-        opacity: Math.max(0, a),
-        pointerEvents: 'none',
-      }}
+    <canvas
+      ref={ref}
+      style={{ position: 'absolute', left, top, width: 2 * HR, height: 2 * HR, opacity: Math.max(0, a), pointerEvents: 'none' }}
     />
   )
 }

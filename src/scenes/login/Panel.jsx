@@ -9,6 +9,7 @@ import { emit, all } from '../../core/events.js'
 import { userById, passwordLength } from './state.js'
 import { panelExit } from './exit.js'
 import { blur, layerHint } from './blur.js'
+import { stageScale } from '../../core/Stage.jsx'
 
 const P = { left: 505, top: 290, width: 215, height: 105 } // panel box (stage px)
 // panel x offset (px) vs frames since select (select = video frame 168)
@@ -180,7 +181,10 @@ export function Panel({ t, row, submitT }) {
   const pose = (tt) => {
     const kk = (tt - change.t) * FPS
     if (kk < 25.3) return { transform: 'translateX(0px)', opacity: 0.004 }
-    return { transform: `translateX(${sweep(kk).toFixed(2)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
+    // whole device pixels: each blur copy is a layer rasterised once and then only moved, so a
+    // copy looks the same whatever frame it was first drawn on (capture order)
+    const d = stageScale() * (window.devicePixelRatio || 1)
+    return { transform: `translateX(${(Math.round(sweep(kk) * d) / d).toFixed(3)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
   }
   // the first hover of the go button since this selection starts its pulse
   const hovered = all(t, (e) => e.type === 'login.gohover' && e.t >= change.t)[0]
