@@ -57,7 +57,8 @@ export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, 
   const scale = Math.min(3, s * (window.devicePixelRatio || 1) * (window.visualViewport?.scale || 1))
   useLayoutEffect(() => {
     const c = ref.current
-    if (!c || skip) return
+    // (skip: keep the pixels, once there are some)
+    if (!c || (skip && drawn.has(c))) return
     const n = Math.max(1, samples)
     const times = []
     for (let k = 0; k < n; k++) times.push(n === 1 ? t : t + shutter * ((k + 0.5) / n + phase))
