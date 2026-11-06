@@ -32,8 +32,8 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
   `src/apps/lib/chrome.jsx` (AppTop, GlassRow, Band, StatusBar) for an app's top bars.
 - **Rim.** The rim's light top edge turns into its dark sides gradually along the corner arcs
   (one stroke with a vertical gradient, PlexWindow `Rim`), not in a CSS border's hard diagonal
-  join (the user's ask; the video's corners agree: corner RMSE 7.65 -> 7.24 left, 8.54 -> 8.29
-  right, frames 760-1340).
+  join (the user's ask; the video's corners agree: corner RMSE 7.64 -> 7.29 left, 8.52 -> 8.30
+  right, frames 760-1340 every 10th).
 - **Title.** Title text (the plain title and an app's TitleContent) is vertically centred on the
   minimise / maximise / close glyphs by its cap height: baseline = os/frame.js
   `titleBaseline(size, capHeight)` (glyphs centred at y 11.75).
