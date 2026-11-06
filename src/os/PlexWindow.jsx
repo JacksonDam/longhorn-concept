@@ -28,6 +28,7 @@ import { dockPoint } from './taskbar.js'
 import { WindowShadow } from './shadow.jsx'
 import { LookLayer, INACTIVE_SHADOW } from './look.jsx'
 import { RADIUS_TOP, RADIUS_BOTTOM, radiiAt } from './frame.js'
+import { POINT } from '../core/point.js'
 import {
   OPEN_DELAY, RESTORE_DELAY, OPEN_END, openPose, openMoving, openLight, poseCss, openBlur,
   MIN_END, RESTORE_END, minimizePoseFor, restorePoseFor, minimizeBlur, restoreBlur,
@@ -630,14 +631,24 @@ function grown(win, t, N, from, base) {
   const at = (d) => base + Math.min(N - base, Math.max(0, Math.floor((s - d) / PH) + 1))
   return { mounted: at(0), laid: at(1), ready: at(2) }
 }
+// the layers an open still uses from rel (frames since its event) on: openBlur's samples only fall
+// as it slows, a frame's drop at a time from where they fall
+function openUse(rel) {
+  const r = rel - OPEN_DELAY
+  if (r < 8) return Infinity
+  return Math.max(openBlur(r).n, Math.floor(8 + OPEN_DELAY) - Math.floor(r - 8 + 1e-6))
+}
 // -> { mounted, laid, ready }: the layers that exist at t (0: none, the window renders nothing),
 // how many of them are laid out and how many shown (the first `ready`; the others wait hidden)
 function residency(win, app, t, N, depth = 0) {
   const span = animSpan(win)
   if (span && t >= span[0] && t < span[1] && win.lastAction === 'open') {
     // the open: the live layer on the open's frame (its content on the next), then a copy a
-    // frame (the open shows from rel 5; the copies rasterise in their first pose before it)
-    const n = Math.max(1, Math.min(N, Math.floor(toRel(t, win.openedAt) + 1e-6)))
+    // frame (the open shows from rel 5; the copies rasterise in their first pose before it);
+    // its blur takes fewer samples as it slows (os/windowAnim openBlur), and the copies it no
+    // longer uses unmount, one a frame
+    const rel = toRel(t, win.openedAt)
+    const n = Math.max(1, Math.min(N, Math.floor(rel + 1e-6), openUse(rel)))
     return { mounted: n, laid: n, ready: n }
   }
   const base = restingLayers(win)
@@ -814,7 +825,8 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
     </div>
   )
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: z }}>
+    // (a point at the stage's origin, not a full-stage box: core/point.js)
+    <div style={{ ...POINT, pointerEvents: 'none', zIndex: z }}>
       {/* the window's layers sit relative to its rect, which only moves this group: dragging a
           window changes one transform, no layout or paint (the layers' left / top stay) */}
       <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transform: `translate(${r.x}px, ${r.y}px)` }}>

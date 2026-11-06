@@ -8,6 +8,7 @@ import { activeIds, activeLevels } from './focus.js'
 import { Beam } from './Beam.jsx'
 import { now } from '../core/clock.js'
 import { emit } from '../core/events.js'
+import { POINT } from '../core/point.js'
 
 // dev/test hook: scripted window input (tools, benches); looks(): the active look's level per window
 if (typeof window !== 'undefined') window.__wm = { emit, windows, focusedWindow, looks: (t = now()) => Object.fromEntries(activeLevels(windows, t)) }
@@ -46,12 +47,13 @@ export function WindowLayer() {
     }
   }
   return (
-    <div style={{ position: 'absolute', inset: 0, isolation: 'isolate', pointerEvents: 'none' }}>
+    // (points at the stage's origin, not full-stage boxes: core/point.js)
+    <div style={{ ...POINT, isolation: 'isolate', pointerEvents: 'none' }}>
       {order.map((w) => {
         const app = getApp(w.app)
         return <PlexWindow key={w.id} win={w} app={app} t={t} active={active.has(w.id)} look={looks.get(w.id) ?? 0} z={z.get(w.id)} quiet={quietKey(w, app, t)} blurs={!blurring || blurring.has(w.id)} />
       })}
-      <div style={{ position: 'absolute', inset: 0, zIndex: zTop + 1, pointerEvents: 'none' }}>
+      <div style={{ ...POINT, zIndex: zTop + 1, pointerEvents: 'none' }}>
         <Beam {...(beam || { rel: null })} />
       </div>
     </div>
