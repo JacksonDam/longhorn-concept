@@ -1,10 +1,14 @@
-// Full-stage WebGL canvas for the aurora background (see aurora.js).
+// Full-stage WebGL canvas for the aurora background (see aurora.js): the field fitted over the
+// video's frame, placed where the login places the frame (layout.js frameOffset) and run on past
+// its edges to fill the stage, drawn at the screen's pixel density.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTime } from '../../core/time.jsx'
 import { useStageScale } from '../../core/Stage.jsx'
 import { AuroraRenderer, keysReady } from './aurora.js'
+import { frameOffset } from './layout.js'
 
-const RES = 0.5
+// device px per stage px at most (like the slabs, gl/Slab3D.jsx): past 3 the compositor scales it up
+const MAX_DENSITY = 3
 
 // paused: draw nothing. keep: hold a GL context (false: release it, its GPU memory with it; a
 // WebGL context's is tens of MB on a phone). The login scene keeps it while it shows and while the
@@ -19,12 +23,12 @@ export function Aurora({ style, paused = false, keep = true }) {
   useEffect(() => {
     keysReady.then(() => setReady(true))
   }, [])
-  const { s } = useStageScale()
-  // drawn at half the pixels it shows in each direction and scaled up by the compositor: the
-  // aurora is soft gradients and gaussian ribbons (sigma 2.8 stage px or more), so a quarter of
-  // the pixels looks the same (RMSE over the login frames unchanged) for a quarter of the
-  // canvas's memory and fill
-  const k = Math.min(2, s * (window.devicePixelRatio || 1)) * RES
+  const stage = useStageScale()
+  const { s, w, h } = stage
+  const off = frameOffset(stage)
+  // one canvas pixel per device pixel (on a phone devicePixelRatio includes the page zoom,
+  // index.html), up to MAX_DENSITY
+  const k = Math.min(MAX_DENSITY, s * (window.devicePixelRatio || 1))
   useLayoutEffect(() => {
     if (!ref.current) return
     if (!keep) {
@@ -37,7 +41,7 @@ export function Aurora({ style, paused = false, keep = true }) {
     }
     const fresh = !r.current
     if (fresh) r.current = new AuroraRenderer(ref.current)
-    if (!paused || fresh) r.current.render(t, Math.round(960 * k), Math.round(720 * k))
+    if (!paused || fresh) r.current.render(t, Math.round(w * k), Math.round(h * k), { w, h, ox: off.x, oy: off.y })
   })
-  return <canvas key={gen} ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: 960, height: 720, ...style }} />
+  return <canvas key={gen} ref={ref} style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, ...style }} />
 }

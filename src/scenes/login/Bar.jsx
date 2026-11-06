@@ -8,14 +8,30 @@ import { BAR, SHUTDOWN, CLOCK } from './layout.js'
 const BAR_IMG = asset('img/login/bar.png')
 preload([BAR_IMG])
 
-export const BarBand = memo(function BarBand() {
+// The band on a wider stage: its ends stay at the stage's ends (the highlight line's fade-in and
+// Shut Down's part on the left, the line's fade-out and the clock's part on the right) and the
+// soft middle between them stretches across (a 4 px-cell field, smooth along x; its rows, the
+// thin lines, keep their heights). At the frame's width it is the image as fitted.
+const BAR_H = 720 - BAR.top
+const ENDS = [120, 160] // stage px of the band at its left and right ends kept as they are
+const barImg = { position: 'absolute', top: 0, height: BAR_H, maxWidth: 'none' }
+export const BarBand = memo(function BarBand({ w = 960, dh = 0 }) {
+  const top = BAR.top + dh
+  if (w <= 960)
+    return <img src={BAR_IMG} alt="" draggable={false} style={{ position: 'absolute', left: 0, top, width: 960, height: BAR_H, pointerEvents: 'none' }} />
+  const [a, b] = ENDS
+  const f = (w - a - b) / (960 - a - b) // the middle's stretch
+  const part = (left, width, imgLeft, imgWidth) => (
+    <div style={{ position: 'absolute', left, top, width, height: BAR_H, overflow: 'hidden', pointerEvents: 'none' }}>
+      <img src={BAR_IMG} alt="" draggable={false} style={{ ...barImg, left: imgLeft, width: imgWidth }} />
+    </div>
+  )
   return (
-    <img
-      src={BAR_IMG}
-      alt=""
-      draggable={false}
-      style={{ position: 'absolute', left: 0, top: BAR.top, width: 960, height: 720 - BAR.top, pointerEvents: 'none' }}
-    />
+    <>
+      {part(0, a, 0, 960)}
+      {part(a, w - a - b, -a * f, 960 * f)}
+      {part(w - b, b, b - 960, 960)}
+    </>
   )
 })
 

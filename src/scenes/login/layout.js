@@ -1,4 +1,19 @@
 // Login scene geometry, measured on the reference frames (stage px). See docs/login-spec.md.
+import { seam } from '../../core/Stage.jsx'
+
+// On a stage wider or taller than the video's 960x720 frame (core/Stage.jsx: dw, dh past it) the
+// login keeps the frame's relations: the Windows logo stays on the top right (+dw), Shut Down on
+// the bottom left (+dh), the clock on the bottom right (+dw, +dh), the bar's band runs the full
+// width on the bottom (+dh), and the frame's middle (the user tiles, the selected slab with its
+// halo and the password panel, and the aurora's fitted field behind them) sits centred across on
+// the bottom edge (+dw / 2, +dh). Offsets land on whole device pixels (seam), like the stage's
+// corner, so what is placed in them rasterises the same as in the frame. At the frame's own size
+// (?capture, ?bench, ?demo) they are 0.
+export const frameOffset = ({ dw, dh }) => ({ x: seam(dw / 2), y: seam(dh) })
+export const rightOffset = ({ dw }) => seam(dw)
+export const bottomOffset = ({ dh }) => seam(dh)
+// the screen's centre (the power screens, the shutting-down message): +dw / 2, +dh / 2
+export const centreOffset = ({ dw, dh }) => ({ x: seam(dw / 2), y: seam(dh / 2) })
 
 // "Microsoft Windows" lockup: the derived XP stacked logo (535 x 356.2 units) split into the
 // pastel flag (flag.svg) and the two white words (wordmark.svg), both on the full canvas.

@@ -11,7 +11,8 @@ import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
 import { slabExit } from './exit.js'
 import { blur } from './blur.js'
-import { useStageScale } from '../../core/Stage.jsx'
+import { useStageScale, stageSize } from '../../core/Stage.jsx'
+import { frameOffset } from './layout.js'
 import { all, last } from '../../core/events.js'
 import { tiltAt } from '../../core/tilt.js'
 
@@ -71,6 +72,15 @@ function pointerTilt(rec, tt) {
   return { yaw, pitch, sway: 1 - u * u * (3 - 2 * u) }
 }
 
+// where the stage's top right corner is past the frame's, in the slab's coordinates (the frame's
+// middle, moved by layout.js frameOffset): the exit flies there (null at the frame's own size)
+function exitCorner() {
+  const st = stageSize()
+  const o = frameOffset(st)
+  const x = st.w - 960 - o.x, y = -o.y
+  return x || y ? { x, y } : null
+}
+
 // pose(tt) for one slab record { id, index, t0 (select time), back (deselect time | null) }
 function poseFor(rec, submitT) {
   return (tt) => {
@@ -86,7 +96,7 @@ function poseFor(rec, submitT) {
     const p = slabPose(k, rec.index, tt, rec.xAt ? rec.xAt(tt) : rec.from, tilt)
     const s = p.size / BASE
     let pose = { x: p.x, y: p.y, z: 0, ry: p.ry, rx: p.rx, rz: p.rz ?? 0, s, faceBand: p.faceBand, brightness: p.brightness, opacity: rec.back != null ? 1 : clamp((k - 1.5) / 1) }
-    if (submitT != null && rec.back == null) pose = slabExit(tt - submitT, pose)
+    if (submitT != null && rec.back == null) pose = slabExit(tt - submitT, pose, exitCorner())
     return pose
   }
 }
