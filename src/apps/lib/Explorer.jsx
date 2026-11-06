@@ -511,7 +511,7 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
       crumbs: (win, t) => crumbsOf(navOf(t, win, root).path),
       crumbMenus: (win, t) => crumbMenusOf(win, t, navOf(t, win, root).path),
       menus: (win, t) => explorerModel(win, t, root, view).menus,
-      search: search ?? 'search my for...',
+      search: search ?? 'search for…',
       commands: [
         { id: 'hide', label: 'Hide Tasks', icon: 'hide' },
         { id: 'up', label: 'Up a Folder', icon: 'up' },

@@ -2,8 +2,8 @@
 // Static (memoised); the album grid and the header are separate components.
 import { memo, useRef } from 'react'
 import { toStage } from '../../core/Stage.jsx'
-import { Txt, abs, useLayer } from '../../os/text.jsx'
-import { DropMenu, dropBelow, wid } from '../../ui/index.js'
+import { Txt, abs, useLayer, SX } from '../../os/text.jsx'
+import { DropMenu, dropBelow, wid, runsWidth } from '../../ui/index.js'
 import { SIZE_MIN, SIZE_MAX } from './layout.js'
 import * as I from '../../os/icons.jsx'
 
@@ -149,8 +149,15 @@ const sel = (a, b) => [
 const GROUP = { date: 'by date', artist: 'by artist', genre: 'by genre', none: 'none' }
 const ARRANGE = { date: 'by date', name: 'by name', artist: 'by artist' }
 const VIEW = { thumbnail: 'by thumbnail', tiles: 'by tiles', details: 'by details' }
+// a drop-down label's arrow: ARROW_GAP px after its measured text (Txt draws it at SX)
+const ARROW_GAP = 6
+const arrowAfter = (x, a, b) => Math.round(x + runsWidth(sel(a, b), { size: 11.5, sx: SX }) + ARROW_GAP)
 // the bar above the album view (dx, dy: offsets from the video's place); A + win for the menus
 export function GridBar({ s, dx = 0, dy = 0, A, win }) {
+  const ag = arrowAfter(201, 'Group', GROUP[s.group])
+  const aa = arrowAfter(315, 'Arrange', ARRANGE[s.arrange])
+  const av = arrowAfter(438, 'View', VIEW[s.view])
+  const sz = av + 12 // "Size" and its slider follow the View drop-down
   const drop = (name, map, setter) => (e) => {
     e.stopPropagation()
     dropBelow(wid(win, 'mv.menu.' + name), e.currentTarget, Object.entries(map).map(([k, label]) => ({ label: label[0].toUpperCase() + label.slice(1), radio: true, checked: s[name] === k, onClick: setter(k) })))
@@ -158,26 +165,26 @@ export function GridBar({ s, dx = 0, dy = 0, A, win }) {
   return (
     <div style={{ position: 'absolute', left: dx, top: dy }}>
       <Txt x={201} y={352} size={11.5} parts={sel('Group', GROUP[s.group])} />
-      <div style={abs(268 + (GROUP[s.group].length - 7) * 5.5, 348, 7, 4)}>
+      <div style={abs(ag, 348, 7, 4)}>
         <I.DropArrow c="#5a84c4" />
       </div>
       <Txt x={315} y={352} size={11.5} parts={sel('Arrange', ARRANGE[s.arrange])} />
-      <div style={abs(390 + (ARRANGE[s.arrange].length - 7) * 5.5, 348, 7, 4)}>
+      <div style={abs(aa, 348, 7, 4)}>
         <I.DropArrow c="#5a84c4" />
       </div>
       <Txt x={438} y={352} size={11.5} parts={sel('View', VIEW[s.view])} />
-      <div style={abs(526 + (VIEW[s.view].length - 12) * 5.5, 348, 7, 4)}>
+      <div style={abs(av, 348, 7, 4)}>
         <I.DropArrow c="#5a84c4" />
       </div>
-      <Txt x={538 + (VIEW[s.view].length - 12) * 5.5} y={352} size={11.5} w={500} c="#6d8db8">
+      <Txt x={sz} y={352} size={11.5} w={500} c="#6d8db8">
         Size
       </Txt>
-      <SizeSlider x={563 + (VIEW[s.view].length - 12) * 5.5} size={s.size} A={A} />
+      <SizeSlider x={sz + 25} size={s.size} A={A} />
       {A && (
         <>
-          <div data-hit="music.group" style={abs(198, 338, 80, 18)} onClick={drop('group', GROUP, A.setGroup)} />
-          <div data-hit="music.arrange" style={abs(312, 338, 88, 18)} onClick={drop('arrange', ARRANGE, A.setArrange)} />
-          <div data-hit="music.view" style={abs(435, 338, 98, 18)} onClick={drop('view', VIEW, A.setView)} />
+          <div data-hit="music.group" style={abs(198, 338, ag + 10 - 198, 18)} onClick={drop('group', GROUP, A.setGroup)} />
+          <div data-hit="music.arrange" style={abs(312, 338, aa + 10 - 312, 18)} onClick={drop('arrange', ARRANGE, A.setArrange)} />
+          <div data-hit="music.view" style={abs(435, 338, av + 10 - 435, 18)} onClick={drop('view', VIEW, A.setView)} />
           <DropMenu id={wid(win, 'mv.menu.group')} items={Object.entries(GROUP).map(([k, l]) => ({ label: l[0].toUpperCase() + l.slice(1), radio: true, checked: s.group === k, onClick: A.setGroup(k) }))} />
           <DropMenu id={wid(win, 'mv.menu.arrange')} items={Object.entries(ARRANGE).map(([k, l]) => ({ label: l[0].toUpperCase() + l.slice(1), radio: true, checked: s.arrange === k, onClick: A.setArrange(k) }))} />
           <DropMenu id={wid(win, 'mv.menu.view')} items={Object.entries(VIEW).map(([k, l]) => ({ label: l[0].toUpperCase() + l.slice(1), radio: true, checked: s.view === k, onClick: A.setView(k) }))} />

@@ -154,6 +154,6 @@ export default {
   size: { w: 730, h: 470 },
   position: { x: 90, y: 70 },
   minSize: { w: 720, h: 420 },
-  explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search my for...', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null, menus: (win, t) => controlMenus(win, t) },
+  explorer: { crumbs: ['my Computer', 'Control Panel'], search: 'search for…', commands: [{ id: 'up', label: 'Up a Folder', icon: 'up' }], pressed: () => null, menus: (win, t) => controlMenus(win, t) },
   Content: scoped(Control, {}),
 }
