@@ -5,13 +5,15 @@
 // stage's (dw = w - W, dh = h - H: anchor right-edge things at x + dw, bottom-edge things at
 // y + dh, centred ones at + dw / 2, + dh / 2); full-stage things cover w x h.
 // ?capture and ?bench pin the frame at scale 1 at 0,0; ?demo (the video's input replayed, with its
-// cursor) keeps the frame's own size, letterboxed.
+// cursor) keeps the frame's own size, letterboxed, unless &fit is given too (a scripted scenario
+// played at the screen's shape, for checks on phones and the simulator: ?demo&scenario=shell&fit).
 import { useEffect, useState, createContext, useContext } from 'react'
 import { CAPTURE } from './clock.js'
 
 export const W = 960
 export const H = 720
-const PINNED = CAPTURE || new URLSearchParams(location.search).has('demo')
+const q = new URLSearchParams(location.search)
+const PINNED = CAPTURE || (q.has('demo') && !q.has('fit'))
 
 const FRAME = { s: 1, x: 0, y: 0, w: W, h: H, dw: 0, dh: 0 }
 const ScaleCtx = createContext(FRAME)
