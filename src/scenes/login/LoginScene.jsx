@@ -15,6 +15,7 @@ import { rowState } from './select.js'
 import { currentSelection, submitEvent, passwordLength } from './state.js'
 import { LOGIN_EXIT, layerOpacity, chromeExit } from './exit.js'
 import { POINT } from '../../core/point.js'
+import { toStage } from '../../core/Stage.jsx'
 
 export { LOGIN_EXIT }
 
@@ -25,6 +26,46 @@ const DEMO = CAPTURE || params.has('demo')
 const REFBG = params.has('refbg')
 const NOBAR = params.has('nobar') // local fitting aid: the aurora without the bar band
 const refFrame = (t) => `${import.meta.env.BASE_URL}ref/frames/f${String(Math.round(t * (30000 / 1001)) + 1).padStart(5, '0')}.png`
+
+// The pointer for the selected slab's tilt (Selected.jsx, core/tilt.js): 'login.pointer' events
+// in stage px, at most one per animation frame, only while a user is selected and nothing is
+// submitted; { gone: true } when it leaves the page. Never under ?demo / ?capture (the video's
+// slab doesn't follow the mouse).
+function usePointerSamples(active) {
+  useEffect(() => {
+    if (DEMO || !active) return
+    let pending = null, raf = 0, gone = true
+    const live = () => {
+      const t = now()
+      return !!currentSelection(t).id && !submitEvent(t)
+    }
+    const flush = () => {
+      raf = 0
+      if (!pending || !live()) return
+      emit('login.pointer', pending)
+      gone = !!pending.gone
+      pending = null
+    }
+    const queue = (p) => {
+      pending = p
+      if (!raf) raf = requestAnimationFrame(flush)
+    }
+    const onMove = (e) => {
+      const p = toStage(e.clientX, e.clientY)
+      queue({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })
+    }
+    const onOut = (e) => {
+      if (!e.relatedTarget && !gone) queue({ gone: true })
+    }
+    addEventListener('pointermove', onMove)
+    document.addEventListener('pointerout', onOut)
+    return () => {
+      removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerout', onOut)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [active])
+}
 
 function useKeys(active) {
   useEffect(() => {
@@ -60,6 +101,7 @@ export function LoginScene({ visible = true }) {
   const t = useTime()
   useEvents()
   useKeys(visible)
+  usePointerSamples(visible)
   // While hidden, the content stays mounted but frozen as a fresh login screen (t = 0: no
   // selection, nothing typed) on an invisible layer, so coming back (log off, boot) is a small
   // update, not a mount; the aurora keeps its canvas and GL context, paused. Its rendering is

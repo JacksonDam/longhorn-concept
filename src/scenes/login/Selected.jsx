@@ -12,6 +12,8 @@ import { USERS } from './state.js'
 import { slabPose, LAUNCH, RETURN_FRAMES } from './select.js'
 import { slabExit } from './exit.js'
 import { blur } from './blur.js'
+import { all, last } from '../../core/events.js'
+import { tiltAt } from '../../core/tilt.js'
 
 // warm the textures so the first click renders at once (and capture waits for them)
 for (const u of USERS) loadTexture(pic(u.id))
@@ -48,6 +50,27 @@ export const slabMaterial = (id) => ({
   ...OVERRIDE,
 })
 
+// After it has landed (k LANDED), the selected slab turns toward the pointer (core/tilt.js),
+// and the video's idle sway fades out over SWAY_OUT from the first pointer sample: the
+// 'login.pointer' samples since the landing, the last one before re-timed to the landing so a
+// mouse that is already still counts. None under ?demo / ?capture: the video's sway, untouched.
+const LANDED = 30
+const SWAY_OUT = 0.3 // s
+function pointerTilt(rec, tt) {
+  const land = rec.t0 + LANDED / FPS
+  if (tt <= land) return null
+  const isPtr = (e) => e.type === 'login.pointer'
+  const before = last(land, isPtr)
+  const samples = all(tt, (e) => isPtr(e) && e.t > land)
+  if (!before && !samples.length) return null
+  if (before) samples.unshift({ ...before, t: land })
+  // the slab's resting centre and size (its idle drift is a few px: the rest pose is enough)
+  const rest = slabPose(LANDED + 20, rec.index, tt, rec.xAt ? rec.xAt(tt) : rec.from)
+  const { yaw, pitch } = tiltAt(tt, samples, { x: rest.x, y: rest.y, hw: rest.size / 2, hh: rest.size / 2 })
+  const u = clamp((tt - samples[0].t) / SWAY_OUT)
+  return { yaw, pitch, sway: 1 - u * u * (3 - 2 * u) }
+}
+
 // pose(tt) for one slab record { id, index, t0 (select time), back (deselect time | null) }
 function poseFor(rec, submitT) {
   return (tt) => {
@@ -59,7 +82,8 @@ function poseFor(rec, submitT) {
       k = Math.max(LAUNCH - 0.5, Math.min(kb, LAUNCH + RETURN_FRAMES) - r)
       if (r > RETURN_FRAMES + 2) return { visible: false }
     }
-    const p = slabPose(k, rec.index, tt, rec.xAt ? rec.xAt(tt) : rec.from)
+    const tilt = rec.back == null ? pointerTilt(rec, tt) : null
+    const p = slabPose(k, rec.index, tt, rec.xAt ? rec.xAt(tt) : rec.from, tilt)
     const s = p.size / BASE
     let pose = { x: p.x, y: p.y, z: 0, ry: p.ry, rx: p.rx, rz: p.rz ?? 0, s, faceBand: p.faceBand, brightness: p.brightness, opacity: rec.back != null ? 1 : clamp((k - 1.5) / 1) }
     if (submitT != null && rec.back == null) pose = slabExit(tt - submitT, pose)
