@@ -68,15 +68,11 @@ function foldInto(st, log, from, to) {
         break
       case 'session.logoff':
       case 'session.switch':
+      case 'session.shutdown':
         // the windows stay, frozen, under the login screen coming back (os/session.js
         // LOGOFF_REVERSE); stateAt drops them once it has
         st.session = null
         st.ended = t
-        break
-      case 'session.shutdown':
-        wins.clear()
-        st.session = null
-        st.ended = null
         break
       case 'win.open': {
         const w = wins.get(e.id)

@@ -4,7 +4,7 @@
 import { memo, useEffect } from 'react'
 import { useTime, useEvents } from '../../core/time.jsx'
 import { emit } from '../../core/events.js'
-import { CAPTURE, now } from '../../core/clock.js'
+import { CAPTURE, FPS, now } from '../../core/clock.js'
 import { Aurora } from './Aurora.jsx'
 import { Logo } from './Logo.jsx'
 import { BarBand, ShutDown, Clock, clockText } from './Bar.jsx'
@@ -15,7 +15,9 @@ import { rowState } from './select.js'
 import { currentSelection, submitEvent, passwordLength } from './state.js'
 import { LOGIN_EXIT, layerOpacity, chromeExit } from './exit.js'
 import { POINT } from '../../core/point.js'
-import { logoffReverse } from '../../os/session.js'
+import { logoffReverse, screen } from '../../os/session.js'
+import { asset } from '../../core/preload.js'
+import { clamp } from '../../core/anim.js'
 import { toStage } from '../../core/Stage.jsx'
 
 export { LOGIN_EXIT }
@@ -115,6 +117,42 @@ export function LoginScene({ visible = true }) {
   )
 }
 
+// Longhorn 4015's shutting-down screen (guidebookgallery.org, assets-src/longhorn-shutdown),
+// measured at 800x600 and scaled to the stage (x 1.2): the flag 40x34 centred at (400, 270), the
+// text's cap height 12 px centred on x 400 at y 303-315, white with a soft dark shadow; the face
+// is Tahoma's (single-storey g), Verdana where there is no Tahoma
+const FLAG = asset('img/desktop/flag.svg')
+const ShuttingDown = memo(function ShuttingDown({ o }) {
+  return (
+    <div style={{ ...POINT, opacity: o, pointerEvents: 'none' }}>
+      <img
+        src={FLAG}
+        alt=""
+        draggable={false}
+        style={{ position: 'absolute', left: 480 - 24, top: 324 - 21, width: 48, height: 41, filter: 'brightness(0) invert(1) drop-shadow(0 0 2px rgba(220, 235, 255, 0.6))', opacity: 0.86 }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: 280,
+          width: 400,
+          top: 360,
+          textAlign: 'center',
+          fontFamily: 'Tahoma, Verdana, sans-serif',
+          fontWeight: 700,
+          fontSize: 18.2,
+          lineHeight: '24px',
+          color: '#fff',
+          whiteSpace: 'nowrap',
+          textShadow: '1px 1px 2px rgba(0, 20, 80, 0.75)',
+        }}
+      >
+        Windows is shutting down...
+      </div>
+    </div>
+  )
+})
+
 const LoginContent = memo(function LoginContent({ t, visible }) {
   const submit = submitEvent(t)
   // the exit clock: seconds since the submit; after a log off it unwinds instead (the login
@@ -123,6 +161,14 @@ const LoginContent = memo(function LoginContent({ t, visible }) {
   const k = exitK(t)
   const row = rowState(t)
   const submitT = submit ? submit.t : null
+  // shutting down: the logon screen's shutting-down state (Longhorn 4015's, assets-src/
+  // longhorn-shutdown): the background with a white Windows flag over "Windows is shutting
+  // down...", nothing else. From the login screen its parts fade out as the message fades in;
+  // from the desktop the whole layer comes back in that state (logoffReverse).
+  const cur = screen(t)
+  const sd = cur.name === 'shutdown' ? (t - cur.t0) * FPS : null
+  const ui = sd == null ? 1 : cur.from === 'desktop' ? 0 : 1 - clamp(sd / 8)
+  const msg = sd == null ? 0 : cur.from === 'desktop' ? 1 : clamp((sd - 3) / 8)
   return (
     <div
       style={{ position: 'absolute', inset: 0, overflow: 'hidden', opacity: k == null ? 1 : layerOpacity(k) }}
@@ -138,18 +184,22 @@ const LoginContent = memo(function LoginContent({ t, visible }) {
       ) : (
         <Aurora paused={!visible} />
       )}
-      {!REFBG && !NOBAR && <BarBand />}
-      <Logo t={t} exitK={exitK} />
-      {/* (a point, not a full-stage box: core/point.js) */}
-      <div style={{ ...POINT, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
-        <div style={{ pointerEvents: 'auto' }}>
-          <ShutDown onClick={shutDown} />
+      {/* (static, so it adds no layer: an opacity group only while shutting down) */}
+      <div style={{ opacity: ui, visibility: ui > 0 ? undefined : 'hidden' }}>
+        {!REFBG && !NOBAR && <BarBand />}
+        <Logo t={t} exitK={exitK} />
+        {/* (a point, not a full-stage box: core/point.js) */}
+        <div style={{ ...POINT, pointerEvents: 'none', opacity: k == null ? 1 : chromeExit(k).opacity }}>
+          <div style={{ pointerEvents: 'auto' }}>
+            <ShutDown onClick={shutDown} />
+          </div>
+          <Clock text={clockText(DEMO)} />
         </div>
-        <Clock text={clockText(DEMO)} />
+        <TileRow t={t} row={row} exitK={exitK} />
+        <Panel t={t} row={row} submitT={submitT} />
+        <Selected t={t} records={row.records} submitT={submitT} />
       </div>
-      <TileRow t={t} row={row} exitK={exitK} />
-      <Panel t={t} row={row} submitT={submitT} />
-      <Selected t={t} records={row.records} submitT={submitT} />
+      {msg > 0 && <ShuttingDown o={msg} />}
     </div>
   )
 })
