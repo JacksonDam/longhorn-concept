@@ -23,7 +23,7 @@ const DEV = { cx: 101, cy: 93, w: 136, h: 136, d: 26 }
 
 // sc: growth (the swoosh sweeps out from beside the device as it appears)
 export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
-  const LAYER = useLayer()
+  const LAYER = useLayer(sc !== 1)
   // svg coords = window-local - (0, 123)
   return (
     <svg
@@ -82,7 +82,7 @@ export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
 // left to right, then the whole title drifts back into place.
 const TITLE = { x: 361, wy: 161, y: 189 }
 export function Title({ rel, op = 1 }) {
-  const LAYER = useLayer()
+  const LAYER = useLayer(rel < HEADER.drift[1])
   const H = HEADER
   const wk = ramp(rel, H.windows[0], H.windows[1])
   const wOp = smoothRamp(rel, H.windows[0], H.windows[1] - 1)
@@ -152,7 +152,7 @@ const BTN = [
 // each button pops in: fades up while shrinking from a slightly larger size
 // actions: { play, burn, share } click handlers (live window only)
 export function Buttons({ rel, op = 1, actions }) {
-  const LAYER = useLayer()
+  const LAYER = useLayer(rel < HEADER.buttons[HEADER.buttons.length - 1] + HEADER.buttonDur)
   return BTN.map((b, i) => {
     const s0 = HEADER.buttons[i]
     const k = ramp(rel, s0, s0 + HEADER.buttonDur)
@@ -364,7 +364,7 @@ function TrackList({ album, hrel, sel, hover, playing, out = 1 }) {
       style = { transform: `translateX(${dx}px)`, opacity: o / LIST_N }
     }
     layers.push(
-      <div key={k} style={{ position: 'absolute', left: 0, top: 0, mixBlendMode: settled ? undefined : 'plus-lighter', willChange: 'transform, opacity', ...style }}>
+      <div key={k} style={{ position: 'absolute', left: 0, top: 0, mixBlendMode: settled ? undefined : 'plus-lighter', willChange: k === 0 && settled && live === 'rest' ? 'opacity' : 'transform, opacity', ...style }}>
         {k === 0 && settled ? (
           <TrackListBody album={album} sel={sel} hover={hover} playing={playing} />
         ) : (

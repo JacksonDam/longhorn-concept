@@ -587,6 +587,18 @@ const upTo = (a, t) => {
   }
   return lo
 }
+// dragged or resized in the last MOVE_HOLD s (its 'win.move' / 'win.resize' events come one a
+// frame while the pointer drags): its layers keep the transform hint meanwhile, as a layer without
+// it is re-rasterised whenever its screen position's fraction of a device pixel changes
+const MOVE_HOLD = 0.25
+function dragging(win, t) {
+  for (const type of ['win.move', 'win.resize']) {
+    const a = eventsOf(type, win.id)
+    const i = upTo(a, t) - 1
+    if (i >= 0 && t - a[i].t < MOVE_HOLD) return true
+  }
+  return false
+}
 // The prepare signals of a window: its 'win.prepare' events and its taskbar button's hovers.
 // -> the start of the run of signals that keeps it prepared at t (each holds PREP_HOLD s, a hover
 // as long as the pointer stays), or null
@@ -756,6 +768,10 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const layers = []
   let key1 = null
+  // no pose animation or drag: the live layer and its content's layers drop their transform hint
+  // (os/text.jsx LiveLayers), so Chrome re-rasterises them at the scale they show at once the
+  // motion settles
+  const still = !m.pose && !dragging(win, t)
   for (let k = 0; k < mounted; k++) {
     let style
     let tt = t
@@ -809,14 +825,14 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         key={k}
         style={{
           position: 'absolute', left: rr.x - r.x, top: rr.y - r.y, width: rr.w, height: rr.h,
-          ...style, mixBlendMode: 'plus-lighter', willChange: 'transform, opacity',
+          ...style, mixBlendMode: 'plus-lighter', willChange: k === 0 && still ? 'opacity' : 'transform, opacity',
           contentVisibility: k >= laid ? 'hidden' : undefined,
           visibility: waiting ? 'hidden' : undefined,
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
-        <LiveLayers.Provider value={k === 0}>
+        <LiveLayers.Provider value={k === 0 && (still ? 'rest' : true)}>
           {body}
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={!visible} hidden={false} />}

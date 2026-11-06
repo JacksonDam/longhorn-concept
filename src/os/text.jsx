@@ -52,7 +52,15 @@ export function Texts({ items, style }) {
 import { createContext, useContext } from 'react'
 // Elements that change every frame get their own compositor layer, but only in a window's live
 // copy: motion-blur copies show static snapshots, where extra layers would only cost memory.
+// The live copy's value is 'rest' while the window is still (no open, minimise, restore or close
+// pose, no drag): its layers then hint only opacity, unless they move on their own (`moving`). Chrome keeps
+// a will-change: transform layer at the raster scale it was first drawn at, so after a window's
+// zoom-in its layers stayed at a fraction of their shown resolution (soft text); with the transform
+// hint dropped once the motion settles it re-rasterises them once, at the scale they show at.
 export const LiveLayers = createContext(true)
-export const useLayer = () => (useContext(LiveLayers) ? 'transform, opacity' : undefined)
+export const useLayer = (moving = false) => {
+  const v = useContext(LiveLayers)
+  return !v ? undefined : v === 'rest' && !moving ? 'opacity' : 'transform, opacity'
+}
 
 export const abs = (x, y, w, h, extra) => ({ position: 'absolute', left: x, top: y, width: w, height: h, ...extra })
