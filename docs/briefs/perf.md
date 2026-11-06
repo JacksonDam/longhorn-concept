@@ -44,6 +44,11 @@ draws exactly what `?capture` draws for the same time.
 - Slabs (gl/slab.js): render once per frame per distinct slab and share the result between DOM
   copies; crop canvases to the slab's bounds; keep accumulation samples only where the video
   shows blur.
+- Full resolution has a cost (the stage's zoom, ARCHITECTURE.md Stage): layers are backed at the
+  shown size (WebKit desktop: ~1.8x the memory at scale 1.5), and Chrome merges fewer paint chunks
+  into a layer, so a window's motion-blur copies split into more layers (mid-minimise at scale 1.5:
+  189 composited layers against 113 under the old transform; `[Overlap]` 59 vs 28, no reason 50 vs
+  5). Fewer layers inside a copy (no canvas or will-change under text in Content) is the lever.
 - Filters (`filter: blur()`, SVG filters, backdrop-filter) on large or moving elements are
   expensive: prefer pre-blurred images or WebGL.
 - You may change the tech (WebGL / three.js / WebGPU / OffscreenCanvas / canvas 2D) for any part
