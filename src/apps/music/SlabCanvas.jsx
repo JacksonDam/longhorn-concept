@@ -53,7 +53,8 @@ export function SlabCanvas({ t, width, height, items, samples = 1, shutter = 0, 
   const scene = useMemo(() => acquireSlabScene(), [])
   useEffect(() => () => releaseSlabScene(scene), [scene])
   const { s } = useStageScale()
-  const scale = Math.min(3, s * (window.devicePixelRatio || 1))
+  // (device px per stage px, the page zoom included: see gl/Slab3D)
+  const scale = Math.min(3, s * (window.devicePixelRatio || 1) * (window.visualViewport?.scale || 1))
   useLayoutEffect(() => {
     const c = ref.current
     if (!c || skip) return
