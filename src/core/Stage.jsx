@@ -9,19 +9,23 @@
 // played at the screen's shape, for checks on phones and the simulator: ?demo&scenario=shell&fit;
 // the video's own cursor, drawn for the frame, is hidden then).
 //
-// How the scale is applied: CSS zoom where the engine has standard zoom (Chrome 128+, Safari's
-// WebKit, Firefox 126+), so the page is laid out at its shown size and every layer, glyph, border
-// and image is rasterised at the screen's density. Under a scale transform WebKit backs each
-// composited layer at its untransformed size x devicePixelRatio and stretches it (the live site
-// was blurry in Safari at any scale above 1), and Chrome can keep a will-change: transform layer
-// at a stale raster scale (my Music's window was soft once its album page had opened). Zoom's
-// semantics (checked in Chrome, Playwright WebKit and the system WebKit): every length inside is
-// multiplied (transforms' px, filters, shadows, borders, which snap to whole device px),
-// getBoundingClientRect and event clientX/Y are in viewport px (so toStage maps both), while
-// offsetWidth, scrollTop, ResizeObserver and getComputedStyle stay in stage px. An engine with the old zoom (rects divided by the zoom),
-// or none, keeps the transform. Phones keep it too: index.html lays their page out at the
-// stage's size with a page zoom, so the stage's own scale is 1 there and nothing changes.
-// ?stage=transform|zoom overrides the choice (comparisons).
+// How the scale is applied. Safari's WebKit backs each composited layer at its size before any
+// CSS transform x devicePixelRatio and stretches it, so under a scale transform the live site was
+// blurry in Safari at any scale above 1. There the stage is scaled with CSS zoom instead: the page
+// is laid out at its shown size and every layer, glyph, border and image is rasterised at the
+// screen's density. Zoom's semantics (checked in Chrome, Playwright WebKit and the system WebKit):
+// every length inside is multiplied (transforms' px, filters, shadows; borders snap down to whole
+// device px), getBoundingClientRect and event clientX / Y are in viewport px (so toStage maps
+// both), offsetWidth, scrollTop, ResizeObserver and getComputedStyle stay in stage px. A layer
+// placed by a fractional translate is composited resampled (soft): put resting ones on a device
+// pixel with seam(). Chrome keeps the transform: it rasterises transformed layers at the screen's
+// density already (the same pixels at rest), while under zoom it merged fewer paint chunks, so a
+// window's motion-blur copies made ~1.7x the layers and its minimise / restore cost ~1.5x the
+// frames over budget and 1.5 GB more GPU memory (docs/briefs/perf.md). (One soft case under the
+// transform: my Music's window after its album page opened, a will-change layer left at a stale
+// raster scale.) Firefox, an engine with the old zoom (rects divided by the zoom) and phones keep
+// the transform too: index.html lays a phone's page out at the stage's size with a page zoom, so
+// the stage's own scale is 1 there. ?stage=transform|zoom forces either (comparisons).
 import { useEffect, useState, createContext, useContext } from 'react'
 import { CAPTURE, BENCH } from './clock.js'
 
@@ -55,7 +59,9 @@ function standardZoom() {
 const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 const force = q.get('stage')
 // 'zoom' | 'transform'
-export const STAGE_MODE = force === 'transform' || force === 'zoom' ? force : (!CAPTURE || SCALED) && !coarse && standardZoom() ? 'zoom' : 'transform'
+// Safari's engine (every iOS browser too, but phones are coarse)
+const WEBKIT = /AppleWebKit\//.test(navigator.userAgent) && !/Chrome\/|Chromium\//.test(navigator.userAgent)
+export const STAGE_MODE = force === 'transform' || force === 'zoom' ? force : (!CAPTURE || SCALED) && !coarse && WEBKIT && standardZoom() ? 'zoom' : 'transform'
 const ZOOM = STAGE_MODE === 'zoom'
 
 const FRAME = { s: 1, x: 0, y: 0, w: W, h: H, dw: 0, dh: 0 }
