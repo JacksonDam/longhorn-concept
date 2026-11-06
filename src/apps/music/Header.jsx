@@ -191,13 +191,14 @@ export function Buttons({ rel, op = 1, actions }) {
 export const Preview = memo(function Preview({ onClick }) {
   return (
     <>
-      {onClick && <div data-hit="music.preview" style={abs(706, 128, 58, 16)} onClick={onClick} />}
       <Txt x={710} y={140} size={11} w={400} c="#8aa6d2">
         preview
       </Txt>
       <div style={abs(750, 131, 11, 11)}>
         <I.PreviewCircle />
       </div>
+      {/* (over the arrow too) */}
+      {onClick && <div data-hit="music.preview" style={abs(706, 128, 58, 16)} onClick={onClick} />}
     </>
   )
 })

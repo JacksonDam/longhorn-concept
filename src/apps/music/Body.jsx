@@ -63,9 +63,10 @@ export const EnjoyGroup = memo(function EnjoyGroup({ op = 1, A, collapsed = fals
           <Txt x={35} y={208.5} size={11} parts={item('Create ', 'Playlist')} />
           <Txt x={35} y={228.5} size={11} parts={item('Copy ', 'to CD', true)} />
           <Txt x={35} y={247.5} size={11} parts={item('Burn ', 'CD', true)} />
-          <Link y={169.5} id="music.playall" onClick={A?.playAll} />
-          <Link y={189} id="music.playsel" onClick={A?.playSelected} />
-          <Link y={208.5} id="music.playlist" onClick={A?.createPlaylist} />
+          {/* (the three rows with icons take clicks on their icons too) */}
+          <Link x={10} w={170} y={169.5} id="music.playall" onClick={A?.playAll} />
+          <Link x={10} w={170} y={189} id="music.playsel" onClick={A?.playSelected} />
+          <Link x={10} w={170} y={208.5} id="music.playlist" onClick={A?.createPlaylist} />
           <Link y={228.5} id="music.copycd" onClick={A?.burn} />
           <Link y={247.5} id="music.burncd" onClick={A?.burn} />
         </>
