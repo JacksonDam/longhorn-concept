@@ -13,6 +13,13 @@ Vite + React app deployed to GitHub Pages (base `/longhorn-concept/`).
 ## Stage
 - Everything is authored in **video pixels**: a 960x720 stage (`core/Stage.jsx`), scaled to fit the
   window. Measure positions straight off the reference frames; no unit conversion.
+- Phones and tablets (coarse pointer): index.html lays the page out at the stage's own width
+  (960, or wider for a wide screen) and sets the viewport tag's zoom to fit the visible area, so
+  the browser's page zoom shrinks it and the stage's own scale stays 1. WebKit backs every
+  composited layer at its size before any CSS transform times the device pixel ratio: under the
+  stage's 0.4 downscale each layer cost ~6x the pixels it shows, and a phone ran out of memory.
+  `devicePixelRatio` is patched to the pixels per CSS px that the zoom gives, so canvas code
+  stays sharp and no larger. Desktop browsers ignore the viewport tag.
 - Fonts: Franklin Gothic (user's personal licence, see assets-src/fonts) is the Plex UI face.
 
 ## Time, events, determinism
@@ -155,7 +162,10 @@ element the boot fade uses) at opacity 0.999 while the OS:
 
 A browser's first boot of a build rehearses everything (~2 s on the M4, more on a slower or
 brand-new machine); later boots (localStorage `longhorn.boot` = bundle URL + user agent) rehearse
-the video's path only. A 10 s deadline ends the boot whatever is left; that part then happens on
+the video's path only. WebKit (Safari, every browser on iOS) rehearses nothing: it measured no
+fewer long frames after a rehearsal, which cost a phone seconds of boot and memory (see
+docs/briefs/perf.md, Memory). Apps are rehearsed three at a time, so the warm-up never has more
+windows up than a session. A 10 s deadline ends the boot whatever is left; that part then happens on
 first use. `?rehearse=all|video|none` overrides the level, `?boottrace` records each rehearsed
 state, `__lh.bootStats` has the timings, `__lh.booted` says whether the clock runs.
 Rules: one-off work (a new asset kind, a new scripted interaction, a new app) belongs in the boot:
@@ -178,6 +188,7 @@ Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ..
 the real-time app (vsync off) and prints each run's frame-cost percentiles.
 `tools/profile.mjs` gives per-frame JS / style+paint split and the top functions.
 Cold start ("the first run on a new machine"): `tools/coldstart.mjs`, see docs/briefs/perf.md.
+Memory (phones): `node tools/memory.mjs --engine chrome|webkit|ios`, see docs/briefs/perf.md.
 
 ## Usability audit
 `node tools/audit.mjs --url <base> --scenarios desktop,start,flyout,music,album,app:<id>,...`

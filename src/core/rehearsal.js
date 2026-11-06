@@ -56,14 +56,17 @@ const ONCE = new Set(['hover', 'login.hover', 'login.pw', 'media.next', 'media.p
 // entrance after the submit, the album flip (it starts 22 frames after the click), the end
 const VIDEO_FRAMES = [1, 186, 194, 516, 523, 533, 545, 562, 580, 970, 978, 986, 995, 1529]
 
-const BATCH = 12 // apps shown together (each window keeps a few composited layers while it shows)
+// apps shown together: a few, so the warm-up never has more windows up than a session would
+// (every window's layers are backed while it shows)
+const BATCH = 3
 
 // The window warm-up, kept apart so other window warm-ups (e.g. pre-building each app's
 // motion-blur copy trees) can join it: every registered app, a batch at a time, opened and drawn
-// settled (the open and close motions themselves are the shell part's window's), then closed.
-// That is the first run of each app's code and its first style, layout and raster (the windows
-// running since login are among them: Outlook, Word). Appends to the log `ev` and the frames to
-// draw from video frame `f` on; returns the first frame after it.
+// settled (the open and close motions themselves are the shell part's window's), then closed,
+// each batch's windows gone before the next opens. That is the first run of each app's code and
+// its first style, layout and raster (the windows running since login are among them: Outlook,
+// Word). Appends to the log `ev` and the frames to draw from video frame `f` on; returns the
+// first frame after it.
 export function rehearseWindows(f, ev, frames) {
   const apps = listApps().filter((a) => a.id !== 'music')
   for (let i = 0; i < apps.length; i += BATCH) {

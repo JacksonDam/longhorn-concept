@@ -100,3 +100,36 @@ pays all of that under the black screen before the clock starts; keep it that wa
   At 4x CPU most of the stall is steady state (my Music and the app windows miss 144 Hz on
   every motion), which the boot doesn't change. `__lh.bootStats` (printed by coldstart.mjs)
   splits the boot into fonts, images and the rehearsal's parts.
+
+## Memory (phones)
+A phone's browser kills a page whose memory passes the OS's limit (iOS counts the WebContent
+process, with what the GPU process allocates for it), and Safari then reloads it: the live site
+did that on iPhones at boot, with my Music open and with many windows open. Budget: under
+500 MB peak for the heaviest scenario at iPhone size (390x844, DPR 3).
+- `node tools/memory.mjs --engine chrome|webkit|ios --url <prod build> [--device
+  iphone|land|ipad|desktop] [--quick] [--query rehearse=all] [--json out.json] [--shots dir]`
+  plays `?demo&scenario=windows` (src/demo/windows.js: boot, log in, my Music, an album,
+  minimise / restore, every launcher app opened and left open, three minutes of use) and prints
+  the peak footprint (phys_footprint, what iOS's limit counts) per phase and per process kind,
+  the long frames per phase, the boot's timings, the page's layout and page errors. chrome:
+  headless Chrome emulating the device; webkit: Playwright WebKit (`npx playwright install
+  webkit` once); ios: Mobile Safari on an iOS Simulator (Xcode with an iOS runtime). `--quick`
+  stops after the apps have opened (~50 s). The page reports to the harness through `?report=`
+  (core/report.js). Runs on the same engine queue behind a lock file.
+- The simulator allocates the page's IOSurfaces and Metal memory in host processes
+  (SimRenderServer, SimMetalHost), not in its WebContent or GPU process: the harness counts their
+  growth since before the page opened as `render`. Without it a simulator run shows a quarter of
+  the real footprint.
+- What WebKit backs (vmmap of its GPU process): every composited layer at its size before any
+  CSS transform, times the device pixel ratio (an ancestor's downscale doesn't shrink it: the
+  reason for the viewport fit, ARCHITECTURE.md, Stage); a layer at opacity 0 or 1e-4 still has
+  its backing store; backing stores are double-buffered; a canvas is its own surface at its pixel
+  size. So on a phone every mounted layer costs memory whether it shows or not.
+- No rehearsal on WebKit (ARCHITECTURE.md, Boot): its long frames per phase were the same with
+  a full, a video or no rehearsal (Playwright WebKit and the simulator), and a full one ran to
+  the 10 s deadline on the simulator. Chrome keeps it (its GPU pipeline compiles are what the
+  rehearsal moves), three apps at a time.
+- Decoded images aren't kept by a preload (nothing holds them; the login's memory measured the
+  same with and without the public/img preload in both engines). What was kept: the 150 photo
+  stand-ins, each rasterised through its own SVG image and canvas, all at once (~85 MB in
+  WebKit); they now go four at a time and free both when done.

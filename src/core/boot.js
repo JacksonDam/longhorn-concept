@@ -6,7 +6,9 @@
 //  1. assets: every font face (the CSS @font-face rules load only when text first uses them),
 //     every file under public/img fetched and decoded (virtual:boot-assets, vite.config.js), the
 //     scenes' other registered assets (preload.js: aurora keys, the halo) and the slab textures.
-//     The login screen is mounted and drawn under the black meanwhile.
+//     The login screen is mounted and drawn under the black meanwhile. (A decode isn't kept:
+//     nothing holds the decoded image, and neither engine keeps pixels nothing shows; the login
+//     screen's memory measured the same with and without this preload, in WebKit and Chrome.)
 //  2. rehearsal (core/rehearsal.js): a scripted session (the video's input, the desktop shell,
 //     every app, the session screens) drawn state by state under the black. That is where a new
 //     machine pays its first-time costs: the GPU compiles a pipeline for each new kind of draw,
@@ -20,9 +22,14 @@
 // How much is rehearsed: everything on a browser's first boot of this build (and after a browser
 // update); later boots, whose GPU pipelines are cached on disk (the profile's and the system's
 // shader caches), rehearse the video's path only (per-session costs: first runs of code, first
-// layouts and rasters). ?rehearse=all|video|none overrides it. A deadline keeps a very slow or
-// brand-new machine (empty system shader cache: a full rehearsal there takes ~14 s on an M4)
-// or a broken asset from holding the boot: what isn't done by then happens on first use.
+// layouts and rasters). WebKit (Safari, and every browser on iOS) rehearses nothing: measured
+// with tools/memory.mjs (Playwright WebKit, Mobile Safari on the iOS Simulator), its long frames
+// per phase were the same after a full, a video or no rehearsal, while a full one held the
+// simulator's boot to the deadline (10 s) and raised its memory; WebKit has none of Chrome's
+// per-site GPU pipeline compiles to move. ?rehearse=all|video|none overrides it. A deadline
+// keeps a very slow or brand-new machine (empty system shader cache: a full rehearsal there
+// takes ~14 s on an M4) or a broken asset from holding the boot: what isn't done by then happens
+// on first use.
 // ?boottrace records each rehearsed state (bootStats.trace).
 import ASSETS from 'virtual:boot-assets'
 import { asset, preload, preloaded } from './preload.js'
@@ -44,9 +51,12 @@ export const bootStats = { level: null, assets: 0, rehearsal: 0, frames: 0, tota
 // the first boot of this build in this browser rehearses everything (storage off: every boot)
 const KEY = 'longhorn.boot'
 const BUILD = import.meta.url + ' ' + navigator.userAgent
+// (Chrome on iOS is WebKit and says CriOS; Chromium elsewhere says Chrome/)
+const WEBKIT = /AppleWebKit\//.test(navigator.userAgent) && !/Chrome\/|Chromium\//.test(navigator.userAgent)
 function level() {
   const p = params.get('rehearse')
   if (p === 'all' || p === 'video' || p === 'none') return p
+  if (WEBKIT) return 'none'
   try {
     return localStorage.getItem(KEY) === BUILD ? 'video' : 'all'
   } catch {

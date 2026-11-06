@@ -110,25 +110,41 @@ export function photoUrl(scene, seed) {
   }
   return bitmaps.get(u) || u
 }
+// A few photos at a time: each holds its SVG image and a canvas until its blob is made (all 150
+// at once kept ~85 MB in WebKit at iPhone size), and lets go of both as soon as it is done.
+const queue = []
+let running = 0
 function rasterize(svg) {
   if (typeof document === 'undefined') return
-  const job = (async () => {
-    const img = new Image()
-    img.src = svg
-    await img.decode()
-    const c = document.createElement('canvas')
-    c.width = 320
-    c.height = 240
-    // a CPU canvas: toBlob then encodes without a GPU readback (a blocking round trip per photo)
-    c.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, 320, 240)
-    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92))
-    const url = URL.createObjectURL(blob)
-    const im2 = new Image()
-    im2.src = url
-    await im2.decode()
-    bitmaps.set(svg, url)
-  })()
-  waitFor(job)
+  waitFor(new Promise((done) => (queue.push([svg, done]), pump())))
+}
+function pump() {
+  while (running < 4 && queue.length) {
+    const [svg, done] = queue.shift()
+    running++
+    draw(svg)
+      .catch(() => {})
+      .then(() => (running--, done(), pump()))
+  }
+}
+async function draw(svg) {
+  const img = new Image()
+  img.src = svg
+  await img.decode()
+  const c = document.createElement('canvas')
+  c.width = 320
+  c.height = 240
+  // a CPU canvas: toBlob then encodes without a GPU readback (a blocking round trip per photo)
+  c.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, 320, 240)
+  img.src = ''
+  const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92))
+  // its pixels go now rather than at a garbage collection
+  c.width = c.height = 0
+  const url = URL.createObjectURL(blob)
+  const im2 = new Image()
+  im2.src = url
+  await im2.decode()
+  bitmaps.set(svg, url)
 }
 
 // ---- the library ------------------------------------------------------------------------------
