@@ -33,7 +33,9 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
 - **Rim.** The rim's light top edge turns into its dark sides gradually along the corner arcs
   (one stroke with a vertical gradient, PlexWindow `Rim`), not in a CSS border's hard diagonal
   join (the user's ask; the video's corners agree: corner RMSE 7.64 -> 7.29 left, 8.52 -> 8.30
-  right, frames 760-1340 every 10th).
+  right, frames 760-1340 every 10th). Below the top chrome the sides carry on down the body,
+  fainter and on the body's edge, and fade out round the bottom corners, as the video's window
+  shows (without them a dialog's frame looked cut off under its title bar).
 - **Title.** Title text (the plain title and an app's TitleContent) is vertically centred on the
   minimise / maximise / close glyphs by its cap height: baseline = os/frame.js
   `titleBaseline(size, capHeight)` (glyphs centred at y 11.75).
