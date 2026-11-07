@@ -225,7 +225,8 @@ scenes, never an opacity group around them (see Glass).
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
 http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
-`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=every&` (every app
+`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=tilt&` (the header slabs' pointer tilt,
+frames 1530-1850), `?apps=every&` (every app
 opened, minimised, restored, closed; `node tools/appbench.mjs --dpr 1.5` prints the per-app,
 per-phase costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
 Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ...] [--prefill
