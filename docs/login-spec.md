@@ -55,9 +55,10 @@ demo input: src/demo/login.js.
 - Shut Down orb: centre (65.2, 641.8), r 14.7: light rim, blue body lighter at the bottom,
   white top highlight, vertical power line y 637-646. Label "Shut Down" centred, y ~677,
   Franklin 600 12.5 px, rgb(214,232,255) with a soft dark drop shadow.
-- Clock pill: x 826-924, y 632-658; body #2b6fea -> #4c8bf2, lighter slanted band at the left
-  end, lighter rounded cap x 909-921; text "7:09 PM" (demo) / real time (interactive),
-  14.5 px rgb(90,156,255).
+- Clock pill: x 826-924, y 632-658; body #2b6fea -> #4c8bf2, lighter rounded cap x 909-921;
+  text "7:09 PM" (demo) / real time (interactive), 14.5 px rgb(90,156,255). The video's lighter
+  slanted band at the pill's left end is left out (the user's request), and the text is centred
+  in the body left of the cap (x 826-909), so longer times ("12:07 AM") keep clear of the cap.
 
 ## Tiles (Tile.jsx, TileRow.jsx)
 - 55.2 px squares, top 607.2, radius ~4.5; centres 363.2 + 100 i (5 tiles). After a selection
