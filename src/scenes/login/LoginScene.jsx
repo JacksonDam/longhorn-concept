@@ -102,6 +102,22 @@ const shutDown = () => {
   if (!CAPTURE && !submitEvent(now())) emit('session.shutdown')
 }
 
+// The aurora's GL context while the desktop shows: made while the Start menu is open (log off and
+// shut down are there), so the login screen comes back without a context to create or a program
+// to compile; but only once the menu has risen (making it, its program compiled and a frame drawn
+// at the screen's size, cost the open's first frame 15-40 ms, the first time in Safari more: the
+// menu showed already risen), and released only once the menu has gone (the release cost the
+// close's first frame). The pointer takes longer than that to reach log off.
+const GL_AFTER_OPEN = 8 // video frames (the menu rises in 4)
+const GL_AFTER_CLOSE = 4 // (it sinks in 3)
+function keepForStart(t) {
+  const st = popupState(t, 'start')
+  const df = (t - st.at) * FPS
+  if (st.open) return df >= GL_AFTER_OPEN
+  // (closed: kept on if it was made, until the menu has gone)
+  return st.data != null && df < GL_AFTER_CLOSE && (st.at - st.data.t) * FPS >= GL_AFTER_OPEN
+}
+
 // visible: the login screen is showing (or leaving); otherwise only the aurora's canvas stays
 // mounted, paused, so the next visit (log off, boot) starts without a GL context or shader compile.
 export function LoginScene({ visible = true }) {
@@ -116,7 +132,7 @@ export function LoginScene({ visible = true }) {
   // hidden subtree backed (a phone kept ~10 MB of login layers under the desktop).
   return (
     <div style={{ position: 'absolute', inset: 0, visibility: visible ? 'visible' : 'hidden', contentVisibility: visible ? 'visible' : 'hidden', pointerEvents: visible ? 'auto' : 'none' }}>
-      <LoginContent t={visible ? t : 0} visible={visible} glKeep={visible || popupState(t, 'start').open} />
+      <LoginContent t={visible ? t : 0} visible={visible} glKeep={visible || keepForStart(t)} />
     </div>
   )
 }
