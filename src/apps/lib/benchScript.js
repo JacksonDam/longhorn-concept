@@ -64,9 +64,10 @@ function script(name) {
   if (name === 'every') {
     // every registered app in turn (EVERY, below): opens, settles, minimises, restores,
     // maximises, restores down and closes, one app per EVERY_SLOT frames from 1540 (EVERY_AT:
-    // open f, minimise f + 40, restore f + 60, maximise f + 90, restore down f + 110, close
-    // f + 150); tools/appbench.mjs prints the cost of each phase per app. my Music (the video's
-    // window, open since its restore) is closed before the video's end, so its slot opens it anew.
+    // open f, minimise f + 40, restore f + 60, maximise f + 90, restore down f + 110, close f + 160,
+    // whose prepare, 32 frames before, lands after the restore down); tools/appbench.mjs prints
+    // the cost of each phase per app. my Music (the video's window, open since its restore) is
+    // closed before the video's end, so its slot opens it anew.
     at(1505, 'win.close', { id: 'music' })
     EVERY.forEach(([app, id, props], i) => {
       const f = 1540 + i * EVERY_SLOT
@@ -109,7 +110,7 @@ export function withPrepares(ev, at = 'f') {
 
 // ?apps=every: frames per app and each phase's event frame in its slot (tools/appbench.mjs reads them)
 export const EVERY_SLOT = 180
-export const EVERY_AT = { open: 0, minimise: 40, restore: 60, maximise: 90, unmaximise: 110, close: 150 }
+export const EVERY_AT = { open: 0, minimise: 40, restore: 60, maximise: 90, unmaximise: 110, close: 160 }
 // [app, window id, props] (the ids and props the shell's launchers use)
 export const EVERY = [
   ['music', 'music'], ['about', 'about'], ['acquire', 'acquire'], ['album', 'album'], ['applet', 'applet', { applet: 'network' }], ['autoplay', 'autoplay'],

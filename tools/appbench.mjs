@@ -5,9 +5,11 @@
 //
 // usage: node tools/appbench.mjs [--url http://127.0.0.1:5312/longhorn-concept/] [--dpr 1.5]
 //        [--size 1440x1080] [--repeat 2] [--json out.json] [--scaled] [--query stage=zoom]
-//        [--apps music,ie]
+//        [--apps music,ie] [--engine chrome|webkit]
 // --scaled: the frame fitted to the window (s = 1.5 at 1920x1080, the user's full screen) instead
-// of pinned at scale 1 (tools/bench.mjs); --apps: only these apps' slots are stepped
+// of pinned at scale 1 (tools/bench.mjs); --apps: only these apps' slots are stepped;
+// --engine webkit: Playwright WebKit through tools/wkbench.mjs (each frame's main-thread cost:
+// WebKit's rAF is timer-paced, so its intervals aren't the frames' costs)
 import { spawnSync } from 'node:child_process'
 import { readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,6 +27,7 @@ const size = opt('--size', '1440x1080')
 const repeat = opt('--repeat', '2')
 const query = opt('--query', null)
 const only = opt('--apps', null)?.split(',')
+const engine = opt('--engine', 'chrome')
 const out = opt('--json', join(mkdtempSync(join(tmpdir(), 'lhapp-')), 'every.json'))
 const here = dirname(fileURLToPath(import.meta.url))
 const src = readFileSync(join(here, '../src/apps/lib/benchScript.js'), 'utf8')
@@ -36,7 +39,7 @@ const PH = [['open', AT.open, AT.open + 36], ['minimise', AT.minimise, AT.minimi
   ['maximise', AT.maximise, AT.maximise + 14], ['unmaximise', AT.unmaximise, AT.unmaximise + 14], ['close', AT.close, AT.close + 18]]
 const slots = apps.map((app, i) => [app, 1540 + i * SLOT]).filter(([app]) => !only || only.includes(app))
 const spec = only ? slots.map(([, f]) => `${f - 10}-${f + SLOT - 1}`).join(',') : `1530-${1540 + apps.length * SLOT}`
-const r = spawnSync('node', [join(here, 'bench.mjs'), spec, '--url', base + '?apps=every&', '--dpr', dpr, '--size', size, '--repeat', repeat, '--json', out,
+const r = spawnSync('node', [join(here, engine === 'webkit' ? 'wkbench.mjs' : 'bench.mjs'), spec, '--url', base + '?apps=every&', '--dpr', dpr, '--size', size, '--repeat', repeat, '--json', out,
   ...(args.includes('--scaled') ? ['--scaled'] : []), ...(query ? ['--query', query] : [])], { encoding: 'utf8' })
 if (r.status !== 0 && !r.stdout.includes('frames over')) {
   console.error(r.stderr || r.stdout)
