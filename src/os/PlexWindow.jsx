@@ -104,8 +104,9 @@ function OpenLight({ rel, w, h, topH, rt = RADIUS_TOP, rb = RADIUS_BOTTOM }) {
 
 // ---------------------------------------------------------------- frame parts
 // window rim (f800): a 2 px light top edge, 2 px dark translucent sides along the top block
-// (the title bar and the glass and bands below it, as far as the explorer chrome reaches); its
-// outer corners concentric with the body's (r + 2: it starts 2 px above the body). Layer px: the
+// (the title bar and the glass and bands below it, as far as the explorer chrome reaches) and
+// fainter down the body's sides (see below); its outer corners concentric with the body's
+// (r + 2: it starts 2 px above the body). Layer px: the
 // rim covers x -1..1 and w..w + 2, y 1..3, so its centre line runs at x 0 / w + 1, y 2, radius
 // r + 1. One stroke whose colour turns from the light top to the dark sides along the corner
 // arcs (RIM_FADE of the way down them), where a CSS border's two colours would meet in a hard
@@ -114,18 +115,35 @@ function OpenLight({ rel, w, h, topH, rt = RADIUS_TOP, rb = RADIUS_BOTTOM }) {
 const RIM_LIGHT = 'rgba(185,215,255,0.65)'
 const RIM_SIDE = 'rgba(90,108,150,0.5)'
 const RIM_FADE = 1
-const Rim = memo(function Rim({ w, topH, r = RADIUS_TOP, op = 1 }) {
+// Below the top chrome the sides run on down the body, fainter (RIM_LOW of the side's alpha) and
+// centred on the body's edge (1 px in from the chrome's sides, tapering in over RIM_TAPER px),
+// into the bottom corners' arcs (on the body's outline, radius rb), fading out along them. The
+// video's window has that edge all the way down (f760-1340 every 20th, blur 1: right edge RMSE
+// 8.36 -> 7.27, left 6.33 -> 5.43, bottom corners 5.44 -> 5.29 and 8.89 -> 8.52); without it a
+// dialog's frame stopped at its title bar, above a body 2 px narrower than the rim.
+const RIM_LOW = 0.4
+const RIM_TAPER = 8 // px below the chrome over which the sides thin out and step in
+const Rim = memo(function Rim({ w, h, topH, r = RADIUS_TOP, rb = RADIUS_BOTTOM, op = 1 }) {
   if (op <= 0) return null
   const R = Math.max(0, r + 1)
   const x0 = 1, x1 = w + 2, y0 = 2, yb = 1 + topH // svg px (the svg sits at layer x -1)
-  const d = `M${x0} ${yb} V${y0 + R} A${R} ${R} 0 0 1 ${x0 + R} ${y0} H${x1 - R} A${R} ${R} 0 0 1 ${x1} ${y0 + R} V${yb}`
-  const gid = 'lh-rim-' + String(R).replace('.', '_')
+  const yl = Math.max(yb + RIM_TAPER, h - rb) // where the bottom arcs start
+  const d =
+    `M${x0 + rb} ${h} A${rb} ${rb} 0 0 1 ${x0} ${yl} V${y0 + R} A${R} ${R} 0 0 1 ${x0 + R} ${y0} ` +
+    `H${x1 - R} A${R} ${R} 0 0 1 ${x1} ${y0 + R} V${yb} L${x1 - 1} ${yb + RIM_TAPER} V${yl} A${rb} ${rb} 0 0 1 ${x1 - 1 - rb} ${h}`
+  const gid = `lh-rim-${R}-${h}-${topH}`.replace(/\./g, '_')
+  const H = h + 2
+  const at = (y) => Math.min(1, Math.max(0, y / H))
   return (
-    <svg width={w + 3} height={topH + 1} style={{ position: 'absolute', left: -1, top: 0, overflow: 'visible', pointerEvents: 'none', opacity: op < 1 ? op : undefined }}>
+    <svg width={w + 3} height={H} style={{ position: 'absolute', left: -1, top: 0, overflow: 'visible', pointerEvents: 'none', opacity: op < 1 ? op : undefined }}>
       <defs>
-        <linearGradient id={gid} gradientUnits="userSpaceOnUse" x1="0" y1={y0 + 1} x2="0" y2={y0 + 1 + Math.max(1, R * RIM_FADE)}>
-          <stop offset="0" stopColor={RIM_LIGHT} />
-          <stop offset="1" stopColor={RIM_SIDE} />
+        <linearGradient id={gid} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={H}>
+          <stop offset={at(y0 + 1)} stopColor={RIM_LIGHT} />
+          <stop offset={at(y0 + 1 + Math.max(1, R * RIM_FADE))} stopColor={RIM_SIDE} />
+          <stop offset={at(yb)} stopColor={RIM_SIDE} />
+          <stop offset={at(yb + RIM_TAPER)} stopColor={RIM_SIDE} stopOpacity={RIM_LOW} />
+          <stop offset={at(yl)} stopColor={RIM_SIDE} stopOpacity={RIM_LOW} />
+          <stop offset={at(h)} stopColor={RIM_SIDE} stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={d} fill="none" stroke={`url(#${gid})`} strokeWidth="2" />
@@ -837,7 +855,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={!visible} hidden={false} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
-        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} topH={chromeTop || topH || 72} r={radius.top} op={1 - mk} /> : null}
+        {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} h={rr.h} topH={chromeTop || topH || 72} r={radius.top} rb={radius.bottom} op={1 - mk} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
       </div>,
     )

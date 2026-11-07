@@ -3,7 +3,8 @@
 import { memo, useRef } from 'react'
 import { toStage } from '../../core/Stage.jsx'
 import { Txt, abs, useLayer, SX } from '../../os/text.jsx'
-import { DropMenu, dropBelow, wid, runsWidth } from '../../ui/index.js'
+import { DropMenu, dropBelow, wid, runsWidth, WedgeKnob, hoverLevel, isPressed } from '../../ui/index.js'
+import { emit } from '../../core/events.js'
 import { SIZE_MIN, SIZE_MAX } from './layout.js'
 import * as I from '../../os/icons.jsx'
 
@@ -154,7 +155,7 @@ const VIEW = { thumbnail: 'by thumbnail', tiles: 'by tiles', details: 'by detail
 const ARROW_GAP = 6
 const arrowAfter = (x, a, b) => Math.round(x + runsWidth(sel(a, b), { size: 11.5, sx: SX }) + ARROW_GAP)
 // the bar above the album view (dx, dy: offsets from the video's place); A + win for the menus
-export function GridBar({ s, dx = 0, dy = 0, A, win }) {
+export function GridBar({ s, dx = 0, dy = 0, A, win, t }) {
   const ag = arrowAfter(201, 'Group', GROUP[s.group])
   const aa = arrowAfter(315, 'Arrange', ARRANGE[s.arrange])
   const av = arrowAfter(438, 'View', VIEW[s.view])
@@ -180,7 +181,7 @@ export function GridBar({ s, dx = 0, dy = 0, A, win }) {
       <Txt x={sz} y={352} size={11.5} w={500} c="#6d8db8">
         Size
       </Txt>
-      <SizeSlider x={sz + 25} size={s.size} A={A} />
+      <SizeSlider x={sz + 25} size={s.size} A={A} win={win} t={t} />
       {A && (
         <>
           <div data-hit="music.group" style={abs(198, 338, ag + 10 - 198, 18)} onClick={drop('group', GROUP, A.setGroup)} />
@@ -195,14 +196,23 @@ export function GridBar({ s, dx = 0, dy = 0, A, win }) {
   )
 }
 
-// the Size slider: a wedge track with a small knob (the video's knob sits at the default 49 px)
+// the Size slider: a wedge track with a small knob (the video's knob sits at the default 49 px),
+// drawn over the track whole (ui/Slider.jsx WedgeKnob); hover and drag light it (logged on the
+// slider's id, as the ui kit's sliders)
 const knobX = (size) => 1 + ((size - SIZE_MIN) / (SIZE_MAX - SIZE_MIN)) * 42
-function SizeSlider({ x, size, A }) {
+function SizeSlider({ x, size, A, win, t }) {
   const drag = useRef(null)
+  const id = wid(win, 'mv.size')
   const set = (e) => {
     const p = toStage(e.clientX, e.clientY)
-    const k = Math.max(0, Math.min(1, (p.x - drag.current.x0 - 2) / 42))
+    const k = Math.max(0, Math.min(1, (p.x - drag.current.x0 - 1) / 42))
     A.setSize(Math.round(SIZE_MIN + k * (SIZE_MAX - SIZE_MIN)))
+  }
+  const end = (e) => {
+    if (!drag.current) return
+    drag.current = null
+    e.currentTarget.releasePointerCapture?.(e.pointerId)
+    emit('press', { id, on: false })
   }
   const kx = knobX(size)
   return (
@@ -215,21 +225,28 @@ function SizeSlider({ x, size, A }) {
           </linearGradient>
         </defs>
         <path d="M1 9 L44 2.5 L44 7.5 L1 10 Z" fill="url(#mw-slider)" />
-        <path d={`M${kx - 4} 12.5 L${kx - 2} 8.5 C${kx - 1} 7.5 ${kx + 1} 7.5 ${kx + 2} 8.5 L${kx + 4} 12.5 Z`} fill="#eef4fc" stroke="#9cb2d0" strokeWidth="0.8" />
       </svg>
+      <div style={abs(x + kx, 341, 0, 0)}>
+        <WedgeKnob k={A && t != null ? hoverLevel(t, id) : 0} p={A && t != null ? isPressed(t, id) : false} />
+      </div>
       {A && (
         <div
           data-hit="music.size"
           style={abs(x - 4, 336, 54, 20)}
+          onPointerEnter={() => emit('hover', { id, on: true })}
+          onPointerLeave={() => emit('hover', { id, on: false })}
           onPointerDown={(e) => {
+            if (e.button !== 0) return
             e.stopPropagation()
             const r = e.currentTarget.getBoundingClientRect()
             drag.current = { x0: toStage(r.left, r.top).x + 4 }
             e.currentTarget.setPointerCapture(e.pointerId)
+            emit('press', { id, on: true })
             set(e)
           }}
           onPointerMove={(e) => drag.current && set(e)}
-          onPointerUp={() => (drag.current = null)}
+          onPointerUp={end}
+          onPointerCancel={end}
         />
       )}
     </>

@@ -6,6 +6,7 @@
 //     style text link), 'flat' (a borderless row button on pale bodies)
 //   <ToolButton id icon label onClick x y />  icon + label on the blue chrome (toolbar items)
 //   pressHandlers(id, onClick) for custom clickable things (hover + press + click)
+//   <GlassHover /> / <GlassPress />: the glass button's hover and press faces, for custom shapes
 import { memo } from 'react'
 import { emit } from '../core/events.js'
 import { now } from '../core/clock.js'
@@ -91,7 +92,9 @@ const LightPress = memo(function LightPress() {
     />
   )
 })
-const GlassHover = memo(function GlassHover() {
+// (the glass hover and press faces fill their parent and take its border radius: exported for
+// controls on the blue chrome shaped otherwise, e.g. the explorer's round Back / Forward)
+export const GlassHover = memo(function GlassHover() {
   return (
     <div
       style={{
@@ -102,7 +105,7 @@ const GlassHover = memo(function GlassHover() {
     />
   )
 })
-const GlassPress = memo(function GlassPress() {
+export const GlassPress = memo(function GlassPress() {
   return (
     <div
       style={{

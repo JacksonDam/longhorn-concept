@@ -13,6 +13,8 @@
 //     Search: ({ win, t, copy, x, w }) => node   (replaces the search field text, window-local
 //             px; x: where the field starts, after the breadcrumbs; w: the window's width;
 //             copy: drawn in a motion-blur copy, no input handling needed) }
+//     nav: (win, t) => ({ back, forward })   whether Back / Forward have somewhere to go (absent:
+//             neither has; a button with nowhere to go doesn't light up or click)
 //   A command may carry onClick(win) (called on click, besides the event).
 // Clicks emit events the app or the shell handles:
 //   'explorer.command' { id: <window id>, command }   command row
@@ -23,7 +25,8 @@
 // Search opens the Search window, Favorites drops the Favorites list ('explorer.menu' Favorites).
 import { memo } from 'react'
 import { emit } from '../core/events.js'
-import { DropMenu, dropBelow, wid, textWidth } from '../ui/index.js'
+import { DropMenu, dropBelow, wid, textWidth, hoverLevel, isPressed, isHover, GlassHover, GlassPress } from '../ui/index.js'
+import { now } from '../core/clock.js'
 import { Txt, Texts, abs, HEAVY } from './text.jsx'
 import * as I from './icons.jsx'
 
@@ -189,6 +192,7 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
     if (c.onClick) c.onClick(win)
   }
   const Search = cfg.Search
+  const nav = copy ? null : val(cfg.nav, win, t, null)
   return (
     <>
       {/* glass toolbar (title bar + favourites row); every band runs square to the window's edges */}
@@ -200,8 +204,8 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
         })}
       />
       <img alt="" src={img.src} width={img.w} height={TOOL_IMG_H} style={abs(0, 0, img.w, TOOL_IMG_H)} />
-      {!copy && <div data-hit="nav:back" style={abs(18, 26, 26, 26)} onClick={() => emit('explorer.nav', { id, dir: 'back' })} />}
-      {!copy && <div data-hit="nav:forward" style={abs(50, 32, 18, 18)} onClick={() => emit('explorer.nav', { id, dir: 'forward' })} />}
+      {!copy && <NavButton win={win} t={t} dir="back" on={!!nav?.back} />}
+      {!copy && <NavButton win={win} t={t} dir="forward" on={!!nav?.forward} />}
       <Texts style={label.style} items={tools.map((it) => ({ x: it.tx, y: 48, text: it.text, size: label.size, w: label.w, f: label.f, sx: label.sx, c: label.c }))} />
       {!copy &&
         tools.map((it) => (
@@ -262,6 +266,57 @@ export const ExplorerChrome = memo(function ExplorerChrome({ win, app, w, t, cop
     </>
   )
 })
+
+// Back / Forward: the round glass buttons of the toolbar image (I.BackForward at BF). Under the
+// pointer the orb lights up with the chrome's glass hover face (the command row's and toolbar
+// buttons' highlight, ui/Button.jsx GlassHover), pressed it takes the glass press face, both
+// shaped to the orb; a button with nowhere to go (on: false) stays as it is.
+// (orb centres and radii from I.BackForward: back (20.74, 21.3) r 12.84 + its 1.7 px dark ring,
+// forward (49.13, 21.83) r 7.12 + 1.9)
+const NAV = {
+  back: { cx: BF.x + 20.74, cy: BF.y + 21.3, r: 14, hit: [18, 26, 26, 26] },
+  forward: { cx: BF.x + 49.13, cy: BF.y + 21.83, r: 8.5, hit: [50, 32, 18, 18] },
+}
+function NavButton({ win, t, dir, on }) {
+  const id = wid(win, 'nav.' + dir)
+  const g = NAV[dir]
+  const k = on ? hoverLevel(t, id) : 0
+  const p = on && isPressed(t, id) && isHover(t, id)
+  const face = { position: 'absolute', left: g.cx - g.r, top: g.cy - g.r, width: 2 * g.r, height: 2 * g.r, borderRadius: '50%', pointerEvents: 'none' }
+  return (
+    <>
+      {p ? (
+        <div style={face}>
+          <GlassPress />
+        </div>
+      ) : (
+        k > 0 && (
+          <div style={{ ...face, opacity: k }}>
+            <GlassHover />
+          </div>
+        )
+      )}
+      <div
+        data-hit={'nav:' + dir}
+        style={abs(...g.hit, { cursor: 'default' })}
+        onPointerEnter={() => emit('hover', { id, on: true })}
+        onPointerLeave={() => {
+          emit('hover', { id, on: false })
+          if (isPressed(now(), id)) emit('press', { id, on: false })
+        }}
+        onPointerDown={(e) => {
+          if (e.button !== 0 || !on) return
+          emit('press', { id, on: true })
+        }}
+        onPointerUp={(e) => {
+          if (e.button !== 0 || !isPressed(now(), id)) return
+          emit('press', { id, on: false })
+          emit('explorer.nav', { id: win.id, dir })
+        }}
+      />
+    </>
+  )
+}
 
 // The breadcrumb's layout: each crumb's drop-down arrow sits ARROW_GAP px after its measured
 // text, the segments end a few px after their arrows, and the search field follows. The video's

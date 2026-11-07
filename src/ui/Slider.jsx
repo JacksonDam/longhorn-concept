@@ -41,14 +41,28 @@ const Track = memo(function Track({ w, variant }) {
   )
 })
 
+// The wedge slider's knob: a small pointed arrow under the track (the video's my Music Size
+// slider, f760-1340: about 10 px wide and 6 px tall, its tip in the track's lower edge), drawn
+// over the track so the whole arrow shows. Placed at the knob's centre x, the track's top y
+// (slider px). k: hover level, p: pressed.
+export const WedgeKnob = memo(function WedgeKnob({ k = 0, p = false }) {
+  const lit = k > 0.5
+  return (
+    <svg width="12" height="8" style={{ position: 'absolute', left: -6, top: 6, overflow: 'visible', pointerEvents: 'none' }}>
+      <path
+        d="M1.25 6.6 L6 0.2 L10.75 6.6 Z"
+        fill={p ? '#d3e6fd' : lit ? '#ffffff' : '#f6f9fd'}
+        stroke={p ? '#3f78c8' : lit ? '#5a92e0' : '#8a99b2'}
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+})
+
 const Knob = memo(function Knob({ variant, k, p }) {
-  if (variant === 'wedge') {
-    return (
-      <svg width="10" height="7" style={{ position: 'absolute', left: -5, top: 7, overflow: 'visible' }}>
-        <path d="M0 5.5 L2 1.5 C3 0.5 5 0.5 6 1.5 L8 5.5 Z" transform="translate(1 0)" fill={k > 0.5 ? '#ffffff' : '#eef4fc'} stroke={p ? '#4f8fe6' : '#9cb2d0'} strokeWidth="0.8" />
-      </svg>
-    )
-  }
+  if (variant === 'wedge') return <WedgeKnob k={k} p={p} />
+
   return (
     <div
       style={{
