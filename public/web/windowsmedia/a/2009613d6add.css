@@ -1,0 +1,211 @@
+body
+{
+	margin:0,0,0,0;
+}
+
+a:hover
+{
+	text-decoration: underline;
+}
+
+.quickLink
+{
+	font-size: 70%;
+	color: #737373;
+	font-family:'Trebuchet MS', Verdana;
+	text-decoration: none;
+	vertical-align:middle;
+}
+
+
+.whiteQuickLink
+{
+	font-size: 70%;
+	color: #FFFFFF;
+	font-family: 'Trebuchet MS',Verdana;
+	text-decoration: none;
+	vertical-align:middle;
+}
+
+.Footer-Text
+{
+	font-size: 70%;
+	color: #737373;
+	font-family: 'Trebuchet MS';
+	text-decoration: none;
+}
+
+.windowTypeTitle
+{
+	font-weight: bold;
+	font-size: 80%;
+	color: #4157A3;
+	font-family: 'Trebuchet MS';
+	text-decoration: none;
+}
+.contentBlock
+{
+	color:white;
+	background-color:Blue;
+}
+
+/*TODO: Scope these to the types that they are in rather than using these silly long names*/
+.contentBlock-subFeature-title
+{
+	font-weight: normal;
+	font-size: 70%;
+	font-family: 'Trebuchet MS';
+	text-decoration: none;
+	color:#4157A3;
+}
+.contentBlock-subFeature-subHead
+{
+	font-size: 70%;
+	font-family: Verdana;
+	text-decoration: none;
+	color: #737373;
+}
+
+.subFeature-title
+{
+	font-weight: normal;
+	font-size: 70%;
+	font-family: 'Trebuchet MS';
+	text-decoration: none;
+	font-weight: bold;
+	color:#4157A3;
+}
+.subFeature-subHead
+{
+	font-size: 70%;
+	font-family: Verdana;
+	text-decoration: none;
+	color: #737373;
+}
+.subFeatureRule
+{
+	color:#4157A3;
+}
+
+.Feature-Link
+{
+	color:white;
+	font-family:'Trebuchet MS';
+	font-size:70%;
+	
+}
+
+.Feature-Title
+{
+	color:white;
+	font-family:'Trebuchet MS';
+	font-size:140% ;
+}
+
+.Feature-SubHead
+{
+	color:white;
+	font-family:'Trebuchet MS';
+	font-size:80% ;
+}
+
+
+
+.SearchBox
+{
+	
+	height:18;
+	color:gray;
+	font-family:Trebuchet MS;
+	font-size: 70%;
+	
+}
+
+.Search-Button
+{
+	
+	height:18;
+	font-family:Trebuchet MS;
+	font-size: 70%;
+	cursor:hand;
+	border-width:1;
+	border-color:White;
+	border-style:solid;
+	background-color:Silver;
+}
+
+.CapTitle
+{
+	color:#4157A3;
+	font-family:'Trebuchet MS';
+	font-size:140%;
+	vertical-align:bottom;
+
+}
+.MenuItem
+{
+	color:black;
+	cursor:hand;
+	font-family:'Trebuchet MS';
+	font-size:70%;
+	font-weight:bold;
+	text-decoration:none;
+	
+	
+}
+
+.MenuItemHover
+{
+	color:gray;
+	cursor:hand;
+	font-family:'Trebuchet MS';
+	font-weight:bold;
+	font-size:70%;
+	text-decoration:none;
+	
+}
+
+
+.CapSubhead
+{
+	color:black;
+	font-family:'Trebuchet MS';
+	font-size:80%;
+	text-decoration:none;
+	
+	
+}
+
+
+.NavBar
+{
+	vertical-align:top;
+}
+
+.selectedLinkCell
+{
+	background:#4157A3;
+	color:white;
+	font-family:'Trebuchet MS';
+	
+}
+
+
+.corner-cell-background
+{
+	background:white;
+}
+
+.corner-table-background
+{
+	background:#CED4E9;
+}
+
+.skycraper-background
+{
+	background:#7A89BE;
+}
+.borderbottom
+{
+	border-bottom:1px solid #4157A3;
+}

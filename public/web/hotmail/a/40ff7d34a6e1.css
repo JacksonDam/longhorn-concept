@@ -1,0 +1,48 @@
+BODY	{color:#000000;margin-top:2px;margin-left:0px;margin-right:0px}
+A, BODY, INPUT, OPTION, SELECT, TABLE, TD, TR {font-family:tahoma,sans-serif; font-size:11px}
+TABLE {border:0px}
+A		{COLOR: #000099;TEXT-DECORATION:none}
+A:hover	{TEXT-DECORATION:underline}
+.s		{font-size:11px}
+.sb		{font-weight:BOLD}
+.sBL	{color:#003366}
+.sBLb	{font-weight:BOLD;color:#003366}
+.sBL2b	{font-weight:BOLD;color:#104A7B}
+.sw		{color:#ffffff}
+.swb	{font-weight:BOLD;color:#FFFFFF}
+.uw		{color:#FFFFFF;text-decoration: underline}
+.flb	{font-size:24px;font-weight:BOLD;color:#000000}
+.title	{font-family:tahoma,san-serif;font-size:13px;font-weight:BOLD;color:#104A7B}
+.Wf		{font-size:12px}
+.rmsg TD	{font-size:12px}
+.rmsg A	{font-size:12px}
+.rmsg A	{font-size:12px}
+.ns4Wf	{font-size:13px}
+.menu	{color:#000066;font-weight:BOLD;TEXT-DECORATION:none}
+A.menu:hover{text-decoration:none}
+.tab {color:#FFFFFF;text-decoration:none;font-weight: bold}
+A.tab:hover{TEXT-DECORATION:underline}
+.msnNav{color:#d6e7ef;text-decoration:none;font-size:10px}
+FONT.red {color:#e00505}
+TR.H	{BACKGROUND-COLOR: #C3D6E6}
+.bttntext {font-weight:BOLD;color:#336699;text-decoration:none}
+.Bsbttn {font-size:13px;background: #D6E7EF;border-bottom: 1px solid #104A7B;border-right: 1px solid #104A7B;border-left: 1px solid #AFC4D5;border-top:1px solid #AFC4D5; color:#000066;text-decoration:none;cursor: hand}
+.sbttn {background: #D6E7EF;border-bottom: 1px solid #104A7B;border-right: 1px solid #104A7B;border-left: 1px solid #AFC4D5;border-top:1px solid #AFC4D5;color:#000066;height:19px;text-decoration:none;cursor: hand}
+.pbttn {background: #D6E7EF;border-bottom: 1px solid #104A7B;border-right: 1px solid #104A7B;border-left: 1px solid #AFC4D5;border-top: 1px solid #AFC4D5;color:#000066;height: 19px;text-decoration:none;padding-left: 4px;padding-right: 4px;padding-top:2px;cursor: hand}
+.pbttn:hover:{text-decoration:none}
+.obttn {background: #D6E7EF;vertical-align: middle;color:777777;padding:1px;padding-left:6px;padding-right: 6px;text-decoration:none}
+.ns4obttn {font-size:12px;background: #D6E7EF;color:#8CA5B5;text-decoration:none}
+.ns4sbttn {font-size:12px;background:#D6E7EF;border-bottom: 1px solid #104A7B;border-right: 1px solid #104A7B;border-left: 1px solid #AFC4D5;border-top: 1px solid #AFC4D5;color:#000066;height: 19px;text-decoration:none}
+.drpdwn	{color:#000066;background-color:#D6E7EF}
+TABLE.Mtable TD {border-bottom:1px solid #C1CDD8}
+.inPgBrdr {border:solid #8CA5B5 1px}
+.smcRow {border-top:solid #C1CDD8 1px}
+.smcDiv {height:117px; border:1px #8CA5B5 solid; overflow-x:hidden; overflow-y:auto; width:344px; margin:0px;padding:0px}
+.msglistcntrl TD {border-bottom:none}
+.tagline{color:#d6e7ef;font-weight:BOLD;text-decoration:none}
+.PPModuleTtlTxt{COLOR:#104A7B; FONT-FAMILY:Tahoma, sans-serif}
+.PPDesTxt{FONT-FAMILY:Tahoma, san-serif}
+.PPModuleBrd{BACKGROUND-COLOR:#DBEAF5}
+.PPModuleTtlTbl{BACKGROUND-COLOR:#DBEAF5}
+.PPDynamicTbl{BACKGROUND-COLOR:#FFFFFF}
+.PPRSbmtBtn{FONT-FAMILY:Tahoma, san-serif; FONT-SIZE:13px; BACKGROUND:#DBEAF5; BORDER-BOTTOM:1px solid #104A7B; BORDER-RIGHT:1px solid #104A7B; BORDER-LEFT:1px solid #AFC4D5; BORDER-TOP:1px solid #AFC4D5; COLOR:#000066; FONT-WEIGHT:normal; TEXT-DECORATION:none; CURSOR:hand}
