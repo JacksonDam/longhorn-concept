@@ -85,8 +85,24 @@ function rectAt(win, app, tt) {
 // shaded right and downwards. Gradients are fixed and faded by opacity (no repaint per frame).
 const lightBg = 'linear-gradient(90deg, rgb(105,105,105) 0px, rgb(105,105,105) 200px, rgb(0,0,0) 400px)'
 const topShadeBg = 'linear-gradient(90deg, rgba(10,25,60,0) 420px, rgba(10,25,60,0.5) 520px, rgba(10,25,60,0.5) 100%)'
-const bodyShadeBg = 'linear-gradient(90deg, rgba(60,90,140,0) 385px, rgba(60,90,140,0.6) 560px, rgba(60,90,140,0.6) 100%)'
-const bodyShadeYBg = 'linear-gradient(180deg, rgba(60,90,140,0) 238px, rgba(60,90,140,0.6) 458px, rgba(60,90,140,0.6) 100%)'
+// (the body's shade: SHADE.rgb at 0.6, ramping in right of x0 .. x1 and below y0 .. y1 of the body;
+// an app Overlay drawn over the window's layers repeats it over what it draws, overlayShade)
+const SHADE = { rgb: [60, 90, 140], x: [385, 560], y: [238, 458] }
+const bodyShadeBg = `linear-gradient(90deg, rgba(60,90,140,0) ${SHADE.x[0]}px, rgba(60,90,140,0.6) ${SHADE.x[1]}px, rgba(60,90,140,0.6) 100%)`
+const bodyShadeYBg = `linear-gradient(180deg, rgba(60,90,140,0) ${SHADE.y[0]}px, rgba(60,90,140,0.6) ${SHADE.y[1]}px, rgba(60,90,140,0.6) 100%)`
+// the body shade for an overlay: colour (0..1) and its ramps in layer px (the body starts topH down)
+const shadeCache = new Map()
+function overlayShade(topH) {
+  let v = shadeCache.get(topH)
+  if (!v) shadeCache.set(topH, (v = { col: SHADE.rgb.map((c) => c / 255), ramps: [topH + SHADE.y[0], topH + SHADE.y[1], SHADE.x[0], SHADE.x[1]] }))
+  return v
+}
+// a CSS transform-origin ('50% 0%', '12px 30px') in px of a w x h box
+function originPx(o, w, h) {
+  const [a, b] = (o || '50% 50%').split(' ')
+  const px = (v, size) => (v.endsWith('%') ? (parseFloat(v) / 100) * size : parseFloat(v))
+  return [px(a, w), px(b ?? '50%', h)]
+}
 function OpenLight({ rel, w, h, topH, rt = RADIUS_TOP, rb = RADIUS_BOTTOM }) {
   const l = rel >= 4 ? openLight(rel) : null
   const [k, ab, at] = l || [0, 0, 0]
@@ -479,11 +495,16 @@ function motion(win, app, t) {
 // overlay once and then keeps those pixels (skip) until it shows: its canvases exist and are
 // composited when the animation starts, and waiting costs no redraws; hiding them instead costs a
 // re-layerisation on the animation's frame)
-const OverlayLayer = memo(
-  function OverlayLayer({ Overlay, win, t, skip, hidden }) {
-    return <Overlay win={win} t={t} skip={skip} hidden={hidden} />
+// The app's Overlay is drawn once, over all of the window's layers: it gets each shown layer's
+// placement (layers: [{ left, top, w, h, transform, ox, oy, op, shade }], the window group's px;
+// shade: the open's body shade level on that layer, overlayShade) and draws on each (my Music's
+// slab: gl/slab.js SlabView, one image drawn per layer), so a blur copy needs no overlay of its own.
+// frame: the stage's rect in the group's px; motion: copies are mounted.
+const OverlayOnce = memo(
+  function OverlayOnce({ Overlay, win, t, layers, frame, motion, shade }) {
+    return <Overlay win={win} t={t} layers={layers} frame={frame} motion={motion} shade={shade} />
   },
-  (a, b) => sameRelT(a, b) && a.skip === b.skip && a.hidden === b.hidden && a.Overlay === b.Overlay && winKey(a.win) === winKey(b.win),
+  (a, b) => sameRelT(a, b) && a.lkey === b.lkey && a.motion === b.motion && a.Overlay === b.Overlay && a.shade === b.shade && winKey(a.win) === winKey(b.win),
 )
 const STAGGER = 4 // frames between copy snapshot updates (copy k updates 4k frames after a change)
 // times of the events that concern a window's content (sorted), cached per log version:
@@ -795,7 +816,7 @@ export function quietKey(win, app, t) {
 
 // look: the active look's level (os/focus.js activeLevels: 1 active .. 0 inactive)
 function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
-  useStageScale() // (redraws on a new stage scale: the group's corner below is snapped for it)
+  const stage = useStageScale() // (redraws on a new stage scale: the group's corner below is snapped for it)
   const m = motion(win, app, t)
   // the window's rect (tweened while it maximises or restores down) and the rect it is laid out at
   // (while zooming, see there: the rect it tweens to, the group scaled to the tween's rect)
@@ -843,6 +864,8 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const layers = []
   let key1 = null
+  // the shown layers' placements for the app's Overlay (OverlayOnce)
+  const placed = Overlay ? [] : null
   const busy = hinted(win, app, t, m, mounted)
   for (let k = 0; k < mounted; k++) {
     let style
@@ -894,6 +917,14 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
     // copy per frame after the open)
     // (spread like the copies' first rasters: about N / 5 copies a frame before the window shows)
     const light = win.lastAction === 'open' && m.light != null && rel < 17 + k && rel >= (k * 4) / N + 0.5
+    if (placed && visible && !waiting) {
+      const lr = m.light != null ? openRel(tt) : 99
+      const [ox, oy] = style.transform ? originPx(style.transformOrigin, rr.w, rr.h) : [0, 0]
+      placed.push({
+        left: rr.x - r.x, top: rr.y - r.y, w: rr.w, h: rr.h, transform: style.transform, ox, oy, op: style.opacity,
+        shade: light && lr >= 4 ? openLight(lr)?.[1] ?? 0 : 0,
+      })
+    }
     layers.push(
       <div
         key={k}
@@ -909,7 +940,6 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         <LiveLayers.Provider value={k === 0 && (busy || 'rest')}>
           {body}
         </LiveLayers.Provider>
-        {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={!visible} hidden={false} />}
         {light && <OpenLight rel={m.light != null ? openRel(tt) : 99} w={rr.w} h={rr.h} topH={topH} rt={radius.top} rb={radius.bottom} />}
         {app.chrome !== 'none' || app.frameRim !== false ? <Rim w={rr.w} h={rr.h} topH={chromeTop || topH || 72} r={radius.top} rb={radius.bottom} op={1 - mk} /> : null}
         {k === 0 && <TitleControls win={{ ...win, rect: r }} w={rr.w} h={rr.h} topH={topH} active={active} app={app} />}
@@ -956,6 +986,12 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
       <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transformOrigin: '0 0', transform: zoom ? `translate(${R.x}px, ${R.y}px) scale(${R.w / r.w}, ${R.h / r.h})` : `translate(${seam(r.x)}px, ${seam(r.y)}px)` }}>
         {shadow}
         {layers}
+        {Overlay && (
+          <OverlayOnce
+            Overlay={Overlay} win={win} t={live} layers={placed} lkey={JSON.stringify(placed)} motion={mounted > restingLayers(win) || !!m.pose}
+            frame={{ x: -seam(r.x), y: -seam(r.y), w: stage.w, h: stage.h }} shade={overlayShade(topH)}
+          />
+        )}
         {wash}
       </div>
     </div>

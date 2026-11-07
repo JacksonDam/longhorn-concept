@@ -5,7 +5,7 @@ import { memo, useContext } from 'react'
 import { emit } from '../../core/events.js'
 import { Txt, abs, FONT, HEAVY, useLayer, LiveLayers } from '../../os/text.jsx'
 import * as I from '../../os/icons.jsx'
-import { drawDevice, deviceVersion } from './device.js'
+import { deviceFace } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel, DEVICE_REST, ALBUM_REST } from './timeline.js'
 import { drifting } from './tilt.js'
 import { Slabs, settledPose, slabClock, DEVICE_IN, SPIN_END } from './HeaderSlab.jsx'
@@ -238,31 +238,27 @@ const SPEC = { box: SC, hw: DEV.w / 2, hh: DEV.h / 2, floor: DEV.cy + DEV.h / 2 
 
 loadTexture(TWEET_COVER) // start loading now so capture's ready() waits for it
 
-// (one slab record per canvas, its version bumped when the equaliser redraws: SlabCanvas keys
-// what it shows on the slab's identity and version)
-const deviceSlabs = new WeakMap()
-const deviceSlab = (canvas) => {
-  let s = deviceSlabs.get(canvas)
-  if (!s) {
-    s = {
-      w: DEV.w,
-      h: DEV.h,
-      d: DEV.d,
-      radius: 8,
-      canvas,
-      canvasVersion: deviceVersion,
-      edgeColor: [0.32, 0.64, 0.78],
-      edgeMix: 0.35,
-      spec: 0.35,
-      rim: 0.6,
-      sat: 0.75,
-      backFlip: false,
-    }
-    deviceSlabs.set(canvas, s)
-  }
-  s.canvasVersion = deviceVersion
-  return s
+// (one slab record, its face the equaliser's current step: music/device.js deviceFace, drawn on the
+// GPU by the slab views; HeaderSlab.jsx keys what they show on the face's key)
+const DEVICE_SLAB = {
+  w: DEV.w,
+  h: DEV.h,
+  d: DEV.d,
+  radius: 8,
+  face: null,
+  edgeColor: [0.32, 0.64, 0.78],
+  edgeMix: 0.35,
+  spec: 0.35,
+  rim: 0.6,
+  sat: 0.75,
+  backFlip: false,
 }
+const deviceSlab = (face) => {
+  DEVICE_SLAB.face = face
+  return DEVICE_SLAB
+}
+// the device slab at load (the slab views upload its face's still parts: SlabCanvas.jsx warmSlabs)
+export const warmDeviceSlab = () => deviceSlab(deviceFace(0))
 const albumSlab = {
   w: DEV.w,
   h: DEV.h,
@@ -399,10 +395,10 @@ function albumSlabFor(album) {
 // page: { album (library record | null = the device), t (start of its transition), prev (the page
 // before: album | null), prevSince (when that page started) } or null (never left the device).
 // slabs: 'all' (default), 'none' (everything but the 3D slabs) or 'only' (just the slabs, for the
-// window's overlay layer). track / trackHover / playing: the page's track list state.
+// window's Overlay; view: its layers, HeaderSlab.jsx Slabs). track / trackHover / playing: the page's track list state.
 // rect: the window's rect at a time (t => { x, y, w, h }, stage px), for the slabs' pointer tilt
 // (none: no tilt)
-export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, rect = null, actions }) {
+export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', view = null, rect = null, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
   // after its spin-in has settled (`rest` frames from `t0`), a slab hands over to the pointer
@@ -433,21 +429,23 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   if (slabs === 'none') {
     // no slabs
   } else if (page == null) {
-    if (rel > DEVICE_IN) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: device })
+    if (rel > DEVICE_IN) items.push({ slab: deviceSlab(deviceFace(slabT)), pose: device })
   } else {
     // outgoing (until it has turned away), from the pose it held (the pointer's too)
     if (hrel < 5.2) {
       const held = (tt) => (page.prevSince == null ? device(tt) : settled(albumPoseRel, tt, page.prevSince, ALBUM_REST))
       if (page.prev == null) {
-        if (rel > DEVICE_IN) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: (tt) => spinAway(held(tt), tt) })
+        if (rel > DEVICE_IN) items.push({ slab: deviceSlab(deviceFace(slabT)), pose: (tt) => spinAway(held(tt), tt) })
       } else items.push({ slab: albumSlabFor(page.prev), pose: (tt) => spinAway(held(tt), tt) })
     }
     // incoming
-    if (hrel > 3.8) items.push({ slab: page.album ? albumSlabFor(page.album) : deviceSlab(drawDevice(slabT)), pose: spinIn })
+    if (hrel > 3.8) items.push({ slab: page.album ? albumSlabFor(page.album) : deviceSlab(deviceFace(slabT)), pose: spinIn })
   }
+  // (mounted from the open with no slab yet, so its view and canvas are in place before the
+  // spin-in's first frame)
   const slabEl =
-    items.length > 0 && slabs !== 'none' ? (
-      <Slabs spec={SPEC} t={slabT} items={items} spin={spin} copy={copy} cache={cache && 'music'} skip={skip} hidden={hidden} />
+    slabs !== 'none' ? (
+      <Slabs spec={SPEC} t={slabT} items={items} spin={spin} copy={copy} {...view} />
     ) : null
   if (slabs === 'only') return slabEl
   const prevListOp = page && page.prev ? 1 - smoothRamp(hrel, 1, 6) : 0

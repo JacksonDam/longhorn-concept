@@ -113,21 +113,22 @@ if (typeof document !== 'undefined') deviceSlab() // the face starts drawing wit
 function headerShown(t, win) {
   return viewOf(t, win, { view: valueOf(t, wid(win, 'view'), 'browse') }).view !== 'detail' && !taskHidden(t, win)
 }
-// The photo frame, drawn above the content on every layer of the window (the motion-blur copies
-// share one render): my Music's spin-in on open, then its settled pose until the pointer takes
+// The photo frame, drawn above the content on every shown layer of the window (one render drawn
+// on each, music/HeaderSlab.jsx Slabs): my Music's spin-in on open, then its settled pose until the pointer takes
 // over (music/tilt.js; while the overlay is mounted the pointer's moves are logged). The face's
 // canvas redraws once its photo has decoded (canvasVersion: the canvases' next frame shows it).
-function PicturesOverlay({ win, t, skip, hidden }) {
+function PicturesOverlay({ win, t, layers, frame, motion, shade }) {
   useEffect(() => wantPointer(), [])
   const t0 = openT(win)
   const rel = toRel(t, t0)
-  if (rel <= DEVICE_IN || !headerShown(t, win)) return null
+  // (mounted from the open, with no slab until the spin-in shows it: its view is in place before)
+  if (!headerShown(t, win)) return null
   const rect = rectAt(win, pictures)
   const drift = drifting(t)
   const pose = (tt) => settledPose(SPEC, framePose, tt, t0, DEVICE_REST, rect, drift)
   const spin = rel < SPIN_END
   const { slabT } = slabClock(t, spin, pose)
-  return <Slabs spec={SPEC} t={slabT} items={[{ slab: deviceSlab(), pose }]} spin={spin} cache="pictures" skip={skip} hidden={hidden} />
+  return <Slabs spec={SPEC} t={slabT} items={rel > DEVICE_IN ? [{ slab: deviceSlab(), pose }] : []} spin={spin} layers={layers} frame={frame} motion={motion} shade={shade} />
 }
 
 // my Music's title and its intro (music/Header.jsx Title: "Windows" slides in, "my" fades in, the
