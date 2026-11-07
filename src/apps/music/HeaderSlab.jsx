@@ -13,7 +13,9 @@ import { eventsOf } from '../../os/logIndex.js'
 
 // spec: { box: { x, y, w, h } the canvases' window-local box (the slab's poses are in its px),
 //   hw, hh: the slab's half size (its pointer tilt's reach), floor: the reflection's plane (box px),
-//   fade: how far below the floor the reflection fades out (px) }
+//   fade: how far below the floor the reflection fades out (px),
+//   pointer (optional): { x, y, s } where the slab stands, and its scale, once the pointer drives
+//   it (box px; it moves there with the takeover): clear of what its turns would cover }
 
 // the open's spin-in (rel frames from the app's open reference, music/actions.js openT): the slab
 // shows from DEVICE_IN and spins (fast, blurred) until SPIN_END; it has settled at DEVICE_REST
@@ -42,12 +44,18 @@ export function rectAt(win, app) {
 
 // The pose at tt of a slab that plays poseAt(rel, drift) from t0 and settles `rest` frames in:
 // the table's pose (the video's idle drift when the log plays it: drift), handing over to the
-// pointer once that is over the window (tilt.js; rect: the window's rect at a time, none: no tilt)
+// pointer once that is over the window (tilt.js; rect: the window's rect at a time, none: no tilt):
+// its orientation, and with spec.pointer its place and size too, so it turns about the centre it
+// moves to
 export function settledPose(spec, poseAt, tt, t0, rest, rect, drift) {
   const from = t0 + rest / FPS
-  const base = poseAt(rest)
-  const tilt = rect ? slabTilt(tt, from, { x: spec.box.x + base.x, y: spec.box.y + base.y }, spec.hw, spec.hh, rect) : null
-  return applyTilt(poseAt(toRel(tt, t0), drift ? (tilt ? tilt.drift : 1) : 0), tilt)
+  const at = spec.pointer || poseAt(rest)
+  const s = spec.pointer ? spec.pointer.s : 1
+  const tilt = rect ? slabTilt(tt, from, { x: spec.box.x + at.x, y: spec.box.y + at.y }, spec.hw * s, spec.hh * s, rect) : null
+  const p = applyTilt(poseAt(toRel(tt, t0), drift ? (tilt ? tilt.drift : 1) : 0), tilt)
+  if (!tilt || !spec.pointer) return p
+  const k = tilt.k
+  return { ...p, x: p.x + (at.x - p.x) * k, y: p.y + (at.y - p.y) * k, s: (p.s ?? 1) + (s - (p.s ?? 1)) * k }
 }
 
 // my Music's device spin-in (devicePoseRel), moved to settle at `to` ({ x, y, z, rx, ry, rz } in
