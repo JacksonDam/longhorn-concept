@@ -13,9 +13,10 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
 - Content the video doesn't show (emails, documents, weather, chats, album details) is
   **fictional and neutral**, set around late 2003, and kept short. Text the video does show is
   kept verbatim (mail subjects, buddy names, track names, album "Tweet - Southern Hummingbird").
-- No impersonation of real websites: every web link (msn, yahoo, google, ofoto, "Shop: Music on
-  MSN", "Go Online"...) opens the Internet Explorer window showing IE6's offline page "The page
-  cannot be displayed" with the requested address in the address bar.
+- Real websites appear only as they were: the sites the OS links to (MSN, Hotmail, Yahoo!,
+  Microsoft, Ofoto, WindowsMedia.com, Google) load their 2003 home pages, archived copies from
+  the Wayback Machine made static (see "Web pages" below); every other address shows IE6's
+  "The page cannot be displayed", as a site that doesn't answer.
 - No invented audio: media playback is silent (progress, time and visualiser move; no sound).
 - No third-party copyrighted media: keep using original stand-in art (docs/SUBSTITUTIONS.md).
 - Microsoft product names/brands as the video shows them are fine (Outlook, Word, IE, MSN).
@@ -133,8 +134,8 @@ interfaces below (or by asking me).
 - Apps in `src/apps/<name>/` (registry format above; chrome comes from PlexWindow):
   `outlook` (Inbox - Microsoft Outlook: folders, message list containing the sidebar's mail
   subjects, reading pane, New / Reply / Forward compose window that "sends" into Sent Items),
-  `ie` (Internet Explorer: address bar, back/forward/refresh/home, Favorites; every page is the
-  offline page "The page cannot be displayed"), `word` (Document 1: an editable page with a
+  `ie` (Internet Explorer: address bar, back/forward/refresh/home, Favorites; the linked sites'
+  2003 home pages, any other address IE6's "The page cannot be displayed"), `word` (Document 1: an editable page with a
   formatting toolbar that works on the selection, File > Save marks it saved), `winamp` (Winamp3:
   a Plex-styled player window titled Winamp3 bound to os/media.js; don't copy Winamp's own skin),
   `im` (instant message window: history, input box, Send; sent messages appear; buddies don't
@@ -145,3 +146,27 @@ interfaces below (or by asking me).
   Playlist, Share Music, About Windows).
 - Until PlexWindow lands, build each app's Content as a plain component and preview it in a
   temporary harness; switch to the registry once the window builder's first PlexWindow is on main.
+
+## Web pages (Internet Explorer)
+IE shows the 2003 home pages of the sites the OS links to: static copies of Wayback Machine
+snapshots in `public/web/<site>/` (index.html + `a/` assets), listed in `src/apps/ie/web.js`
+(`PAGES`: title, the address IE shows once loaded, the addresses that reach the page). A page sits
+in a same-origin iframe sandboxed without scripts (`src/apps/ie/WebPage.jsx`); its scrolling,
+link hovers, clicks and form submits go through the event log like any other input (a link
+navigates IE: an archived page or "The page cannot be displayed"; a form submits to the offline
+page). IE6's progress: "Finding site" 0.3 s, "Opening page <address>..." with the progress bar,
+the page showing from 0.55 s, "Done" at 1 s. Motion-blur copies draw the page area blank.
+To add a page:
+1. Find the snapshot nearest 27 Oct 2003 (the PDC): `python3 tools/web/wb.py cdx <host> 2003 2003`
+   (status 200, text/html; a site that redirected: the page it went to).
+2. Add it to `SITES` in `tools/web/build.py` (timestamp, original URL; `writes` for a script
+   that wrote fixed content: its literal output), then `python3 tools/web/build.py <site>`. It
+   fetches the raw `id_` files one request at a time (2 s apart, backing off on 429 / 5xx),
+   caches every download (`WB_CACHE`, default `out/web/cache`), strips scripts, noscript,
+   iframes, objects, event handlers and trackers, copies each image and stylesheet from its own
+   nearest capture into `public/web/<site>/a/` (one that didn't archive becomes a transparent
+   pixel of the same size), makes links absolute and applies IE6's nowrap-with-width quirk.
+   Nothing is added to a page: what scripts wrote is kept only where it was fixed text.
+3. Add the page to `PAGES` in `src/apps/ie/web.js` and its sources to assets-src/SOURCES.md
+   (section 15; `out/web/sources.json` lists every asset's capture).
+

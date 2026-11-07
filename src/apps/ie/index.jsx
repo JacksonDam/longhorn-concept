@@ -1,18 +1,26 @@
-// Internet Explorer 6 in the Plex frame. There is no network: every address shows IE6's offline
-// page "The page cannot be displayed" with the requested address in the Address bar.
+// Internet Explorer 6 in the Plex frame. The addresses of the sites the OS links to load those
+// sites' 2003 home pages (web.js: static copies from the Wayback Machine, shown by WebPage.jsx);
+// any other address shows IE6's "The page cannot be displayed", as a site that doesn't answer.
 //
-// Navigation is logged per window: 'ie.go' { id, url } (typed address, Home, Favorites, links),
-// 'ie.back' / 'ie.fwd' / 'ie.refresh' / 'ie.stop' { id }; 'win.open' with props.url (web links in
-// other windows) navigates too. A navigation shows ~0.8 s of "Finding site" before the page.
+// Navigation is logged per window: 'ie.go' { id, url } (typed address, Home, Favorites, links in a
+// page), 'ie.back' / 'ie.fwd' / 'ie.refresh' / 'ie.stop' { id }; 'win.open' with props.url (web
+// links in other windows) navigates too. A navigation shows IE6's progress: "Finding site" for
+// FIND s, then for an archived page "Opening page <address>..." with the progress bar while the
+// page comes in, and "Done".
 import { memo } from 'react'
 import { emit, getLog, getVersion } from '../../core/events.js'
 import { now } from '../../core/clock.js'
-import { scoped, wid, valueOf, TextField, Button, ScrollView, ContextMenu, contextHandler, focusField, DropMenu, dropBelow } from '../../ui/index.js'
+import { scoped, wid, valueOf, hoverKey, TextField, Button, ScrollView, ContextMenu, contextHandler, focusField, DropMenu, dropBelow } from '../../ui/index.js'
 import { AppTop, appTopHeight, StatusBar, label, chromeTop } from '../lib/chrome.jsx'
 import { Ico } from '../lib/icons.jsx'
 import { normUrl, openWin, closeWin, messageBox } from '../lib/common.js'
+import { pageFor } from './web.js'
+import { WebPage } from './WebPage.jsx'
 
-const LOAD = 0.8 // s of "Finding site" after a navigation
+const FIND = 0.3 // s of "Finding site" after a navigation
+const LOAD = 0.8 // ... until an address that doesn't answer shows the offline page
+const OPEN = 1.0 // ... until an archived page is in ("Done")
+const SHOW = 0.55 // when an archived page first shows (IE6 draws it while it still comes in)
 const HOME = 'http://www.msn.com/'
 const FAVORITES = [
   ['MSN.com', 'www.msn.com'],
@@ -65,9 +73,11 @@ export function navState(t, win) {
     list = [normUrl(win.props?.url || HOME)]
     pos = 0
   }
-  const loading = t - at < LOAD && stopAt < at
-  const stopped = stopAt >= at && stopAt - at < LOAD
-  const s = { list, pos, url: list[pos], at, loading, stopped }
+  const page = pageFor(list[pos])
+  const dur = page ? OPEN : LOAD
+  const loading = t - at < dur && stopAt < at
+  const stopped = stopAt >= at && stopAt - at < dur
+  const s = { list, pos, url: list[pos], at, loading, stopped, page, finding: loading && t - at < FIND }
   navCache.set(key, { v, t, s })
   if (navCache.size > 64) navCache.delete(navCache.keys().next().value)
   return s
@@ -76,6 +86,13 @@ export function navState(t, win) {
 const go = (win, url) => {
   emit('ie.go', { id: win.id, url })
   emit('win.props', { id: win.id, url })
+}
+// Back / Forward: the window's props follow (its title shows the page's)
+const step = (win, nav, d) => {
+  const u = nav.list[nav.pos + d]
+  if (u == null) return
+  emit(d < 0 ? 'ie.back' : 'ie.fwd', { id: win.id })
+  emit('win.props', { id: win.id, url: u })
 }
 
 // ---- the offline page (IE6 res://shdoclc.dll/dnserror.htm) -------------------------------------
@@ -108,7 +125,8 @@ const Glyph = ({ kind, onClick }) => (
   </span>
 )
 
-const OfflinePage = memo(function OfflinePage({ id, textSize }) {
+// (onBack: the window's Back, which also updates its title)
+const OfflinePage = memo(function OfflinePage({ id, textSize, onBack }) {
   const k = [0.8, 0.9, 1, 1.15, 1.3][textSize] ?? 1
   const fs = (n) => Math.round(n * k * 10) / 10
   return (
@@ -157,7 +175,7 @@ const OfflinePage = memo(function OfflinePage({ id, textSize }) {
               <b>Advanced</b> tab, scroll to the Security section and check settings for SSL 2.0, SSL 3.0, TLS 1.0, PCT 1.0.
             </li>
             <li style={li}>
-              Click the <Glyph kind="back" onClick={() => emit('ie.back', { id })} /> <b>Back</b> button to try another link.
+              Click the <Glyph kind="back" onClick={onBack} /> <b>Back</b> button to try another link.
             </li>
           </ul>
           <div style={{ height: 1, background: '#c0c0c0', margin: '12px 0 8px' }} />
@@ -167,7 +185,7 @@ const OfflinePage = memo(function OfflinePage({ id, textSize }) {
       </div>
     </div>
   )
-})
+}, (a, b) => a.id === b.id && a.textSize === b.textSize)
 
 // the spinning-free IE6 throbber: the logo in the toolbar's right corner, a glint while loading
 function Throbber({ x, loading, t, onClick }) {
@@ -181,12 +199,17 @@ function Throbber({ x, loading, t, onClick }) {
   )
 }
 
-function IE({ win, t, w, h }) {
+function IE({ win, t, w, h, live, active }) {
   const id = win.id
   const nav = navState(t, win)
   const statusOn = valueOf(t, wid(win, 'status'), true)
   const textSize = valueOf(t, wid(win, 'textsize'), 2)
-  const addrId = wid(win, 'addr' + nav.list.length + ':' + nav.pos + ':' + Math.round(nav.at * 1000))
+  const page = nav.page
+  // (the address shows where the site sent the browser once the page is in)
+  const shown = page && !nav.loading ? page.addr : nav.url
+  const addrId = wid(win, 'addr' + nav.list.length + ':' + nav.pos + ':' + Math.round(nav.at * 1000) + (shown !== nav.url ? ':in' : ''))
+  const linkId = wid(win, 'web.link')
+  const overLink = page && !nav.loading ? hoverKey(t, linkId) : undefined
   const canBack = nav.pos > 0
   const canFwd = nav.pos < nav.list.length - 1
   const top = appTopHeight({ row2: 24 })
@@ -194,8 +217,8 @@ function IE({ win, t, w, h }) {
   const bodyH = h - top - sbH
   const navTo = (url) => go(win, url)
   const toolbar = [
-    { id: wid(win, 'back'), icon: 'back', label: 'Back', onClick: () => emit('ie.back', { id }), disabled: !canBack, iconSize: 22 },
-    { id: wid(win, 'fwd'), icon: 'forward', onClick: () => emit('ie.fwd', { id }), disabled: !canFwd, iconSize: 22, tip: 'Forward' },
+    { id: wid(win, 'back'), icon: 'back', label: 'Back', onClick: () => step(win, nav, -1), disabled: !canBack, iconSize: 22 },
+    { id: wid(win, 'fwd'), icon: 'forward', onClick: () => step(win, nav, 1), disabled: !canFwd, iconSize: 22, tip: 'Forward' },
     { id: wid(win, 'stop'), icon: 'stop', onClick: () => emit('ie.stop', { id }), tip: 'Stop' },
     { id: wid(win, 'refresh'), icon: 'refresh', onClick: () => emit('ie.refresh', { id }), tip: 'Refresh' },
     { id: wid(win, 'home'), icon: 'home', onClick: () => navTo(HOME), tip: 'Home' },
@@ -217,7 +240,6 @@ function IE({ win, t, w, h }) {
         '-',
         { label: 'Print...', shortcut: 'Ctrl+P', onClick: () => printBox() },
         '-',
-        { label: 'Work Offline', checked: true, onClick: () => offlineBox() },
         { label: 'Close', onClick: () => closeWin(id) },
       ],
     },
@@ -278,15 +300,15 @@ function IE({ win, t, w, h }) {
     { label: 'Today', items: nav.list.map((u) => ({ label: hostOf(u), onClick: () => navTo(u) })) },
   ]
   const ctxItems = [
-    { label: 'Back', disabled: !canBack, onClick: () => emit('ie.back', { id }) },
-    { label: 'Forward', disabled: !canFwd, onClick: () => emit('ie.fwd', { id }) },
+    { label: 'Back', disabled: !canBack, onClick: () => step(win, nav, -1) },
+    { label: 'Forward', disabled: !canFwd, onClick: () => step(win, nav, 1) },
     '-',
     { label: 'Select All', onClick: () => focusField(addrId) },
     '-',
     { label: 'Refresh', onClick: () => emit('ie.refresh', { id }) },
     { label: 'Print...', onClick: () => printBox() },
     '-',
-    { label: 'Properties', onClick: () => messageBox({ title: 'Properties', icon: 'info', text: `The page cannot be displayed\n\nAddress: ${nav.url}\nZone: Internet` }) },
+    { label: 'Properties', onClick: () => messageBox({ title: 'Properties', icon: 'info', text: `${page ? page.title : 'The page cannot be displayed'}\n\nAddress: ${shown}\nZone: Internet` }) },
   ]
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#fff' }}>
@@ -295,7 +317,7 @@ function IE({ win, t, w, h }) {
         <div style={{ position: 'absolute', left: 12, top: top - 25, ...label(10.5, '#cfe6ff', 600), lineHeight: '18px' }}>Address</div>
         <TextField
           id={addrId}
-          def={nav.url}
+          def={shown}
           x={62}
           y={top - 25}
           w={w - 160}
@@ -321,9 +343,29 @@ function IE({ win, t, w, h }) {
         <DropMenu id={wid(win, 'dd.hist')} items={historyItems} />
       </AppTop>
       <div style={{ position: 'absolute', left: 0, top, width: w, height: bodyH }} onContextMenu={contextHandler(wid(win, 'ctx'), ctxItems)}>
-        {nav.loading ? null : (
+        {page ? (
+          // (mounted from the navigation, so the page comes in while IE is "Finding site")
+          <div style={{ position: 'absolute', inset: 0, visibility: nav.loading && t - nav.at < SHOW ? 'hidden' : undefined }}>
+            <WebPage
+              key={nav.pos + ':' + Math.round(nav.at * 1000)}
+              win={win}
+              page={page}
+              sid={wid(win, 'web' + nav.pos + ':' + Math.round(nav.at * 1000))}
+              x={0}
+              y={0}
+              w={w}
+              h={bodyH}
+              t={t}
+              zoom={[0.8, 0.9, 1, 1.15, 1.3][textSize] ?? 1}
+              live={live !== false}
+              active={active}
+              onNavigate={navTo}
+              onHoverLink={(url, on) => emit('hover', { id: linkId, key: url, on })}
+            />
+          </div>
+        ) : nav.loading ? null : (
           <ScrollView id={wid(win, 'page' + nav.pos)} x={0} y={0} w={w} h={bodyH} bar="always" style={{ background: '#fff' }}>
-            <OfflinePage id={id} textSize={textSize} />
+            <OfflinePage id={id} textSize={textSize} onBack={() => step(win, navState(now(), win), -1)} />
           </ScrollView>
         )}
       </div>
@@ -334,8 +376,8 @@ function IE({ win, t, w, h }) {
           left={
             <>
               <Ico kind="webpage" size={16} />
-              <span>{nav.loading ? `Finding site: ${hostOf(nav.url)}...` : nav.stopped ? 'Action canceled' : 'Done'}</span>
-              {nav.loading && <Progress k={(t - nav.at) / LOAD} />}
+              <span>{statusText(nav, overLink)}</span>
+              {nav.loading && <Progress k={(t - nav.at) / (page ? OPEN : LOAD)} />}
             </>
           }
           right={
@@ -352,6 +394,12 @@ function IE({ win, t, w, h }) {
 }
 
 const hostOf = (u) => String(u).replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '')
+// IE6's status bar: the load's progress, a link under the pointer, or "Done"
+function statusText(nav, overLink) {
+  if (nav.loading) return nav.finding || !nav.page ? `Finding site: ${hostOf(nav.url)}...` : `Opening page ${nav.page.addr}...`
+  if (overLink) return overLink
+  return nav.stopped ? 'Action canceled' : 'Done'
+}
 
 function Progress({ k }) {
   const n = Math.max(0, Math.min(10, Math.floor(k * 12)))
@@ -370,14 +418,13 @@ function zoneBox() {
 function printBox() {
   messageBox({ title: 'Print', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
 }
-function offlineBox() {
-  messageBox({ title: 'Work Offline', icon: 'info', text: 'You are working offline. Pages are not available until the network cable is connected.' })
-}
+
+const pageTitle = (p) => pageFor(normUrl(p?.url || HOME))?.title ?? 'The page cannot be displayed'
 
 export default {
   id: 'ie',
-  title: () => 'The page cannot be displayed - Microsoft Internet Explorer',
-  taskbarLabel: () => 'The page cannot be displayed - Microsoft Internet Explorer',
+  title: (p) => `${pageTitle(p)} - Microsoft Internet Explorer`,
+  taskbarLabel: (p) => `${pageTitle(p)} - Microsoft Internet Explorer`,
   icon: null,
   size: { w: 700, h: 520 },
   position: { x: 90, y: 50 },
@@ -385,5 +432,6 @@ export default {
   explorer: false,
   chromeTop: chromeTop({ row2: 24 }),
   background: '#ffffff',
-  Content: scoped(IE, {}),
+  // (a navigation's progress runs OPEN s past its event)
+  Content: scoped(IE, { settle: OPEN + 0.1 }),
 }
