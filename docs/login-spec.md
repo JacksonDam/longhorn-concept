@@ -142,6 +142,10 @@ demo input: src/demo/login.js.
   28 frames when coming from the desktop) and fades it linearly to black over 61 frames
   (ref2 2827-2888). Booting fades the login screen in from black over 30 frames (not shown in
   either video). The off screen is black with a glass power button (needed to switch back on).
+- The shutting-down message ("Windows is shutting down...", the only status text of the power
+  screens) is set in the logon screen's Franklin, Libre Franklin 600 17.8 px like the user names
+  (the user's request; Longhorn 4015's is Tahoma Bold), at the Tahoma version's cap height and
+  centre, centred on the screen at every shape.
 - Each login visit starts afresh (loginSince: selection, password, hovers and submit count from
   the visit's start). The login scene stays mounted while hidden (aurora canvas paused), so a
   visit starts without a new GL context or shader compile.
