@@ -81,8 +81,9 @@ export const textureReady = (url) => !url || !!texCache.get(url)?.userData.ready
 
 // A face drawn on the GPU (slab.face: { key, size, base, over, rects }, music/device.js deviceFace):
 // the still base canvas, the cells (rects: [x, y, w, h, r, g, b, a] in face px, straight alpha,
-// drawn over in order) and the still `over` canvas, into a 4x multisampled target with mipmaps, one
-// per GL context, redrawn when its key changes. Nothing is uploaded but the two still canvases,
+// drawn over in order) and the still `over` canvas, into a target with mipmaps, one per GL context,
+// redrawn when its key changes (the cells' edges aren't antialiased: the slab shows the face at a
+// quarter of its size or less, through its mipmaps). Nothing is uploaded but the two still canvases,
 // once. (The canvas faces upload on every change: canvasTexture.)
 const FACE_V = 'attribute vec4 aCol; varying vec4 vCol; varying vec2 vUv; void main(){ vCol = aCol; vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }'
 const FACE_F = 'varying vec4 vCol; varying vec2 vUv; uniform sampler2D uTex; uniform float uUseTex; void main(){ gl_FragColor = uUseTex > 0.5 ? texture2D(uTex, vUv) : vCol; }'
@@ -90,7 +91,7 @@ function faceTexture(gl, face) {
   if (!gl.faces) gl.faces = new Map()
   let f = gl.faces.get(face.base)
   if (!f) {
-    const rt = new THREE.WebGLRenderTarget(face.size, face.size, { samples: 4, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter })
+    const rt = new THREE.WebGLRenderTarget(face.size, face.size, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter })
     rt.texture.anisotropy = 8
     rt.texture.colorSpace = THREE.NoColorSpace
     const mat = (tex) =>
@@ -647,7 +648,7 @@ export class SlabView {
     const { pw, ph, tg } = main
     if (!this.img || this.img.width !== tg.w || this.img.height !== tg.h) {
       this.img?.dispose()
-      this.img = new THREE.WebGLRenderTarget(tg.w, tg.h, { type: THREE.HalfFloatType })
+      this.img = new THREE.WebGLRenderTarget(tg.w, tg.h)
     }
     const u = this.compose.mat.uniforms
     u.uMain.value = tg.accum.texture
