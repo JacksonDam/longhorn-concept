@@ -5,7 +5,7 @@
 //
 // usage: node tools/appbench.mjs [--url http://127.0.0.1:5312/longhorn-concept/] [--dpr 1.5]
 //        [--size 1440x1080] [--repeat 2] [--json out.json] [--scaled] [--query stage=zoom]
-//        [--apps music,ie] [--engine chrome|webkit]
+//        [--apps music,ie] [--engine chrome|webkit] [--music]
 // --scaled: the frame fitted to the window (s = 1.5 at 1920x1080, the user's full screen) instead
 // of pinned at scale 1 (tools/bench.mjs); --apps: only these apps' slots are stepped;
 // --engine webkit: Playwright WebKit through tools/wkbench.mjs (each frame's main-thread cost:
@@ -37,9 +37,20 @@ const AT = Object.fromEntries([...src.match(/EVERY_AT = \{([^}]+)\}/)[1].matchAl
 // per phase: [name, first frame, last frame] of the slot
 const PH = [['open', AT.open, AT.open + 36], ['minimise', AT.minimise, AT.minimise + 14], ['restore', AT.restore, AT.restore + 16],
   ['maximise', AT.maximise, AT.maximise + 14], ['unmaximise', AT.unmaximise, AT.unmaximise + 14], ['close', AT.close, AT.close + 18]]
-const slots = apps.map((app, i) => [app, 1540 + i * SLOT]).filter(([app]) => !only || only.includes(app))
-const spec = only ? slots.map(([, f]) => `${f - 10}-${f + SLOT - 1}`).join(',') : `1530-${1540 + apps.length * SLOT}`
-const r = spawnSync('node', [join(here, engine === 'webkit' ? 'wkbench.mjs' : 'bench.mjs'), spec, '--url', base + '?apps=every&', '--dpr', dpr, '--size', size, '--repeat', repeat, '--json', out,
+let slots = apps.map((app, i) => [app, 1540 + i * SLOT]).filter(([app]) => !only || only.includes(app))
+let spec = only ? slots.map(([, f]) => `${f - 10}-${f + SLOT - 1}`).join(',') : `1530-${1540 + apps.length * SLOT}`
+let scenario = 'every'
+// --music: ?apps=music (my Music alone: open, an album page and back, the pointer tilt, minimise,
+// restore, close; MUSIC_AT in the bench script)
+if (args.includes('--music')) {
+  const M = Object.fromEntries([...src.match(/MUSIC_AT = \{([^}]+)\}/)[1].matchAll(/(\w+): (\d+)/g)].map((m) => [m[1], +m[2]]))
+  PH.splice(0, PH.length, ['open', M.open, M.open + 36], ['album', M.album, M.album + 50], ['back', M.back, M.back + 26], ['tilt', M.tilt, M.tilt + 72],
+    ['minimise', M.minimise, M.minimise + 14], ['restore', M.restore, M.restore + 16], ['close', M.close, M.close + 18])
+  slots = [['music', 1540]]
+  spec = `1530-${1540 + M.close + 30}`
+  scenario = 'music'
+}
+const r = spawnSync('node', [join(here, engine === 'webkit' ? 'wkbench.mjs' : 'bench.mjs'), spec, '--url', base + `?apps=${scenario}&`, '--dpr', dpr, '--size', size, '--repeat', repeat, '--json', out,
   ...(args.includes('--scaled') ? ['--scaled'] : []), ...(query ? ['--query', query] : [])], { encoding: 'utf8' })
 if (r.status !== 0 && !r.stdout.includes('frames over')) {
   console.error(r.stderr || r.stdout)

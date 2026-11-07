@@ -1,4 +1,4 @@
-// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus', 'every', 'tilt'): a demo-like event list for the apps, appended after the video's input (frames
+// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus', 'every', 'tilt', 'music'): a demo-like event list for the apps, appended after the video's input (frames
 // 1530+), so tools/bench.mjs and tools/capture.mjs can step and measure the apps' windows on the
 // ?capture path:  node tools/bench.mjs 1530-1960 --url "http://localhost:5304/longhorn-concept/?apps=all"
 import { onEvents, getLog, emit } from '../../core/events.js'
@@ -80,6 +80,26 @@ function script(name) {
     at(1745, 'win.close', { id: 'pictures' })
     circle(1775, 1845, 342, 230, 70)
   }
+  if (name === 'music') {
+    // my Music on its own (MUSIC_AT, below; tools/appbench.mjs --music prints each phase): opened
+    // anew (the video's window is closed before the video's end), an album page and back to the
+    // device, the pointer circling the device slab (its tilt), then minimised, restored and closed
+    at(1505, 'win.close', { id: 'music' })
+    const f = 1540
+    at(f + MUSIC_AT.open, 'win.open', { id: 'music', app: 'music' })
+    at(f + MUSIC_AT.album, 'music.album', { id: 10 })
+    at(f + MUSIC_AT.back, 'music.home', { id: 'music' })
+    // (the device's centre: the window at 45, 23, the slab box at 175, 118, the device at 101, 93)
+    for (let k = MUSIC_AT.tilt; k <= MUSIC_AT.tilt + 70; k++) {
+      const a = ((k - MUSIC_AT.tilt) / 30) * 2 * Math.PI
+      const r = 70 * Math.min(1, (k - MUSIC_AT.tilt) / 10)
+      at(f + k, 'ptr', { x: Math.round((321 + 300 * (1 - r / 70) + r * Math.cos(a)) * 10) / 10, y: Math.round((234 + r * Math.sin(a)) * 10) / 10 })
+    }
+    at(f + MUSIC_AT.tilt + 71, 'ptr', { hidden: true })
+    at(f + MUSIC_AT.minimise, 'win.minimize', { id: 'music' })
+    at(f + MUSIC_AT.restore, 'win.restore', { id: 'music' })
+    at(f + MUSIC_AT.close, 'win.close', { id: 'music' })
+  }
   if (name === 'every') {
     // every registered app in turn (EVERY, below): opens, settles, minimises, restores,
     // maximises, restores down and closes, one app per EVERY_SLOT frames from 1540 (EVERY_AT:
@@ -127,6 +147,9 @@ export function withPrepares(ev, at = 'f') {
   return out.sort((a, b) => a[at] - b[at])
 }
 
+// ?apps=music: each phase's event frame from 1540 (tools/appbench.mjs --music reads them; the album
+// page starts 22.5 frames after its click, music/timeline.js PAGE_DELAY)
+export const MUSIC_AT = { open: 0, album: 60, back: 140, tilt: 190, minimise: 290, restore: 320, close: 360 }
 // ?apps=every: frames per app and each phase's event frame in its slot (tools/appbench.mjs reads them)
 export const EVERY_SLOT = 180
 export const EVERY_AT = { open: 0, minimise: 40, restore: 60, maximise: 90, unmaximise: 110, close: 160 }
