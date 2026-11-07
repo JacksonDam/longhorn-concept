@@ -61,7 +61,12 @@ semi-transparent copies. Reproduce it the same way:
   reference (count the ghost copies, measure their spread vs the per-frame displacement).
 - 3D tiles: `<Slab3D items=[{ slab, pose }] moving samples shutter phase>` (gl/Slab3D.jsx, gl/slab.js):
   glassy rounded slabs (picture face, glass edges, softbox reflection, fresnel rim) rendered by
-  one shared three.js renderer, accumulated in half float, copied into a DOM canvas.
+  one shared three.js renderer, accumulated in half float, copied into a DOM canvas (the login).
+  The explorer headers' slabs (my Music, my Pictures) draw through a `SlabView` instead: a
+  visible GL canvas of their own that renders the slab and its reflection once a frame and draws
+  that image on every shown layer of the window with the layer's CSS transform (no copy out of
+  the GL context: in Safari such a copy waited on the GPU process, behind the painting of the
+  window's layers); my Music's face (device.js `deviceFace`) is drawn on the GPU too.
 - The cursor (core/Cursor.jsx): under ?demo / ?capture the video's path, 12 copies over 0.75 of a
   video frame around the frame's time. The real pointer gets the same look from its own reports
   (every coalesced pointermove with its timestamp, in a ring): the copies sit where it was over
@@ -130,8 +135,9 @@ OS in the same style. Everything still derives from (time, event log).
   and rasterised, waiting on the window's rect at opacity 1e-4: drawn, so it rasterises; at
   opacity 0 Chrome would skip it); once it has settled they unmount a step at a time, and a new
   need carries the layers still mounted over. A copy whose content equals copy 1's is a DOM clone
-  of copy 1's body (`CloneBody`: no React mount; canvases get their pixels copied); my Music's
-  slab canvases come from a pool. The trigger is the animation's event, or earlier a prepare
+  of copy 1's body (`CloneBody`: no React mount; canvases get their pixels copied). An app's
+  `Overlay` (my Music's slab) is drawn once over all of the window's layers, given each shown
+  layer's placement (`OverlayOnce`: transform, opacity, the open's body shade), not per copy. The trigger is the animation's event, or earlier a prepare
   signal: the pointer on the title bar's minimise or close button ('win.prepare', held while the
   pointer rests there, and on press) or on the window's taskbar button (its 'hover' events), so
   the click finds the copies ready; a hidden window's live layer mounts whole on the first step,
@@ -184,8 +190,8 @@ OS in the same style. Everything still derives from (time, event log).
   A header slab may also move to a place and size of its own with the takeover (HeaderSlab.jsx
   `spec.pointer`): my Music's device stands 18 px left, so no pointer pose covers its title.
 - `src/apps/music/HeaderSlab.jsx`: an explorer header's glass slab (my Music's device and album
-  pages, my Pictures' photo frame): the slab and floor-reflection canvases on the shared slab
-  renderer, my Music's spin-in on open (`devicePoseTo` moves it to another header's resting
+  pages, my Pictures' photo frame): the slab and its floor reflection through a pooled slab view
+  (gl/slab.js `SlabView`, warmed at load), my Music's spin-in on open (`devicePoseTo` moves it to another header's resting
   pose), the settled pose with the pointer tilt, drawn from the app's window Overlay. The swoosh's
   intro (`SwooshIn`), the title's intro (`Title`) and the header buttons' pop-in (`PopIn`) are
   shared from music/Header.jsx.
@@ -267,7 +273,8 @@ http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbenc
 `?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=tilt&` (the header slabs' pointer tilt,
 frames 1530-1850), `?apps=every&` (every app opened, minimised, restored, maximised, restored down,
 closed; `node tools/appbench.mjs --size 1920x1080 --dpr 1 --scaled [--engine webkit] [--apps music,ie]`
-prints the per-app, per-phase costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
+prints the per-app, per-phase costs), `?apps=music&` (my Music: open, an album page and back, the
+pointer tilt, minimise, restore, close; `tools/appbench.mjs --music`), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
 Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ...] [--prefill
 5000,20000] [--trace|--profile]` drags windows with CDP mouse events at a mouse's report rate in
 the real-time app (vsync off) and prints each run's frame-cost percentiles. bench, appbench and

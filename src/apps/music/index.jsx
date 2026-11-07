@@ -14,7 +14,7 @@ import { scoped, TextField, wid, valueOf, textOf } from '../../ui/index.js'
 import { mediaState } from '../../os/media.js'
 import { BodyBg, EnjoyGroup, TaskPane, FoldersPane, GridBar, StatusBar, ResizeGrip } from './Body.jsx'
 import { AlbumView, GridScrollbar } from './Grid.jsx'
-import { Header, INTRO_SHOTS } from './Header.jsx'
+import { Header, INTRO_SHOTS, warmDeviceSlab } from './Header.jsx'
 import { HEADER, smoothRamp, toRel } from './timeline.js'
 import { TWEET_COVER } from './albums.js'
 import { warmSlabs } from './SlabCanvas.jsx'
@@ -25,7 +25,7 @@ import { rectAt } from './HeaderSlab.jsx'
 import { wantPointer } from '../../core/Cursor.jsx'
 
 // compile the 3D slab shader at load (never on the frame a slab first appears)
-warmSlabs({ w: 4, h: 4, d: 2, map: TWEET_COVER })
+warmSlabs({ w: 4, h: 4, d: 2, map: TWEET_COVER }, warmDeviceSlab())
 
 const searchText = (t, win) => textOf(t, wid(win, 'search'))
 
@@ -78,15 +78,16 @@ function MusicContent({ win, t, live, w, h }) {
   )
 }
 
-// the 3D slabs (device / album) on every visible blur copy, rendered once per frame
+// the 3D slabs (device / album) on every shown layer of the window, rendered once per frame and
+// drawn on each (os/PlexWindow app.Overlay, music/HeaderSlab.jsx Slabs)
 // (the slabs tilt towards the pointer: while the overlay is mounted the pointer's moves are logged)
-function MusicOverlay({ win, t, skip, hidden }) {
+function MusicOverlay({ win, t, layers, frame, motion, shade }) {
   useEffect(() => wantPointer(), [])
   const s = settings(t, win)
   if (!s.preview) return null
   const t0 = openT(win)
   const vs = viewState(t, t0)
-  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} hidden={hidden} rect={rectAt(win, music)} />
+  return <Header t={t} openT={t0} page={vs.page} slabs="only" view={{ layers, frame, motion, shade }} rect={rectAt(win, music)} />
 }
 
 // the content a motion-blur copy shows: the settled state after the latest change (the intro

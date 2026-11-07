@@ -158,3 +158,32 @@ export function drawDevice(t) {
 }
 
 export const deviceCanvas = () => canvas || drawDevice(0)
+
+// The same face for the slab views (gl/slab.js faceTexture): drawn on the GPU from its still parts,
+// so a new equaliser step uploads no canvas (a canvas upload waits on Safari's GPU process: up to
+// 22 ms while a window paints): base: the glass body (makeBase), over: the note on a transparent
+// canvas, rects: the equaliser's cells as [x, y, w, h, r, g, b, a] (face px, straight alpha) in
+// drawing order, key: its levels. -> { key, size, base, over, rects }
+let still = null
+let lastFace = null
+export function deviceFace(t) {
+  if (!still) {
+    const over = document.createElement('canvas')
+    over.width = over.height = N
+    drawNote(over.getContext('2d'))
+    still = { base: makeBase(), over }
+  }
+  const levels = Array.from({ length: COLS }, (_, c) => level(c, t))
+  const key = levels.join(',')
+  if (lastFace && lastFace.key === key) return lastFace
+  const rects = []
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < levels[c]; r++) {
+      const x = N * (X0 + c * (CELL + GAP))
+      const y = N * (Y1 - (r + 1) * CELL - r * GAP)
+      rects.push(x, y, N * CELL, N * CELL, 226 / 255, 244 / 255, 1, 0.62 - r * 0.05)
+      rects.push(x, y, N * CELL, N * 0.007, 1, 1, 1, 0.35)
+    }
+  }
+  return (lastFace = { key, size: N, base: still.base, over: still.over, rects })
+}

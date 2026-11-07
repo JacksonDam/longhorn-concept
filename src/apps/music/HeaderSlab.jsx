@@ -1,10 +1,12 @@
 // The glass slab of an explorer header, shared by my Music (the music device and its album pages)
-// and my Pictures & Videos (the photo frame): the slab and its floor reflection drawn by the one
-// shared slab renderer (SlabCanvas, gl/slab.js), my Music's fitted spin-in on open, the settled
-// pose that hands over to the pointer (tilt.js), the window's rect for the tilt, and when the
-// canvases render at the display's rate. The app draws it from its window's Overlay (above the
-// content, on every motion-blur copy; the copies share one render, `cache`).
-import { SlabCanvas } from './SlabCanvas.jsx'
+// and my Pictures & Videos (the photo frame): the slab and its floor reflection drawn by a slab
+// view (gl/slab.js SlabView: its own visible GL canvas), my Music's fitted spin-in on open, the
+// settled pose that hands over to the pointer (tilt.js), the window's rect for the tilt, and when
+// the slab renders at the display's rate. The app draws it from its window's Overlay, once over all
+// of the window's layers (os/PlexWindow.jsx): one render a frame, drawn on every shown layer.
+import { useLayoutEffect, useRef } from 'react'
+import { acquireSlabView, releaseSlabView, textureReady } from '../../gl/slab.js'
+import { useStageScale, deviceScale } from '../../core/Stage.jsx'
 import { slabTilt, applyTilt } from './tilt.js'
 import { toRel, devicePoseRel, DEVICE_REST } from './timeline.js'
 import { FPS, frameTime } from '../../core/clock.js'
@@ -84,35 +86,90 @@ export function slabClock(t, spin, pose) {
   return { fast, slabT: fast ? t : onFrameGrid(t) }
 }
 
-// The slab canvases (the slab and its floor reflection: the pose mirrored in the plane y = floor)
-// for items [{ slab, pose(tt) }] (a pose may set opacity) at t. spin: blurred with my Music's
-// spin's samples; copy: one sample (a copy that never shows motion). cache: an id under which
-// canvases rendering the same image share one render (the window's blur copies). skip: the
-// canvases keep their pixels (they draw once if they have none); hidden: they draw but stay hidden
-export function Slabs({ spec, t, items, spin = false, copy = false, reflection = true, cache, skip, hidden }) {
+// What the image shows is a function of its slabs, their poses at the sample times and the view:
+// an image whose key hasn't changed isn't rendered again (a drag, a re-render, a frame between two
+// slab updates), and a view whose layers haven't moved isn't drawn again (it keeps its pixels).
+const slabIds = new WeakMap()
+let nextSlabId = 1
+const slabId = (slab) => {
+  let id = slabIds.get(slab)
+  if (!id) slabIds.set(slab, (id = nextSlabId++))
+  return id
+}
+function imageKey(items, times, w, h, scale, refl) {
+  let key = `${w}x${h}@${scale}:${refl}`
+  for (const it of items) {
+    key += `|${slabId(it.slab)}.${it.slab.face ? it.slab.face.key : it.slab.canvasVersion ?? 0}${textureReady(it.slab.map) ? '' : '?'}`
+    for (const tt of times) key += ':' + JSON.stringify(it.pose(tt))
+  }
+  return key
+}
+
+// The slab and its floor reflection (the pose mirrored in the plane y = floor, at REFL_OP under a
+// mask fading it out below the floor) for items [{ slab, pose(tt) }] (a pose may set opacity) at
+// t, drawn on every shown layer of the window (gl/slab.js SlabView: one render, then the image
+// once per layer with that layer's transform; the app's Overlay, os/PlexWindow.jsx, passes them).
+// spin: blurred with my Music's spin's samples; copy: one sample.
+// layers: [{ left, top, w, h, transform, ox, oy, op, shade }] (the window group's px: os/PlexWindow
+// overlayLayers), frame: the stage's rect in the group's px, motion: the window's copies are
+// mounted (the view covers the stage meanwhile; at rest it is the slab's box)
+const REFL_OP = 0.22
+const COARSE = typeof matchMedia === 'function' && (matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600)
+export function Slabs({ spec, t, items, spin = false, copy = false, reflection = true, layers = [], frame, motion = false, shade }) {
   const { box, floor, fade } = spec
-  const hide = hidden ? { visibility: 'hidden' } : null
+  const host = useRef(null)
+  const view = useRef(null)
+  const drawn = useRef({ image: null, draw: null })
+  const { s } = useStageScale()
+  const scale = deviceScale(s)
   const samples = copy ? 1 : spin ? 8 : 3
   const shutter = (spin ? 0.9 : 0.5) / FPS
-  const mirror = (p) => ({ ...p, y: 2 * floor - p.y, rx: -(p.rx || 0), rz: -(p.rz || 0), sy: -(p.sy ?? 1) })
-  const mask = `linear-gradient(180deg, transparent ${floor - 4}px, #000 ${floor + 6}px, transparent ${floor + fade}px)`
-  return (
-    <>
-      {reflection && (
-        <SlabCanvas
-          t={t}
-          width={box.w}
-          height={box.h}
-          items={items.map((it) => ({ slab: it.slab, pose: (tt) => mirror(it.pose(tt)) }))}
-          samples={samples}
-          shutter={shutter}
-          P={900}
-          style={{ left: box.x, top: box.y, opacity: 0.22, WebkitMaskImage: mask, maskImage: mask, ...hide }}
-          cacheKey={cache && cache + '.refl'}
-          skip={skip}
-        />
-      )}
-      <SlabCanvas t={t} width={box.w} height={box.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: box.x, top: box.y, ...hide }} cacheKey={cache && cache + '.main'} skip={skip} />
-    </>
-  )
+  useLayoutEffect(() => {
+    const v = acquireSlabView()
+    host.current.appendChild(v.canvas)
+    view.current = v
+    return () => {
+      view.current = null
+      releaseSlabView(v, COARSE)
+    }
+  }, [])
+  useLayoutEffect(() => {
+    const v = view.current
+    if (!v) return
+    const times = []
+    for (let k = 0; k < samples; k++) times.push(samples === 1 ? t : t + shutter * ((k + 0.5) / samples - 0.5))
+    const ik = imageKey(items, times, box.w, box.h, scale, reflection)
+    const fresh = ik !== drawn.current.image
+    if (fresh && items.length) {
+      const mirror = (p) => ({ ...p, y: 2 * floor - p.y, rx: -(p.rx || 0), rz: -(p.rz || 0), sy: -(p.sy ?? 1) })
+      const refl = reflection ? { items: items.map((it) => ({ slab: it.slab, pose: (tt) => mirror(it.pose(tt)) })), op: REFL_OP, mask: [floor - 4, floor + 6, floor + fade] } : null
+      v.image(items, times, { cw: box.w, ch: box.h, scale, P: 900 }, refl)
+      drawn.current.image = ik
+    }
+    // where the canvas lies (group px): on the box of the only, untransformed layer, or (copies
+    // mounted, or a layer transformed) over the stage, each layer drawn with its transform
+    // (on a desktop it covers the stage all the time: resizing a GL canvas reallocates its
+    // buffers, hundreds of ms behind a busy GPU; a phone keeps the box at rest, memory first)
+    const L0 = layers[0]
+    const still = COARSE && !motion && layers.length === 1 && !L0.transform && L0.op === 1 && !L0.shade
+    const at = still ? { x: L0.left + box.x, y: L0.top + box.y, w: box.w, h: box.h } : frame
+    const dk = `${at.x},${at.y},${at.w},${at.h}|${layers.map((L) => `${L.left},${L.top},${L.transform},${L.ox},${L.oy},${L.op},${L.shade}`).join(';')}`
+    if (!fresh && dk === drawn.current.draw) return
+    drawn.current.draw = dk
+    const c = v.canvas.style
+    c.left = at.x + 'px'
+    c.top = at.y + 'px'
+    c.width = at.w + 'px'
+    c.height = at.h + 'px'
+    const ms = layers.map((L) => {
+      // box px -> the canvas's px: the box in the layer, the layer's transform about its origin,
+      // the layer's place in the group, the canvas's place
+      const m = new DOMMatrix().translate(L.left + L.ox - at.x, L.top + L.oy - at.y)
+      if (L.transform) m.multiplySelf(new DOMMatrix(L.transform))
+      m.translateSelf(box.x - L.ox, box.y - L.oy)
+      return { m, op: L.op, shade: L.shade }
+    })
+    v.draw(items.length ? ms : [], at.w, at.h, scale, box, shade && { ...shade, at: { x: box.x, y: box.y } })
+  })
+  return <div ref={host} style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, pointerEvents: 'none' }} />
 }

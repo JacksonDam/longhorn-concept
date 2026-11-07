@@ -1,8 +1,9 @@
-// Like gl/Slab3D, but driven by an explicit time `t` (so each motion-blur copy of the
-// window can render its own sub-frame pose) and without reading the clock itself.
+// Like gl/Slab3D, but driven by an explicit time `t` and without reading the clock itself (a still
+// slab: All Programs' header). The explorer headers' slabs draw through a SlabView instead
+// (music/HeaderSlab.jsx Slabs: one render drawn on every layer of the window).
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useStageScale, deviceScale } from '../../core/Stage.jsx'
-import { renderSlabs, SlabScene, texturesReady, textureReady, acquireSlabScene, releaseSlabScene, warmTextures } from '../../gl/slab.js'
+import { renderSlabs, SlabScene, texturesReady, textureReady, acquireSlabScene, releaseSlabScene, warmTextures, warmSlabView } from '../../gl/slab.js'
 
 // cacheKey: canvases rendering the same image in one frame (e.g. the blur copies of the window in
 // real-time playback, which all show the slab at the frame time) share one GL render: the first
@@ -33,7 +34,7 @@ function imageKey(items, times, width, height, scale, P, origin) {
 // lifetime, so slabs mounting later (the window open, the album page) never compile on their
 // first frame (a 25-300 ms stall otherwise: three.js frees a program with its last material).
 const warm = { scene: null }
-export function warmSlabs(slab) {
+export function warmSlabs(slab, ...more) {
   if (warm.scene || typeof document === 'undefined') return
   warm.scene = new SlabScene()
   const c = document.createElement('canvas')
@@ -45,6 +46,8 @@ export function warmSlabs(slab) {
     draw()
     warmTextures()
   })
+  // (and a slab view, the explorer headers' visible slab canvas, music/HeaderSlab.jsx Slabs)
+  warmSlabView([slab || { w: 4, h: 4, d: 2 }, ...more])
 }
 
 // A pool of canvases: a slab canvas whose layer unmounts (a blur copy after its animation) goes
