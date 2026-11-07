@@ -3,7 +3,7 @@
 // Videos", task pane (enjoy pictures, find pictures, Refine By Date calendar, file types),
 // date-grouped thumbnails, a detail view per photo (comments, keywords, location, Edit),
 // albums, and the full-screen slide show (app 'slideshow').
-import { memo, useEffect } from 'react'
+import { memo, useCallback, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now, FPS } from '../../core/clock.js'
 import {
@@ -600,7 +600,8 @@ function Pictures({ win, t, w, h, active }) {
   const barY = detail ? 288 : 206
   const gridY = barY + 22
   const statusH = 20
-  const onOpen = (p) => openDetail(win, p)
+  // (stable while the window record is: the date groups are memoised on it)
+  const onOpen = useCallback((p) => openDetail(win, p), [win])
   const selCount = st.photo ? 1 : 0
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body, overflow: 'hidden' }}>

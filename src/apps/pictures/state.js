@@ -3,8 +3,8 @@
 //   cal { level, y, m, sel }, size, range, viewby
 //   'pics.album' { name, photos }      an album made in Create an Album (any window)
 //   'pics.edit'  { photo, rot, adjust } edits saved from Edit Pictures
-import { getLog, getVersion } from '../../core/events.js'
 import { valueOf, wid } from '../../ui/index.js'
+import { allOfTypes, countOfTypes, typesKey } from '../../os/logIndex.js'
 import { GROUPS, PHOTOS, importedGroup } from '../lib/pictures.jsx'
 
 export const CAL0 = { level: 'days', y: 2002, m: 4, sel: null }
@@ -26,22 +26,24 @@ export function picState(t, win) {
   }
 }
 
-// albums and edits from every window (they are files)
-let cache = { v: -1, t: -1, albums: [], edits: new Map(), imports: [] }
+// albums and edits from every window (they are files). Cached on the events it reads (not on t
+// or the log version): from frame to frame the same result keeps its identity, so the views
+// memoised on it don't redraw, and a long session's log isn't scanned per frame
+const LIB_TYPES = ['pics.album', 'pics.edit', 'pics.import', 'login.submit']
+let cache = { key: null, albums: [], edits: new Map(), imports: [] }
 export function library(t) {
-  const ver = getVersion()
-  if (cache.v === ver && cache.t === t) return cache
+  const key = typesKey(LIB_TYPES) + '|' + countOfTypes(t, LIB_TYPES)
+  if (cache.key === key) return cache
   const albums = []
   const edits = new Map()
   const imports = new Map()
-  for (const e of getLog()) {
-    if (e.t > t) break
+  for (const e of allOfTypes(t, LIB_TYPES)) {
     if (e.type === 'pics.album') albums.push({ id: 'album-' + albums.length, name: e.name, photos: e.photos, at: e.t })
     else if (e.type === 'pics.edit') edits.set(e.photo, { rot: e.rot || 0, adjust: !!e.adjust })
     else if (e.type === 'pics.import') for (const ev of e.events || []) imports.set(ev.id, importedGroup(ev))
     else if (e.type === 'login.submit') imports.clear()
   }
-  cache = { v: ver, t, albums, edits, imports: [...imports.values()].filter(Boolean) }
+  cache = { key, albums, edits, imports: [...imports.values()].filter(Boolean) }
   return cache
 }
 export const editStyle = (ed) =>
@@ -55,8 +57,23 @@ export function dateMatch(p, sel) {
   return true
 }
 
-// the groups shown (filtered), each { id, title, caption, photos }
+// the groups shown (filtered), each { id, title, caption, photos }; the same filter on the same
+// library gives the same (shared, unmodified) array
+const shown = new WeakMap() // imports -> Map(filter key -> groups)
+const NO_IMPORTS = []
 export function visibleGroups(st) {
+  const imports = st.imports || NO_IMPORTS
+  let m = shown.get(imports)
+  if (!m) shown.set(imports, (m = new Map()))
+  const key = [st.type, st.tag, st.words, st.range, JSON.stringify(st.cal.sel)].join('|')
+  let r = m.get(key)
+  if (!r) {
+    if (m.size > 16) m.clear()
+    m.set(key, (r = filterGroups(st)))
+  }
+  return r
+}
+function filterGroups(st) {
   const ok = (p) =>
     (st.type === 'all' || st.type === p.kind) &&
     (!st.tag || p.keywords.includes(st.tag)) &&
