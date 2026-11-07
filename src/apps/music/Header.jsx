@@ -87,9 +87,11 @@ export function SwooshIn({ rel, op = 1 }) {
 }
 
 // "Windows my Music": "Windows" slides in from the left, "my" fades in, "Music" wipes in
-// left to right, then the whole title drifts back into place.
+// left to right, then the whole title drifts back into place. Another header's title plays the
+// same intro (my Pictures' "Windows my Pictures & Videos"): name, the wipe's width (px of the
+// unscaled text from the name's start: wider than the name) and an id unique to the window kind.
 const TITLE = { x: 361, wy: 161, y: 189 }
-export function Title({ rel, op = 1 }) {
+export function Title({ rel, op = 1, name = 'Music', wipeW = 110, id = 'mw' }) {
   const LAYER = useLayer(rel < HEADER.drift[1])
   const H = HEADER
   const wk = ramp(rel, H.windows[0], H.windows[1])
@@ -100,7 +102,7 @@ export function Title({ rel, op = 1 }) {
   const mOff = lerp(-3, 0, ease.out(ramp(rel, H.music[0], H.music[1] + 2)))
   const grow = lerp(0.9, 1, ease.out(ramp(rel, H.windows[0], H.drift[1])))
   if (op <= 0 || rel < H.windows[0]) return null
-  const mid = `mw-wipe-${Math.round(wipe * 1000)}`
+  const mid = `${id}-wipe-${Math.round(wipe * 1000)}`
   return (
     <div
       style={{
@@ -128,8 +130,8 @@ export function Title({ rel, op = 1 }) {
               <stop offset={Math.max(0, wipe * 1.35 - 0.2)} stopColor="#fff" stopOpacity="1" />
               <stop offset={Math.max(0.001, wipe * 1.35)} stopColor="#fff" stopOpacity="0" />
             </linearGradient>
-            <mask id={mid + 'm'} maskUnits="userSpaceOnUse" x="40" y="-40" width="110" height="50">
-              <rect x="40" y="-40" width="110" height="50" fill={`url(#${mid})`} />
+            <mask id={mid + 'm'} maskUnits="userSpaceOnUse" x="40" y="-40" width={wipeW} height="50">
+              <rect x="40" y="-40" width={wipeW} height="50" fill={`url(#${mid})`} />
             </mask>
           </defs>
           <text x="0" y="0" transform="scale(0.9,1)" fontFamily={FONT} fontSize={34} fontWeight={300} letterSpacing={-0.3} mask={`url(#${mid}m)`}>
@@ -137,7 +139,7 @@ export function Title({ rel, op = 1 }) {
               {'my '}
             </tspan>
             <tspan fill="#2c6cc4" fontWeight={400}>
-              Music
+              {name}
             </tspan>
           </text>
         </svg>

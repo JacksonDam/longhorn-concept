@@ -10,7 +10,7 @@ import {
   scoped, wid, valueOf, hoverKeys, pt, TextField, Slider, Scrollbar, DropMenu, dropBelow, ContextMenu, contextHandler, Button, C, FONT, HEAVY, find, focusField,
 } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
-import { SwooshIn, PopIn, BUTTONS_END, INTRO_SHOTS } from '../music/Header.jsx'
+import { SwooshIn, PopIn, Title as MusicTitle, BUTTONS_END, INTRO_SHOTS } from '../music/Header.jsx'
 import { Slabs, settledPose, slabClock, devicePoseTo, rectAt, DEVICE_IN, DEVICE_REST, SPIN_END } from '../music/HeaderSlab.jsx'
 import { drifting } from '../music/tilt.js'
 import { toRel } from '../music/timeline.js'
@@ -130,18 +130,19 @@ function PicturesOverlay({ win, t, skip, hidden }) {
   return <Slabs spec={SPEC} t={slabT} items={[{ slab: deviceSlab(), pose }]} spin={spin} cache="pictures" skip={skip} hidden={hidden} />
 }
 
-// my Music's title type and place (music/Header.jsx Title, settled): "Windows" 13 px over the
-// title, 34 px light "my" and regular blue name
-const Title = memo(function Title() {
+// my Music's title and its intro (music/Header.jsx Title: "Windows" slides in, "my" fades in, the
+// name wipes in, the whole title drifts into place), in window px like my Music's header. The
+// wipe spans the name (unscaled px, the margin my Music's has past "Music")
+const NAME = 'Pictures & Videos'
+function Title({ rel }) {
+  // (measured when drawn: the boot has loaded the face by then)
+  const wipeW = Math.ceil(textWidth(NAME, { size: 34, w: 400, ls: -0.3 })) + 16
   return (
-    <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
-      <Txt x={361} y={38} size={13} w={400} c="#4f86d6">
-        Windows
-      </Txt>
-      <Txt x={366} y={66} size={34} w={300} c="#86b4ea" ls={-0.3} parts={[['my ', {}], ['Pictures & Videos', { w: 400, c: '#2c6cc4' }]]} />
+    <div style={{ position: 'absolute', left: 0, top: -EXPLORER_TOP }} onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
+      <MusicTitle rel={rel} name={NAME} wipeW={wipeW} id="pw" />
     </div>
   )
-})
+}
 
 // my Music's header buttons: a 32 px icon over a two-tone label, hit box around both
 const btnParts = (a, b) => [
@@ -195,7 +196,7 @@ function Header({ win, t }) {
           onPointerDown={(e) => e.button === 0 && slideshow(null, true)}
         />
       )}
-      <Title />
+      <Title rel={rel} />
       <HeaderButtons win={win} t={t} rel={rel} />
     </>
   )
@@ -606,7 +607,7 @@ function Pictures({ win, t, w, h, active }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: C.body, overflow: 'hidden' }}>
       {!detail && !hide && <Header win={win} t={t} />}
-      {!detail && hide && <Title />}
+      {!detail && hide && <Title rel={toRel(t, openT(win))} />}
       {detail && <Detail win={win} t={t} st={st} list={list.length ? list : PHOTOS} w={w} edits={edits} />}
       {!hide && <TaskPane win={win} t={t} st={st} calendar={stage >= 3} />}
       <GridBar win={win} st={st} y={barY} w={w} />
