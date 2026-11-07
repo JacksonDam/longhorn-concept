@@ -12,7 +12,8 @@ export const openWin = (id, app, props) => emit('win.open', props ? { id, app, p
 export const closeWin = (id) => emit('win.close', { id })
 export const setProps = (id, props) => emit('win.props', { id, ...props })
 
-// every web destination: Internet Explorer on its offline page, with the address in the bar
+// every web destination: Internet Explorer with the address in the bar (the site's archived
+// 2003 page, or "The page cannot be displayed")
 export const normUrl = (u) => {
   let s = String(u || '').trim()
   if (!s) return 'about:blank'

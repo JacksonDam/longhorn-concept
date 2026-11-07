@@ -21,7 +21,7 @@
 //   'explorer.menu'    { id, menu: 'File' | 'Edit' | 'View' | 'Help', x, y }
 //   'explorer.crumb'   { id, index, x, y }
 //   'explorer.nav'     { id, dir: 'back' | 'forward' }
-// Web links open Internet Explorer on its offline page (the brief's rule), Home opens MSN in IE,
+// Web links open Internet Explorer on the site's archived 2003 page, Home opens MSN in IE,
 // Search opens the Search window, Favorites drops the Favorites list ('explorer.menu' Favorites).
 import { memo } from 'react'
 import { emit } from '../core/events.js'
@@ -146,7 +146,7 @@ export const PLACES = [
   '-',
   { label: 'Control Panel', onClick: open('control') },
 ]
-// the Favorites drop-down (every link opens Internet Explorer on its offline page)
+// the Favorites drop-down (every link opens the site in Internet Explorer)
 export const FAVORITES = [
   { label: 'MSN.com', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'www.msn.com' } }) },
   { label: 'Music on MSN', onClick: () => emit('win.open', { id: 'ie', app: 'ie', props: { url: 'music.msn.com' } }) },

@@ -261,15 +261,19 @@ function Users({ win, t, w, h }) {
   )
 }
 
+// the computer is on the network through its wired connection (Internet Explorer loads pages);
+// the wireless adapter isn't connected (XP's red cross on its icon)
 function Network({ win }) {
-  const row = (y, name, state, icon) => (
+  const row = (y, name, state, icon, down) => (
     <div style={{ position: 'absolute', left: 14, top: y, display: 'flex', gap: 10, alignItems: 'center' }}>
       <div style={{ position: 'relative' }}>
         <Ico kind={icon} size={40} />
-        <svg width="14" height="14" style={{ position: 'absolute', right: -3, bottom: -2 }}>
-          <circle cx="7" cy="7" r="6.5" fill="#d0442c" />
-          <path d="M4 4 L10 10 M10 4 L4 10" stroke="#fff" strokeWidth="1.8" />
-        </svg>
+        {down && (
+          <svg width="14" height="14" style={{ position: 'absolute', right: -3, bottom: -2 }}>
+            <circle cx="7" cy="7" r="6.5" fill="#d0442c" />
+            <path d="M4 4 L10 10 M10 4 L4 10" stroke="#fff" strokeWidth="1.8" />
+          </svg>
+        )}
       </div>
       <div>
         <div style={{ fontFamily: HEAVY, fontSize: 12, color: '#2c6cc4' }}>{name}</div>
@@ -282,10 +286,10 @@ function Network({ win }) {
       <div style={{ position: 'absolute', left: 14, top: 10, fontFamily: FONT, fontSize: 17.5, fontWeight: 300, color: C.headingLight }}>
         network <span style={{ fontWeight: 500, color: C.heading }}>connections</span>
       </div>
-      {row(46, 'Local Area Connection', 'Network cable unplugged', 'network')}
-      {row(100, 'Wireless Network Connection', 'Not connected', 'network')}
-      <Button id={wid(win, 'repair')} label="Repair" x={14} y={164} w={90} h={23} onClick={() => messageBox({ title: 'Repair Local Area Connection', icon: 'warning', text: 'Windows could not finish repairing the problem because the network cable is unplugged.' })} />
-      <Button id={wid(win, 'wiz')} label="Internet Options..." x={112} y={164} w={120} h={23} onClick={() => messageBox({ title: 'Internet Options', icon: 'info', text: 'Connection: Local Area Network (LAN)\nAutomatically detect settings: on\n\nThe network cable is unplugged.' })} />
+      {row(46, 'Local Area Connection', 'Connected', 'network', false)}
+      {row(100, 'Wireless Network Connection', 'Not connected', 'network', true)}
+      <Button id={wid(win, 'repair')} label="Repair" x={14} y={164} w={90} h={23} onClick={() => messageBox({ title: 'Repair Local Area Connection', icon: 'info', text: 'Windows finished repairing the problem.' })} />
+      <Button id={wid(win, 'wiz')} label="Internet Options..." x={112} y={164} w={120} h={23} onClick={() => messageBox({ title: 'Internet Options', icon: 'info', text: 'Connection: Local Area Network (LAN)\nAutomatically detect settings: on' })} />
     </>
   )
 }

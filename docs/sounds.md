@@ -15,7 +15,7 @@ listener on the event log; nothing in the scenes or apps plays a sound itself.
 | `session.shutdown` accepted (Start menu, sidebar menu or the login screen's Shut Down) | at the event: "Windows is shutting down..." comes in | SystemExit |
 | `win.open` of a message box (app `dialog`) with icon `info` | as the box opens | SystemAsterisk |
 | ... icon `warning` | as the box opens | SystemExclamation |
-| ... icon `error` (e.g. Run with an unknown name, Outlook's Send/Receive) | as the box opens | SystemHand |
+| ... icon `error` (e.g. Run with an unknown name) | as the box opens | SystemHand |
 | ... icon `cd` (the "Please insert a disc" prompt: not a standard icon, so MB_OK's sound) | as the box opens | Default |
 | ... icon `question` (Confirm File Delete, ...) | none: Windows' "Question" event has no sound by default | - |
 | `fs.delete` (Explorer: a file or folder sent to the Recycle Bin) | at the event | EmptyRecycleBin (the shell's recycle sound) |

@@ -1,6 +1,5 @@
 // Share Music (and "Share this folder"): network sharing for a folder. The settings are kept
-// ('share.set' { folder, on, name, write }); the computer has no network connection, so the note
-// says sharing starts once the cable is connected.
+// ('share.set' { folder, on, name, write }).
 //   win.open { id: 'sharemusic', app: 'sharemusic', props: { folder? } }
 import { emit, getLog } from '../../core/events.js'
 import { scoped, wid, valueOf, TextField, textOf, Button, Checkbox, Tabs, TabPanel, focusField, C, FONT, HEAVY } from '../../ui/index.js'
@@ -41,9 +40,6 @@ function Share({ win, t, w, h }) {
         <div onPointerDown={(e) => e.button === 0 && on && focusField(id('name'))} style={{ position: 'absolute', left: 32, top: 120, fontFamily: FONT, fontSize: 11, color: on ? C.text : '#a4abbb' }}>Share name:</div>
         <TextField id={id('name')} def={s?.name || folder} x={104} y={117} w={w - 140} h={20} disabled={!on} />
         <Checkbox id={id('write')} label="Allow network users to change my files" x={32} y={146} disabled={!on} checked={write} onChange={(v) => emit('ui.value', { id: id('write'), value: v })} />
-        <div onPointerDown={(e) => e.button === 0 && openWin('cpl:network', 'applet', { applet: 'network' })} style={{ position: 'absolute', left: 14, top: 178, right: 14, padding: '6px 8px', borderRadius: 4, background: '#fff7dc', boxShadow: 'inset 0 0 0 1px #e8cf86', fontFamily: FONT, fontSize: 10.5, lineHeight: '15px', color: '#6b5420' }}>
-          This computer is not connected to a network. The folder will be shared when the network cable is connected.
-        </div>
       </TabPanel>
       <Button id={id('ok')} label="OK" isDefault x={w - 262} y={h - 36} w={78} h={23} onClick={() => (apply(), closeWin(win.id))} />
       <Button id={id('cancel')} label="Cancel" x={w - 178} y={h - 36} w={78} h={23} onClick={() => closeWin(win.id)} />

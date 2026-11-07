@@ -1,6 +1,8 @@
 // Inbox - Microsoft Outlook: folders, the message list (the sidebar's mail subjects), the reading
 // pane; New / Reply / Reply to All / Forward open a compose window that "sends" into Sent Items.
 // win.open { id: 'inbox', app: 'outlook', props: { message: <subject | index> } } shows that message.
+// The computer is online: Send/Receive completes (no new mail comes in); File > Work Offline is
+// a toggle ('mail.offline' { on }) that the status bar shows.
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -10,6 +12,7 @@ import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin, messageBox } from '../lib/common.js'
 import { mailState, messageFor, FOLDERS } from './mail.js'
 import { XpIcon } from '../../os/xp.jsx'
+import { lastOfType } from '../../os/logIndex.js'
 
 // Outlook 2003's own folder-list icons (outllib.dll), 16 px design
 const OL_FOLDER = { inbox: 'ol-inbox', unread: 'ol-search', sent: 'ol-sent', outbox: 'ol-outbox', deleted: 'ol-deleted', drafts: 'ol-drafts', junk: 'ol-junk' }
@@ -112,6 +115,7 @@ function NavPane({ win, t, folder, ms, top, h }) {
 function Outlook({ win, t, w, h, active }) {
   const id = (n) => wid(win, n)
   const ms = mailState(t)
+  const offline = lastOfType(t, 'mail.offline')?.on === true
   // the latest win.open on a message (sidebar) wins over the window's own folder / selection
   const [oa, oi] = find(t, 'win.open', win.id)
   const oe = oi >= 0 && oa[oi].t >= win.openedAt && oa[oi].props?.message != null ? oa[oi] : null
@@ -150,8 +154,8 @@ function Outlook({ win, t, w, h, active }) {
   const sendRecv = () =>
     messageBox({
       title: 'Outlook Send/Receive Progress',
-      icon: 'error',
-      text: "Task 'Hotmail - Sending and Receiving' reported error (0x800CCC0E): 'Outlook cannot connect to your mail server. The network cable is unplugged.'",
+      icon: 'info',
+      text: '1 of 1 tasks have completed successfully\n\nHotmail - Sending and Receiving: Completed',
     })
   const toolbar = [
     { id: id('new'), icon: 'newmail', label: 'New', onClick: () => compose('new') },
@@ -168,7 +172,7 @@ function Outlook({ win, t, w, h, active }) {
   const goF = (k) => () => emit('ui.value', { id: id('folder'), value: k })
   const folderItems = [...FOLDERS.map((f) => ({ label: f.label, radio: folder === f.key, onClick: goF(f.key) })), '-', { label: 'Unread Mail', radio: folder === 'unread', onClick: goF('unread') }]
   const menus = [
-    { key: 'file', label: 'File', items: [{ label: 'New', items: [{ label: 'Mail Message', shortcut: 'Ctrl+N', onClick: () => compose('new') }] }, { label: 'Open', disabled: !selIn, onClick: () => selIn && openWin('read:' + selIn.key, 'compose', { mode: 'read', ref: selIn.key }) }, '-', { label: 'Print...', onClick: noPrinter }, '-', { label: 'Work Offline', checked: true, onClick: sendRecv }, { label: 'Exit', onClick: () => closeWin(win.id) }] },
+    { key: 'file', label: 'File', items: [{ label: 'New', items: [{ label: 'Mail Message', shortcut: 'Ctrl+N', onClick: () => compose('new') }] }, { label: 'Open', disabled: !selIn, onClick: () => selIn && openWin('read:' + selIn.key, 'compose', { mode: 'read', ref: selIn.key }) }, '-', { label: 'Print...', onClick: noPrinter }, '-', { label: 'Work Offline', checked: offline, onClick: () => emit('mail.offline', { on: !offline }) }, { label: 'Exit', onClick: () => closeWin(win.id) }] },
     { key: 'edit', label: 'Edit', items: [{ label: 'Delete', shortcut: 'Ctrl+D', disabled: !selIn, onClick: () => del(selIn) }, '-', { label: 'Mark as Read', disabled: !selIn, onClick: () => selIn && emit('mail.read', { key: selIn.key }) }, { label: 'Mark as Unread', disabled: !selIn, onClick: () => selIn && emit('mail.unread', { key: selIn.key }) }, '-', { label: 'Select All', shortcut: 'Ctrl+A', onClick: () => select(listId, msgs.map((m) => m.key)) }] },
     { key: 'view', label: 'View', items: [{ label: 'Reading Pane', checked: reading, onClick: () => emit('ui.value', { id: id('reading'), value: !reading }) }, '-', { label: 'Newest on Top', radio: newest, onClick: () => emit('ui.value', { id: id('newest'), value: true }) }, { label: 'Oldest on Top', radio: !newest, onClick: () => emit('ui.value', { id: id('newest'), value: false }) }] },
     { key: 'go', label: 'Go', items: FOLDERS.map((f) => ({ label: f.label, radio: folder === f.key, onClick: goF(f.key) })) },
@@ -247,7 +251,7 @@ function Outlook({ win, t, w, h, active }) {
         y={h - sbH}
         w={w}
         left={<span onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('folder'), value: folder === 'unread' ? 'inbox' : 'unread' })}>{msgs.length} Items{unreadCount ? `, ${unreadCount} Unread` : ''}</span>}
-        right={<span onPointerDown={(e) => e.button === 0 && sendRecv()}>Offline</span>}
+        right={offline ? <span>Offline</span> : null}
       />
       <ContextMenu id={id('ctx')} items={ctxItems} />
     </div>

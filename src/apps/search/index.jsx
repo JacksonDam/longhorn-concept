@@ -1,5 +1,6 @@
 // Search Results with the Search Companion: pick what to look for, type part of a name (and a
 // word in the file), Search lists matches from the fictional file system; double-click opens.
+// Computers or people searches the network by computer name: no other computer answers on it.
 import { memo } from 'react'
 import { emit } from '../../core/events.js'
 import { now } from '../../core/clock.js'
@@ -8,7 +9,7 @@ import { Ico } from '../lib/icons.jsx'
 import { iconOf } from '../lib/Explorer.jsx'
 import { allFiles, openFile, openMusic, kb, typeName } from '../lib/fs.js'
 import { docFor } from '../word/docs.js'
-import { openWin, messageBox } from '../lib/common.js'
+import { openWin } from '../lib/common.js'
 import { AppTop, appTopHeight, chromeTop } from '../lib/chrome.jsx'
 
 const KINDS = [
@@ -73,7 +74,6 @@ function Search({ win, t, w, h, active }) {
                   onPointerDown={(e) => {
                     if (e.button !== 0) return
                     if (k === 'help') openWin('help', 'help')
-                    else if (k === 'people') messageBox({ title: 'Search', icon: 'warning', text: 'Windows cannot search for computers or people because this computer is not connected to a network.' })
                     else emit('ui.value', { id: id('kind'), value: k })
                   }}
                 >
@@ -82,6 +82,13 @@ function Search({ win, t, w, h, active }) {
                   {void fn}
                 </div>
               ))}
+            </>
+          ) : kind === 'people' ? (
+            <>
+              <div style={{ position: 'absolute', left: 12, top: 44, width: 186, fontFamily: FONT, fontSize: 11, color: '#3a4260' }}>Computer name:</div>
+              <TextField id={id('name')} x={12} y={62} w={186} h={20} onEnter={search} />
+              <Button id={id('back')} label="Back" x={12} y={98} w={80} h={23} onClick={() => emit('ui.value', { id: id('kind'), value: null })} />
+              <Button id={id('go')} label="Search" isDefault x={100} y={98} w={98} h={23} onClick={search} />
             </>
           ) : (
             <>

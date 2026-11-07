@@ -49,7 +49,7 @@ What it shows (frame numbers at 30 fps):
   grid by date), "3. Your list >" (Name this album, numbered list), File Location drop-down,
   Preview / Create this album / Cancel; also a music-track list variant. (f01640)
 - 1720-1840: the pictures explorer shows albums as stacked-photo tiles.
-- 1840: an MSN/ofoto web page in IE (we show the offline page instead).
+- 1840: an MSN/ofoto web page in IE (we show Ofoto's archived 2003 home page).
 - 1860-2780: the my Music window as in our video.
 - 2790-2860: **Log off**: the desktop cuts/fades to the login screen (aurora, tiles), then the
   screen fades to black (f02775-f02860): use as the log-off / shut-down reference.
