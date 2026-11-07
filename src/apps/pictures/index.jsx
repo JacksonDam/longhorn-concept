@@ -3,15 +3,20 @@
 // Videos", task pane (enjoy pictures, find pictures, Refine By Date calendar, file types),
 // date-grouped thumbnails, a detail view per photo (comments, keywords, location, Edit),
 // albums, and the full-screen slide show (app 'slideshow').
-import { memo, useEffect, useReducer } from 'react'
+import { memo, useEffect } from 'react'
 import { emit } from '../../core/events.js'
 import { now, FPS } from '../../core/clock.js'
 import {
   scoped, wid, valueOf, hoverKeys, pt, TextField, Slider, Scrollbar, DropMenu, dropBelow, ContextMenu, contextHandler, Button, C, FONT, HEAVY, find, focusField,
 } from '../../ui/index.js'
 import { Ico } from '../lib/icons.jsx'
-import { Swoosh } from '../music/Header.jsx'
-import { SlabCanvas } from '../music/SlabCanvas.jsx'
+import { SwooshIn, PopIn, BUTTONS_END, INTRO_SHOTS } from '../music/Header.jsx'
+import { Slabs, settledPose, slabClock, devicePoseTo, rectAt, DEVICE_IN, DEVICE_REST, SPIN_END } from '../music/HeaderSlab.jsx'
+import { drifting } from '../music/tilt.js'
+import { toRel } from '../music/timeline.js'
+import { openT } from '../music/actions.js'
+import { wantPointer } from '../../core/Cursor.jsx'
+import { EXPLORER_TOP } from '../../os/ExplorerChrome.jsx'
 import { Txt } from '../../os/text.jsx'
 import { textWidth } from '../../ui/measure.js'
 import { waitFor } from '../../core/preload.js'
@@ -50,17 +55,20 @@ const AREA_X = 190
 const set = (win, n, value) => emit('ui.value', { id: wid(win, n), value })
 
 // ---- header ------------------------------------------------------------------------------------
-// my Music's header for pictures (ref2 f00600, measured at the video's window scale x1.5): my
-// Music's swoosh (music/Header.jsx Swoosh, as is), the device as a real 3D glass slab drawn by the
-// shared slab renderer (music/SlabCanvas.jsx: a framed photo on its face, its floor reflection
-// below, as my Music's device), "Windows my Pictures & Videos" in my Music's title type, and the
-// View Slide Show / Create Album / Burn DVD buttons laid out as my Music's (icon over label).
-// Coordinates: content px (window px - EXPLORER_TOP 123).
+// my Music's header for pictures (ref2 f00600, measured at the video's window scale x1.5), with
+// my Music's own parts and intro: the swoosh (music/Header.jsx SwooshIn), the device as a real 3D
+// glass slab (music/HeaderSlab.jsx: the shared slab renderer, a framed photo on its face, its
+// floor reflection below; my Music's spin-in on open into its own resting pose, then the pointer
+// tilt), "Windows my Pictures & Videos" in my Music's title type, and the View Slide Show /
+// Create Album / Burn DVD buttons laid out as my Music's (icon over label) popping in as its
+// buttons do (music/Header.jsx PopIn). Coordinates: content px (window px - EXPLORER_TOP 123).
 const DEV = { x: 133, y: -12, w: 240, h: 260, cx: 117, cy: 98, fw: 120, fh: 140, d: 14 }
 const DFLOOR = DEV.cy + DEV.fh / 2 + 6
-const DPOSE = { x: DEV.cx, y: DEV.cy, ry: 0.55, rx: -0.06, rz: -0.03, s: 1 }
-const DMIRROR = { ...DPOSE, y: 2 * DFLOOR - DPOSE.y, rx: -DPOSE.rx, rz: -DPOSE.rz, sy: -1 }
-const dReflMask = `linear-gradient(180deg, transparent ${DFLOOR - 4}px, #000 ${DFLOOR + 6}px, transparent ${DFLOOR + 30}px)`
+// the frame's resting pose (in the slab box), the box in window px (the slab is drawn by the
+// window's Overlay) and my Music's spin-in into that pose
+const DPOSE = { x: DEV.cx, y: DEV.cy, ry: 0.55, rx: -0.06, rz: -0.03, z: 0 }
+const SPEC = { box: { x: DEV.x, y: DEV.y + EXPLORER_TOP, w: DEV.w, h: DEV.h }, hw: DEV.fw / 2, hh: DEV.fh / 2, floor: DFLOOR, fade: 30 }
+const framePose = devicePoseTo(DPOSE)
 
 // the device's face: a silver photo frame around the header photo (a stand-in canyon), drawn on a
 // canvas once the photo has rasterised (photoUrl: a blob, ready before capture)
@@ -101,24 +109,26 @@ function deviceSlab() {
 }
 if (typeof document !== 'undefined') deviceSlab() // the face starts drawing with the app module
 
-// v: the face's version (a re-render after the photo has been drawn shows it)
-const Device = memo(function Device({ t }) {
-  const slab = deviceSlab()
-  // (a window opened before the photo decoded shows it once it has)
-  const v = slab.canvasVersion
-  const [, redraw] = useReducer((n) => n + 1, 0)
-  useEffect(() => {
-    let live = true
-    slab.ready.then(() => live && slab.canvasVersion !== v && redraw())
-    return () => (live = false)
-  }, [slab, v])
-  return (
-    <>
-      <SlabCanvas t={t} width={DEV.w} height={DEV.h} items={[{ slab, pose: () => DMIRROR }]} P={900} style={{ left: DEV.x, top: DEV.y, opacity: 0.22, WebkitMaskImage: dReflMask, maskImage: dReflMask }} />
-      <SlabCanvas t={t} width={DEV.w} height={DEV.h} items={[{ slab, pose: () => DPOSE }]} P={900} style={{ left: DEV.x, top: DEV.y }} />
-    </>
-  )
-})
+// whether the header shows (the overview with the task pane; detail and hidden tasks have none)
+function headerShown(t, win) {
+  return viewOf(t, win, { view: valueOf(t, wid(win, 'view'), 'browse') }).view !== 'detail' && !taskHidden(t, win)
+}
+// The photo frame, drawn above the content on every layer of the window (the motion-blur copies
+// share one render): my Music's spin-in on open, then its settled pose until the pointer takes
+// over (music/tilt.js; while the overlay is mounted the pointer's moves are logged). The face's
+// canvas redraws once its photo has decoded (canvasVersion: the canvases' next frame shows it).
+function PicturesOverlay({ win, t, skip, hidden }) {
+  useEffect(() => wantPointer(), [])
+  const t0 = openT(win)
+  const rel = toRel(t, t0)
+  if (rel <= DEVICE_IN || !headerShown(t, win)) return null
+  const rect = rectAt(win, pictures)
+  const drift = drifting(t)
+  const pose = (tt) => settledPose(SPEC, framePose, tt, t0, DEVICE_REST, rect, drift)
+  const spin = rel < SPIN_END
+  const { slabT } = slabClock(t, spin, pose)
+  return <Slabs spec={SPEC} t={slabT} items={[{ slab: deviceSlab(), pose }]} spin={spin} cache="pictures" skip={skip} hidden={hidden} />
+}
 
 // my Music's title type and place (music/Header.jsx Title, settled): "Windows" 13 px over the
 // title, 34 px light "my" and regular blue name
@@ -143,42 +153,56 @@ const HB = [
   { id: 'hb.album', icon: 'wmp-album', cx: 494, a: 'Create', b: 'Album', go: () => openWin('album', 'album') },
   { id: 'hb.dvd', icon: 'cd', cx: 584, a: 'Burn', b: 'DVD', go: () => openWin('burncd', 'burncd', { what: 'dvd' }) },
 ]
-function HeaderButtons({ win, t }) {
+// (each pops in as my Music's do, about the bottom of its icon: 262 window px, music/Header.jsx;
+// it takes input once it has)
+function HeaderButtons({ win, t, rel }) {
   const lit = hoverKeys(t, wid(win, 'hb'))
-  return HB.map((b) => {
+  return HB.map((b, i) => {
     const tw = textWidth(b.a + ' ' + b.b, { size: 11.5, w: 500 })
     const on = (lit.get(b.id) || 0) > 0.5
     return (
-      <div
-        key={b.id}
-        style={{ position: 'absolute', left: b.cx - Math.max(tw, 36) / 2 - 6, top: 92, width: Math.max(tw, 36) + 12, height: 66, borderRadius: 4, background: on ? 'rgba(160,200,250,0.18)' : 'transparent' }}
-        onPointerEnter={(e) => emit('hover', { id: wid(win, 'hb'), key: b.id, on: true, ...pt(e) })}
-        onPointerLeave={() => emit('hover', { id: wid(win, 'hb'), key: b.id, on: false })}
-        onPointerDown={(e) => e.button === 0 && b.go()}
-      >
-        <div style={{ position: 'absolute', left: Math.max(tw, 36) / 2 + 6 - 16, top: 6 }}>
-          <Ico kind={b.icon} size={32} />
-        </div>
-        <Txt x={6 + (Math.max(tw, 36) - tw) / 2} y={58} size={11.5} parts={btnParts(b.a, b.b)} />
-      </div>
+      <PopIn key={b.id} rel={rel} i={i} cx={b.cx} cy={262 - EXPLORER_TOP}>
+        {(done) => (
+          <div
+            style={{ position: 'absolute', left: b.cx - Math.max(tw, 36) / 2 - 6, top: 92, width: Math.max(tw, 36) + 12, height: 66, borderRadius: 4, background: on ? 'rgba(160,200,250,0.18)' : 'transparent', pointerEvents: done ? undefined : 'none' }}
+            onPointerEnter={(e) => emit('hover', { id: wid(win, 'hb'), key: b.id, on: true, ...pt(e) })}
+            onPointerLeave={() => emit('hover', { id: wid(win, 'hb'), key: b.id, on: false })}
+            onPointerDown={(e) => e.button === 0 && b.go()}
+          >
+            <div style={{ position: 'absolute', left: Math.max(tw, 36) / 2 + 6 - 16, top: 6 }}>
+              <Ico kind={b.icon} size={32} />
+            </div>
+            <Txt x={6 + (Math.max(tw, 36) - tw) / 2} y={58} size={11.5} parts={btnParts(b.a, b.b)} />
+          </div>
+        )}
+      </PopIn>
     )
   })
 }
 
+// (the frame itself is the window's Overlay, PicturesOverlay; here its hit box, the face's
+// settled place: a click starts the slide show)
 function Header({ win, t }) {
+  const rel = toRel(t, openT(win))
   return (
     <>
-      <div style={{ position: 'absolute', left: 0, top: -123 }}>
-        <Swoosh />
+      <div style={{ position: 'absolute', left: 0, top: -EXPLORER_TOP }}>
+        <SwooshIn rel={rel} />
       </div>
-      <div onPointerDown={(e) => e.button === 0 && slideshow(null, true)}>
-        <Device t={0} v={deviceSlab().canvasVersion} />
-      </div>
+      {rel > SPIN_END && (
+        <div
+          style={{ position: 'absolute', left: DEV.x + DEV.cx - DEV.fw / 2, top: DEV.y + DEV.cy - DEV.fh / 2, width: DEV.fw, height: DEV.fh }}
+          onPointerDown={(e) => e.button === 0 && slideshow(null, true)}
+        />
+      )}
       <Title />
-      <HeaderButtons win={win} t={t} />
+      <HeaderButtons win={win} t={t} rel={rel} />
     </>
   )
 }
+// the header's intro (the swoosh, the buttons) plays at the frame rate: the content follows the
+// clock until it has played, and holds its end after (scoped until, liveTime)
+const introEnd = (win) => openT(win) + (BUTTONS_END + 1) / FPS
 
 const slideshow = (photo, auto = false, album = null) => openWin('slideshow', 'slideshow', { photo, auto, album })
 const printBox = () => messageBox({ title: 'Print Pictures', icon: 'warning', text: 'Windows cannot print because no printer is installed.\nTo add a printer, open Printers and Faxes in Control Panel.' })
@@ -680,7 +704,7 @@ function clearFilters(win) {
   emit('ui.value', { id: wid(win, 'cal'), value: { level: 'days', y: 2002, m: 4, sel: null } })
 }
 
-export default {
+const pictures = {
   id: 'pictures',
   title: () => 'my Pictures & Videos',
   taskbarLabel: () => 'My Pictures & Videos',
@@ -706,7 +730,17 @@ export default {
     },
     menus: (win, t) => pictureMenus(win, t),
   },
-  Content: scoped(Pictures, { watch: ['pics'], alive: (win, t) => videoPlaying(win, t) }),
+  Content: scoped(Pictures, { watch: ['pics'], alive: (win, t) => videoPlaying(win, t), until: introEnd }),
+  Overlay: PicturesOverlay,
   usesActive: true, // Content draws differently when the window isn't active
-  liveTime: (win, t, base) => (win.state === 'open' && videoPlaying(win, t) ? t : base),
+  liveTime: (win, t, base) => (win.state === 'open' && videoPlaying(win, t) ? t : Math.max(base, Math.min(t, introEnd(win)))),
+  // what a motion-blur copy shows: my Music's header intro shots (music/index.jsx snapshot), and
+  // any later change of the window `settle` s after its event
+  snapshot: (win, tk, ev, settle) => {
+    const t0 = openT(win)
+    let best = t0 + INTRO_SHOTS[0] / FPS
+    for (const f of INTRO_SHOTS) if (t0 + f / FPS <= tk) best = t0 + f / FPS
+    return Math.max(best, ev + settle)
+  },
 }
+export default pictures

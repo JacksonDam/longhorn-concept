@@ -33,10 +33,11 @@ export const useLive = () => useContext(UICtx)?.live ?? true
 // The content renders at the time of its window's latest relevant event plus `settle` (hover
 // fades, menus and carets run in that span), so other windows' input costs it nothing; `watch`
 // adds event families it depends on ('media', 'mail', ...), `alive(win, t)` keeps it running
-// while a continuous visual plays (a playing track, a slide show). Gating applies only when an
-// options object is passed (scoped(C, {})).
+// while a continuous visual plays (a playing track, a slide show), and `until(win)` lets an intro
+// of the content's own play to that time and holds its end after (my Pictures' header). Gating
+// applies only when an options object is passed (scoped(C, {})).
 export function scoped(Inner, opts) {
-  const { watch = [], settle = 0.8, alive } = opts || {}
+  const { watch = [], settle = 0.8, alive, until } = opts || {}
   const gate = !!opts // opt-in: without options the content follows the window's time as is
   const M = memo(Inner, sameProps)
   function Scoped(props) {
@@ -46,6 +47,7 @@ export function scoped(Inner, opts) {
     if (gate && win && !(alive && win.state === 'open' && alive(win, t))) {
       const le = Math.max(win.openedAt, lastRelevant(t, win.id, watch))
       if (t - le > settle) tt = le + settle
+      if (until) tt = Math.max(tt, Math.min(t, until(win)))
     }
     return (
       <UIScope t={tt} live={live}>

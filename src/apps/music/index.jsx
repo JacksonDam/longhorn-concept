@@ -14,15 +14,14 @@ import { scoped, TextField, wid, valueOf, textOf } from '../../ui/index.js'
 import { mediaState } from '../../os/media.js'
 import { BodyBg, EnjoyGroup, TaskPane, FoldersPane, GridBar, StatusBar, ResizeGrip } from './Body.jsx'
 import { AlbumView, GridScrollbar } from './Grid.jsx'
-import { Header } from './Header.jsx'
+import { Header, INTRO_SHOTS } from './Header.jsx'
 import { HEADER, smoothRamp, toRel } from './timeline.js'
 import { TWEET_COVER } from './albums.js'
 import { warmSlabs } from './SlabCanvas.jsx'
 import { DEFAULTS, settings, gridLayout } from './layout.js'
 import { viewState } from './state.js'
 import { musicActions, openT } from './actions.js'
-import { normalRect } from '../../os/PlexWindow.jsx'
-import { eventsOf } from '../../os/logIndex.js'
+import { rectAt } from './HeaderSlab.jsx'
 import { wantPointer } from '../../core/Cursor.jsx'
 
 // compile the 3D slab shader at load (never on the frame a slab first appears)
@@ -80,20 +79,6 @@ function MusicContent({ win, t, live, w, h }) {
 }
 
 // the 3D slabs (device / album) on every visible blur copy, rendered once per frame
-// the window's rect at a time: its moves from the log (the slabs' tilt follows a dragged window)
-const rectAt = (win) => {
-  const r = normalRect(win, music)
-  const ms = eventsOf('win.move', win.id)
-  return (at) => {
-    let lo = 0, hi = ms.length
-    while (lo < hi) {
-      const m = (lo + hi) >> 1
-      if (ms[m].t <= at) lo = m + 1
-      else hi = m
-    }
-    return lo > 0 && ms[lo - 1].t > win.openedAt ? { ...r, x: ms[lo - 1].x, y: ms[lo - 1].y } : r
-  }
-}
 // (the slabs tilt towards the pointer: while the overlay is mounted the pointer's moves are logged)
 function MusicOverlay({ win, t, skip, hidden }) {
   useEffect(() => wantPointer(), [])
@@ -101,7 +86,7 @@ function MusicOverlay({ win, t, skip, hidden }) {
   if (!s.preview) return null
   const t0 = openT(win)
   const vs = viewState(t, t0)
-  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} hidden={hidden} rect={rectAt(win)} />
+  return <Header t={t} openT={t0} page={vs.page} slabs="only" cache skip={skip} hidden={hidden} rect={rectAt(win, music)} />
 }
 
 // the content a motion-blur copy shows: the settled state after the latest change (the intro
@@ -110,7 +95,7 @@ function MusicOverlay({ win, t, skip, hidden }) {
 function snapshot(win, tk, ev, settle) {
   const t0 = openT(win)
   const vk = viewState(tk, t0)
-  const pts = [t0 + 9 / FPS, t0 + 74 / FPS]
+  const pts = INTRO_SHOTS.map((f) => t0 + f / FPS)
   if (vk.sel) pts.push(vk.sel.t + 10 / FPS)
   if (vk.page) pts.push(vk.page.t + 21 / FPS)
   let best = pts[0]

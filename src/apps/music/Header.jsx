@@ -5,17 +5,13 @@ import { memo, useContext } from 'react'
 import { emit } from '../../core/events.js'
 import { Txt, abs, FONT, HEAVY, useLayer, LiveLayers } from '../../os/text.jsx'
 import * as I from '../../os/icons.jsx'
-import { SlabCanvas } from './SlabCanvas.jsx'
 import { drawDevice, deviceVersion } from './device.js'
 import { HEADER, ramp, smoothRamp, lerp, devicePoseRel, albumPoseRel, spinOut, LIST_IN, toRel, DEVICE_REST, ALBUM_REST } from './timeline.js'
-import { slabTilt, applyTilt, drifting } from './tilt.js'
+import { drifting } from './tilt.js'
+import { Slabs, settledPose, slabClock, DEVICE_IN, SPIN_END } from './HeaderSlab.jsx'
 import { TWEET_COVER } from './albums.js'
 import { loadTexture } from '../../gl/slab.js'
-import { FPS, frameTime } from '../../core/clock.js'
 import { ease } from '../../core/anim.js'
-
-// the start of the video frame that t falls in (t itself on a frame time)
-const onFrameGrid = (t) => frameTime(Math.floor(t * FPS + 1e-6) + 1)
 
 // slab canvas: window-local box that holds the device and its floor reflection
 const SC = { x: 175, y: 118, w: 230, h: 240 }
@@ -77,6 +73,18 @@ export const Swoosh = memo(function Swoosh({ op = 1, sc = 1 }) {
     </svg>
   )
 })
+
+// the swoosh's intro (my Music's, and my Pictures' header the same): it fades in and sweeps out
+// to full size from beside the device. rel: frames from the window's open reference (openT)
+export function SwooshIn({ rel, op = 1 }) {
+  if (op <= 0 || rel <= HEADER.swoosh[0]) return null
+  return (
+    <Swoosh
+      op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[0] + 4) * op}
+      sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
+    />
+  )
+}
 
 // "Windows my Music": "Windows" slides in from the left, "my" fades in, "Music" wipes in
 // left to right, then the whole title drifts back into place.
@@ -149,43 +157,59 @@ const BTN = [
   { icon: <I.ShareIcon />, box: [540, 225, 40, 30], label: btnLabel('Share', 'Music'), lx: 532, cx: 560, act: 'share', hw: 76 },
 ]
 
-// each button pops in: fades up while shrinking from a slightly larger size
+// the header buttons' intro has played by this rel (frames from the open reference)
+export const BUTTONS_END = HEADER.buttons[HEADER.buttons.length - 1] + HEADER.buttonDur
+// what a motion-blur copy of the window shows of the header's intro (rel frames): the video's
+// copies show rel 9 while it plays, then the whole header
+export const INTRO_SHOTS = [9, 74]
+
+// Header button i's pop-in (my Music's, and my Pictures' buttons the same): it fades up while
+// shrinking from a slightly larger size about (cx, cy) in its parent's px (cy: under the icon).
+// children(done): the button, done once it has popped in. rel: frames from the open reference
+export function PopIn({ rel, i, op = 1, cx, cy = 262, children }) {
+  const LAYER = useLayer(rel < BUTTONS_END)
+  const s0 = HEADER.buttons[i]
+  const k = ramp(rel, s0, s0 + HEADER.buttonDur)
+  if (k <= 0 || op <= 0) return null
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        opacity: smoothRamp(rel, s0, s0 + HEADER.buttonDur - 0.5) * op,
+        transform: `scale(${lerp(1.3, 1, ease.out(k))})`,
+        transformOrigin: `${cx}px ${cy}px`,
+        willChange: LAYER,
+      }}
+    >
+      {children(op >= 1 && k >= 1)}
+    </div>
+  )
+}
+
 // actions: { play, burn, share } click handlers (live window only)
 export function Buttons({ rel, op = 1, actions }) {
-  const LAYER = useLayer(rel < HEADER.buttons[HEADER.buttons.length - 1] + HEADER.buttonDur)
-  return BTN.map((b, i) => {
-    const s0 = HEADER.buttons[i]
-    const k = ramp(rel, s0, s0 + HEADER.buttonDur)
-    if (k <= 0 || op <= 0) return null
-    const sc = lerp(1.3, 1, ease.out(k))
-    return (
-      <div
-        key={i}
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          opacity: smoothRamp(rel, s0, s0 + HEADER.buttonDur - 0.5) * op,
-          transform: `scale(${sc})`,
-          transformOrigin: `${b.cx}px 262px`,
-          willChange: LAYER,
-        }}
-      >
-        <div style={abs(...b.box)}>{b.icon}</div>
-        <Txt x={b.lx} y={276} size={11.5} parts={b.label} />
-        {actions && op >= 1 && k >= 1 && (
-          <div
-            data-hit={'music.' + b.act}
-            style={abs(b.lx - 4, b.box[1] - 4, b.hw, 62)}
-            onClick={(e) => {
-              e.stopPropagation()
-              actions[b.act]?.()
-            }}
-          />
-        )}
-      </div>
-    )
-  })
+  return BTN.map((b, i) => (
+    <PopIn key={i} rel={rel} i={i} op={op} cx={b.cx}>
+      {(done) => (
+        <>
+          <div style={abs(...b.box)}>{b.icon}</div>
+          <Txt x={b.lx} y={276} size={11.5} parts={b.label} />
+          {actions && done && (
+            <div
+              data-hit={'music.' + b.act}
+              style={abs(b.lx - 4, b.box[1] - 4, b.hw, 62)}
+              onClick={(e) => {
+                e.stopPropagation()
+                actions[b.act]?.()
+              }}
+            />
+          )}
+        </>
+      )}
+    </PopIn>
+  ))
 }
 
 export const Preview = memo(function Preview({ onClick }) {
@@ -203,10 +227,9 @@ export const Preview = memo(function Preview({ onClick }) {
   )
 })
 
-const FLOOR = DEV.cy + DEV.h / 2 + 6
-// floor reflection: the pose mirrored in the horizontal plane y = FLOOR
-const mirror = (p) => ({ ...p, y: 2 * FLOOR - p.y, rx: -(p.rx || 0), rz: -(p.rz || 0), sy: -(p.sy ?? 1) })
-const reflMask = `linear-gradient(180deg, transparent ${FLOOR - 4}px, #000 ${FLOOR + 6}px, transparent ${FLOOR + 48}px)`
+// the slab canvases (HeaderSlab.jsx): the device's box, its tilt's half size, the floor its
+// reflection stands on
+const SPEC = { box: SC, hw: DEV.w / 2, hh: DEV.h / 2, floor: DEV.cy + DEV.h / 2 + 6, fade: 48 }
 
 loadTexture(TWEET_COVER) // start loading now so capture's ready() waits for it
 
@@ -246,30 +269,6 @@ const albumSlab = {
   spec: 0.16,
   rim: 0.4,
   backFlip: false,
-}
-
-// The header's 3D slabs and their floor reflection. items: [{ slab, pose(tt) }] (pose may set opacity)
-// skip: the canvases keep their pixels (they draw once if they have none); hidden: they draw but
-// stay hidden
-function Slabs({ t, items, samples = 1, shutter = 0, reflection = true, cache, skip, hidden }) {
-  const hide = hidden ? { visibility: 'hidden' } : null
-  return (
-    <>
-      {reflection && <SlabCanvas
-        t={t}
-        width={SC.w}
-        height={SC.h}
-        items={items.map((it) => ({ slab: it.slab, pose: (tt) => mirror(it.pose(tt)) }))}
-        samples={samples}
-        shutter={shutter}
-        P={900}
-        style={{ left: SC.x, top: SC.y, opacity: 0.22, WebkitMaskImage: reflMask, maskImage: reflMask, ...hide }}
-        cacheKey={cache && 'refl'}
-        skip={skip}
-      />}
-      <SlabCanvas t={t} width={SC.w} height={SC.h} items={items} samples={samples} shutter={shutter} P={900} style={{ left: SC.x, top: SC.y, ...hide }} cacheKey={cache && 'main'} skip={skip} />
-    </>
-  )
 }
 
 // the album page's title ("Tweet  Southern Hummingbird" in the video) and track list (the
@@ -401,29 +400,16 @@ function albumSlabFor(album) {
 export function Header({ t, openT, page, next = null, copy = false, track = -1, trackHover = -1, playing = -1, slabT: slabT0 = t, slabs = 'all', cache = false, skip = false, hidden = false, rect = null, actions }) {
   const rel = toRel(t, openT)
   const hrel = page == null ? -1e9 : toRel(t, page.t)
-  // after its spin-in has settled (`rest` frames from `t0`), a slab turns toward the pointer
-  // (tilt.js); the video's idle drift plays only when the log asks for it, fading out once the
-  // pointer is there. -> the pose at tt
+  // after its spin-in has settled (`rest` frames from `t0`), a slab hands over to the pointer
+  // (tilt.js); the video's idle drift plays only when the log asks for it. -> the pose at tt
   const drift = drifting(t)
-  const settled = (poseAt, tt, t0, rest) => {
-    const from = t0 + rest / FPS
-    const base = poseAt(rest)
-    const tilt = rect ? slabTilt(tt, from, { x: SC.x + base.x, y: SC.y + base.y }, DEV.w / 2, DEV.h / 2, rect) : null
-    return applyTilt(poseAt(toRel(tt, t0), drift ? (tilt ? tilt.drift : 1) : 0), tilt)
-  }
-  // the slabs' fast motions (the open's spin-in, a page's spin) play at the display's rate with
-  // a multi-sample blur, and so does a tilt that is moving; at rest the slab holds still (its
-  // canvases don't re-render), its slow settle stepping on the video's frame grid (the grid holds
-  // the capture frames themselves: ?capture draws the same)
-  const spin = rel < 24 || (hrel > 0 && hrel < 21)
-  const onDevice = page == null || page.album == null
-  const sample = (tt) => (onDevice ? settled(devicePoseRel, tt, openT, DEVICE_REST) : settled(albumPoseRel, tt, page.t, ALBUM_REST))
-  const moving = !spin && rect && (() => {
-    const a = sample(slabT0), b = sample(slabT0 - 0.5 / FPS)
-    return Math.abs(a.ry - b.ry) + Math.abs(a.rx - b.rx) > 1e-5
-  })()
-  const fast = spin || moving
-  const slabT = fast ? slabT0 : onFrameGrid(slabT0)
+  const settled = (poseAt, tt, t0, rest) => settledPose(SPEC, poseAt, tt, t0, rest, rect, drift)
+  // (the open's spin-in and a page's spin are fast; HeaderSlab.jsx slabClock)
+  const spin = rel < SPIN_END || (hrel > 0 && hrel < 21)
+  // (the shown page's slab: the device since the open, or a page's, the device back from an
+  // album too, spun in with the album's spin)
+  const sample = (tt) => (page == null ? settled(devicePoseRel, tt, openT, DEVICE_REST) : settled(albumPoseRel, tt, page.t, ALBUM_REST))
+  const { slabT } = slabClock(slabT0, spin, rect && sample)
   const toDevice = page != null && page.album == null
   const fromDevice = page != null && page.prev == null
   // the device header (title, buttons, swoosh): fades out leaving the device, back in returning
@@ -433,11 +419,7 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
     const s = spinOut(h)
     return { ...pose, ry: pose.ry + s.ry, z: pose.z + s.z, opacity: 1 - ramp(h, 4, 5) }
   }
-  const spinIn = (tt) => {
-    const h = toRel(tt, page.t)
-    const p = page.album ? settled(albumPoseRel, tt, page.t, ALBUM_REST) : albumPoseRel(h, drift ? 1 : 0)
-    return { ...p, opacity: ramp(h, 4, 5) }
-  }
+  const spinIn = (tt) => ({ ...sample(tt), opacity: ramp(toRel(tt, page.t), 4, 5) })
   const items = []
   const device = (tt) => settled(devicePoseRel, tt, openT, DEVICE_REST)
   // (only a header that draws the slabs builds them: the device's equaliser canvas is one shared
@@ -446,31 +428,27 @@ export function Header({ t, openT, page, next = null, copy = false, track = -1, 
   if (slabs === 'none') {
     // no slabs
   } else if (page == null) {
-    if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: device })
+    if (rel > DEVICE_IN) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: device })
   } else {
-    // outgoing (until it has turned away)
+    // outgoing (until it has turned away), from the pose it held (the pointer's too)
     if (hrel < 5.2) {
+      const held = (tt) => (page.prevSince == null ? device(tt) : settled(albumPoseRel, tt, page.prevSince, ALBUM_REST))
       if (page.prev == null) {
-        if (rel > 5.5) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: (tt) => spinAway(page.prevSince == null ? device(tt) : albumPoseRel(toRel(tt, page.prevSince), drift ? 1 : 0), tt) })
-      } else items.push({ slab: albumSlabFor(page.prev), pose: (tt) => spinAway(albumPoseRel(toRel(tt, page.prevSince), drift ? 1 : 0), tt) })
+        if (rel > DEVICE_IN) items.push({ slab: deviceSlab(drawDevice(slabT)), pose: (tt) => spinAway(held(tt), tt) })
+      } else items.push({ slab: albumSlabFor(page.prev), pose: (tt) => spinAway(held(tt), tt) })
     }
     // incoming
     if (hrel > 3.8) items.push({ slab: page.album ? albumSlabFor(page.album) : deviceSlab(drawDevice(slabT)), pose: spinIn })
   }
   const slabEl =
     items.length > 0 && slabs !== 'none' ? (
-      <Slabs t={slabT} items={items} samples={copy ? 1 : spin ? 8 : 3} shutter={(spin ? 0.9 : 0.5) / FPS} reflection cache={cache} skip={skip} hidden={hidden} />
+      <Slabs spec={SPEC} t={slabT} items={items} spin={spin} copy={copy} cache={cache && 'music'} skip={skip} hidden={hidden} />
     ) : null
   if (slabs === 'only') return slabEl
   const prevListOp = page && page.prev ? 1 - smoothRamp(hrel, 1, 6) : 0
   return (
     <>
-      {headerOp > 0 && rel > HEADER.swoosh[0] && (
-        <Swoosh
-          op={smoothRamp(rel, HEADER.swoosh[0], HEADER.swoosh[0] + 4) * headerOp}
-          sc={rel >= HEADER.swoosh[1] ? 1 : 0.3 + 0.7 * ease.out(ramp(rel, HEADER.swoosh[0], HEADER.swoosh[1]))}
-        />
-      )}
+      <SwooshIn rel={rel} op={headerOp} />
       {slabEl}
       {headerOp > 0 && <Title rel={rel} op={headerOp} />}
       {headerOp > 0 && <Buttons rel={rel} op={headerOp} actions={actions} />}
