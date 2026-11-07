@@ -166,7 +166,7 @@ OS in the same style. Everything still derives from (time, event log).
   0.4 s, eased): square to the camera with the pointer over its centre, turned toward it
   elsewhere, flat when it leaves. ?demo / ?capture log no pointer, so they show the video's pose.
   A header slab may also move to a place and size of its own with the takeover (HeaderSlab.jsx
-  `spec.pointer`): my Music's device stands 49 px left at 0.9, so no pointer pose covers its title.
+  `spec.pointer`): my Music's device stands 18 px left, so no pointer pose covers its title.
 - `src/apps/music/HeaderSlab.jsx`: an explorer header's glass slab (my Music's device and album
   pages, my Pictures' photo frame): the slab and floor-reflection canvases on the shared slab
   renderer, my Music's spin-in on open (`devicePoseTo` moves it to another header's resting

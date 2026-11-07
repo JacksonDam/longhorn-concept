@@ -232,10 +232,9 @@ export const Preview = memo(function Preview({ onClick }) {
 // the slab canvases (HeaderSlab.jsx): the device's box, its tilt's half size, the floor its
 // reflection stands on, and where it stands once the pointer drives it: turned toward the
 // pointer, the settled place would cover the start of "Windows my Music" (x 361), so it moves
-// 48.6 px left at 0.9 of its size (its foot kept on the floor line) and every pointer pose
-// (+-12 deg) ends 49.5 px short of the title, my Pictures' frame's gap
-// (worked out with the slab renderer's geometry and camera)
-const SPEC = { box: SC, hw: DEV.w / 2, hh: DEV.h / 2, floor: DEV.cy + DEV.h / 2 + 6, fade: 48, pointer: { x: 73.6, y: 88.5 + (DEV.h / 2) * 0.1, s: 0.9 } }
+// the least that keeps every pointer pose (+-12 deg) at least 10 px short of the title: 18 px
+// left, same size and height (worked out with the slab renderer's geometry and camera)
+const SPEC = { box: SC, hw: DEV.w / 2, hh: DEV.h / 2, floor: DEV.cy + DEV.h / 2 + 6, fade: 48, pointer: { x: 104.2, y: 88.5, s: 1 } }
 
 loadTexture(TWEET_COVER) // start loading now so capture's ready() waits for it
 
