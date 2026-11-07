@@ -322,7 +322,9 @@ function targets(gl, pw, ph, slot = 0) {
   let t = rtCache.get(key)
   if (t) rtCache.delete(key)
   else {
-    const opts = { type: THREE.HalfFloatType, depthBuffer: true, samples: 4 }
+    // (a slab view's samples are 8-bit: each is a whole render, averaged in the half-float
+    // accumulation; half the memory of its largest buffer)
+    const opts = { type: gl.sample8 ? THREE.UnsignedByteType : THREE.HalfFloatType, depthBuffer: true, samples: 4 }
     t = { sample: new THREE.WebGLRenderTarget(w, h, opts), accums: [], w, h }
     for (const [k, old] of rtCache) {
       if (rtCache.size < KEEP) break
@@ -584,6 +586,7 @@ export class SlabView {
     c.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;pointer-events:none'
     this.canvas = c
     this.gl = makeGl(c)
+    this.gl.sample8 = true
     this.scenes = [new SlabScene(), new SlabScene()]
     this.img = null
     this.size = null // { pw, ph, uv: [u, v] } of the image
@@ -636,6 +639,20 @@ export class SlabView {
     mesh.frustumCulled = false
     this.layers = { mat, geo: g, scene: new THREE.Scene(), cam: new THREE.Camera() }
     this.layers.scene.add(mesh)
+  }
+
+  release() {
+    for (const t of this.gl.rt.values()) {
+      t.sample.dispose()
+      for (const a of t.accums) a?.dispose()
+    }
+    this.gl.rt.clear()
+    for (const f of this.gl.faces?.values() ?? []) f.rt.dispose()
+    this.gl.faces?.clear()
+    this.img?.dispose()
+    this.img = null
+    this.size = null
+    this.gl.renderer.setSize(1, 1, false)
   }
 
   // the image: `items` rendered (samples at `times`, view as renderSlabs) over their reflection
@@ -717,8 +734,11 @@ export class SlabView {
 // compiling its programs stalls a frame). warmSlabView makes and warms the first at load.
 const viewPool = []
 export const acquireSlabView = () => viewPool.pop() || new SlabView()
+// (a released view keeps its context and programs, not its memory: its targets and its face
+// targets go, and its canvas shrinks; a window minimised or closed takes its view's with it)
 export const releaseSlabView = (v) => {
   v.canvas.remove()
+  v.release()
   viewPool.push(v)
 }
 // (two: my Music and my Pictures can show at once; each draws `slabs` once, uploading their
