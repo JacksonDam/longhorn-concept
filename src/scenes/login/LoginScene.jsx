@@ -139,8 +139,9 @@ export function LoginScene({ visible = true }) {
 
 // Longhorn 4015's shutting-down screen (guidebookgallery.org, assets-src/longhorn-shutdown),
 // measured at 800x600 and scaled to the stage (x 1.2): the flag 40x34 centred at (400, 270), the
-// text's cap height 12 px centred on x 400 at y 303-315, white with a soft dark shadow; the face
-// is Tahoma's (single-storey g), Verdana where there is no Tahoma; centred on the screen
+// text's cap height 12 px centred on x 400 at y 303-315, white with a soft dark shadow; centred on
+// the screen. The original's face is Tahoma; here it is the logon screen's Franklin (Libre
+// Franklin 600, like the user names), sized to the same cap height (the user's request)
 const FLAG = asset('img/desktop/flag.svg')
 const ShuttingDown = memo(function ShuttingDown({ o, x, y }) {
   return (
@@ -156,11 +157,11 @@ const ShuttingDown = memo(function ShuttingDown({ o, x, y }) {
           position: 'absolute',
           left: 280,
           width: 400,
-          top: 360,
+          top: 361,
           textAlign: 'center',
-          fontFamily: 'Tahoma, Verdana, sans-serif',
-          fontWeight: 700,
-          fontSize: 18.2,
+          fontFamily: "'Libre Franklin', Tahoma, Verdana, sans-serif",
+          fontWeight: 600,
+          fontSize: 17.8,
           lineHeight: '24px',
           color: '#fff',
           whiteSpace: 'nowrap',

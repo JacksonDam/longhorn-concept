@@ -128,7 +128,11 @@ demo input: src/demo/login.js.
   14 frames) while the bar reopens to 5 slots (k 2-10.5), then the new one runs the normal
   sequence. Escape or a click on the background: the slab flies back and the bar reopens.
 - Typing adds a bullet per key (max 10 shown), Backspace removes one, Enter or the go orb submits
-  (any password). Shut Down does nothing. The clock shows the real time (h:mm AM/PM).
+  (any password). Shut Down shuts down (Session flow). The clock shows the real time (h:mm AM/PM).
+- The go orb glows while the pointer is over it ('login.gohover' { on: true / false } on enter /
+  leave): the pulse shows at once at its level and fades out over 2 frames on leaving. The demo's
+  one event (frame 333, no `on`) keeps it on until the submit, as in the video. The panel's sweep
+  copies take no pointer input (32 overlapping go orbs, unmounted under a resting pointer).
 - Local verification aids: ?capture&refbg (reference frame behind the UI), ?capture&nobar
   (aurora without the bar, for tools/login/fit_bar.py), ?mb={...} (blur overrides),
   ?slab={...} (slab material overrides).
@@ -142,6 +146,10 @@ demo input: src/demo/login.js.
   28 frames when coming from the desktop) and fades it linearly to black over 61 frames
   (ref2 2827-2888). Booting fades the login screen in from black over 30 frames (not shown in
   either video). The off screen is black with a glass power button (needed to switch back on).
+- The shutting-down message ("Windows is shutting down...", the only status text of the power
+  screens) is set in the logon screen's Franklin, Libre Franklin 600 17.8 px like the user names
+  (the user's request; Longhorn 4015's is Tahoma Bold), at the Tahoma version's cap height and
+  centre, centred on the screen at every shape.
 - Each login visit starts afresh (loginSince: selection, password, hovers and submit count from
   the visit's start). The login scene stays mounted while hidden (aurora canvas paused), so a
   visit starts without a new GL context or shader compile.
