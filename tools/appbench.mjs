@@ -1,9 +1,13 @@
 // Per-app window animation costs: runs tools/bench.mjs over ?apps=every (each app opened,
-// minimised, restored and closed in turn, src/apps/lib/benchScript.js) and prints, per app and
-// phase, the p95 and max frame cost and the frames over 6.94 ms, and the run's peak memory.
+// minimised, restored, maximised, restored down and closed in turn, src/apps/lib/benchScript.js)
+// and prints, per app and phase, the p95 and max frame cost and the frames over 6.94 ms, and the
+// run's peak memory.
 //
 // usage: node tools/appbench.mjs [--url http://127.0.0.1:5312/longhorn-concept/] [--dpr 1.5]
-//        [--size 1440x1080] [--repeat 2] [--json out.json]
+//        [--size 1440x1080] [--repeat 2] [--json out.json] [--scaled] [--query stage=zoom]
+//        [--apps music,ie]
+// --scaled: the frame fitted to the window (s = 1.5 at 1920x1080, the user's full screen) instead
+// of pinned at scale 1 (tools/bench.mjs); --apps: only these apps' slots are stepped
 import { spawnSync } from 'node:child_process'
 import { readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -19,22 +23,29 @@ const base = opt('--url', 'http://127.0.0.1:5312/longhorn-concept/')
 const dpr = opt('--dpr', '1.5')
 const size = opt('--size', '1440x1080')
 const repeat = opt('--repeat', '2')
+const query = opt('--query', null)
+const only = opt('--apps', null)?.split(',')
 const out = opt('--json', join(mkdtempSync(join(tmpdir(), 'lhapp-')), 'every.json'))
 const here = dirname(fileURLToPath(import.meta.url))
 const src = readFileSync(join(here, '../src/apps/lib/benchScript.js'), 'utf8')
-const apps = [...src.slice(src.indexOf('export const EVERY')).matchAll(/\['(\w+)', '([^']+)'/g)].map((m) => m[1])
-const last = 1540 + apps.length * 110
-const r = spawnSync('node', [join(here, 'bench.mjs'), `1530-${last}`, '--url', base + '?apps=every&', '--dpr', dpr, '--size', size, '--repeat', repeat, '--json', out], { encoding: 'utf8' })
+const apps = [...src.slice(src.indexOf('export const EVERY = ')).matchAll(/\['(\w+)', '([^']+)'/g)].map((m) => m[1])
+const SLOT = +src.match(/EVERY_SLOT = (\d+)/)[1]
+const AT = Object.fromEntries([...src.match(/EVERY_AT = \{([^}]+)\}/)[1].matchAll(/(\w+): (\d+)/g)].map((m) => [m[1], +m[2]]))
+// per phase: [name, first frame, last frame] of the slot
+const PH = [['open', AT.open, AT.open + 36], ['minimise', AT.minimise, AT.minimise + 14], ['restore', AT.restore, AT.restore + 16],
+  ['maximise', AT.maximise, AT.maximise + 14], ['unmaximise', AT.unmaximise, AT.unmaximise + 14], ['close', AT.close, AT.close + 18]]
+const slots = apps.map((app, i) => [app, 1540 + i * SLOT]).filter(([app]) => !only || only.includes(app))
+const spec = only ? slots.map(([, f]) => `${f - 10}-${f + SLOT - 1}`).join(',') : `1530-${1540 + apps.length * SLOT}`
+const r = spawnSync('node', [join(here, 'bench.mjs'), spec, '--url', base + '?apps=every&', '--dpr', dpr, '--size', size, '--repeat', repeat, '--json', out,
+  ...(args.includes('--scaled') ? ['--scaled'] : []), ...(query ? ['--query', query] : [])], { encoding: 'utf8' })
 if (r.status !== 0 && !r.stdout.includes('frames over')) {
   console.error(r.stderr || r.stdout)
   process.exit(1)
 }
 const rows = new Map(JSON.parse(readFileSync(out, 'utf8')).map((x) => [x.n, x.ms]))
-const PH = [['open', 0, 36], ['minimise', 40, 54], ['restore', 60, 76], ['close', 90, 108]]
 let worst = []
-console.log('app'.padEnd(12) + PH.map(([p]) => p.padStart(22)).join(''))
-apps.forEach((app, i) => {
-  const f = 1540 + i * 110
+console.log('app'.padEnd(12) + PH.map(([p]) => p.padStart(21)).join(''))
+for (const [app, f] of slots) {
   let line = app.padEnd(12)
   for (const [, a, b] of PH) {
     const v = []
@@ -45,7 +56,7 @@ apps.forEach((app, i) => {
     for (let n = f + a; n <= f + b; n++) if (rows.get(n) > 6.94) worst.push(`${app}@${n - f}:${rows.get(n).toFixed(1)}`)
   }
   console.log(line)
-})
+}
 console.log('(per phase: p95, max ms; frames over 6.94 ms)  over: ' + (worst.join(' ') || 'none'))
 const mem = (r.stdout.match(/^mem peak.*$/m) || [])[0]
 if (mem) console.log(mem)

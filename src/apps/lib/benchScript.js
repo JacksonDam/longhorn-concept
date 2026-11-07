@@ -62,15 +62,20 @@ function script(name) {
     at(1790, 'win.focus', { id: 'inbox' })
   }
   if (name === 'every') {
-    // every registered app in turn (EVERY, below): opens, settles, minimises, restores and
-    // closes, one app per 110 frames from 1540 (open f, minimise f + 40, restore f + 60, close
-    // f + 90); tools/appbench.mjs prints the cost of each phase per app
+    // every registered app in turn (EVERY, below): opens, settles, minimises, restores,
+    // maximises, restores down and closes, one app per EVERY_SLOT frames from 1540 (EVERY_AT:
+    // open f, minimise f + 40, restore f + 60, maximise f + 90, restore down f + 110, close
+    // f + 150); tools/appbench.mjs prints the cost of each phase per app. my Music (the video's
+    // window, open since its restore) is closed before the video's end, so its slot opens it anew.
+    at(1505, 'win.close', { id: 'music' })
     EVERY.forEach(([app, id, props], i) => {
-      const f = 1540 + i * 110
-      at(f, 'win.open', props ? { id, app, props } : { id, app })
-      at(f + 40, 'win.minimize', { id })
-      at(f + 60, 'win.restore', { id })
-      at(f + 90, 'win.close', { id })
+      const f = 1540 + i * EVERY_SLOT
+      at(f + EVERY_AT.open, 'win.open', props ? { id, app, props } : { id, app })
+      at(f + EVERY_AT.minimise, 'win.minimize', { id })
+      at(f + EVERY_AT.restore, 'win.restore', { id })
+      at(f + EVERY_AT.maximise, 'win.maximize', { id })
+      at(f + EVERY_AT.unmaximise, 'win.unmaximize', { id })
+      at(f + EVERY_AT.close, 'win.close', { id })
     })
   }
   if (name === 'opens') {
@@ -91,7 +96,7 @@ function script(name) {
 // window's motion-blur copies grow from it, three steps a copy, a step a frame)
 const PREP = 32
 const PREPARED = new Set(['win.minimize', 'win.restore', 'win.close'])
-const PLAYS = { 'win.open': 26, 'win.minimize': 11, 'win.restore': 11, 'win.close': 15 } // frames (incl. delays)
+const PLAYS = { 'win.open': 26, 'win.minimize': 11, 'win.restore': 11, 'win.close': 15, 'win.maximize': 8, 'win.unmaximize': 8 } // frames (incl. delays)
 export function withPrepares(ev, at = 'f') {
   const out = [...ev]
   const last = new Map() // window id -> end of its latest animation (frame)
@@ -102,9 +107,12 @@ export function withPrepares(ev, at = 'f') {
   return out.sort((a, b) => a[at] - b[at])
 }
 
-// ?apps=every: [app, window id, props] (the ids and props the shell's launchers use)
+// ?apps=every: frames per app and each phase's event frame in its slot (tools/appbench.mjs reads them)
+export const EVERY_SLOT = 180
+export const EVERY_AT = { open: 0, minimise: 40, restore: 60, maximise: 90, unmaximise: 110, close: 150 }
+// [app, window id, props] (the ids and props the shell's launchers use)
 export const EVERY = [
-  ['about', 'about'], ['acquire', 'acquire'], ['album', 'album'], ['applet', 'applet', { applet: 'network' }], ['autoplay', 'autoplay'],
+  ['music', 'music'], ['about', 'about'], ['acquire', 'acquire'], ['album', 'album'], ['applet', 'applet', { applet: 'network' }], ['autoplay', 'autoplay'],
   ['burncd', 'burncd', { what: 'music' }], ['calc', 'calc'], ['charmap', 'charmap'], ['compose', 'compose:1', { mode: 'new' }], ['computer', 'computer'],
   ['control', 'control'], ['dialog', 'dialog:x', { title: 'Windows', text: 'Windows' }], ['display', 'display'], ['documents', 'documents'], ['help', 'help'],
   ['ie', 'ie', { url: 'www.msn.com' }], ['im', 'im:Hank', { buddy: 'Hank' }], ['notepad', 'notepad'], ['outlook', 'inbox', { message: 'Hello' }], ['paint', 'paint'],
