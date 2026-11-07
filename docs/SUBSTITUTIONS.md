@@ -55,6 +55,8 @@ search icons from `assets-src/icons` (`public/img/music/folder.png`, `find.png`)
 | Solitaire cards | (Microsoft's own card art is not used) | original cards: drawn ranks and suit symbols, a Plex-blue patterned back |
 | Winamp transport, Messenger emoticon / block buttons, format-bar letters | Nullsoft / Messenger / Office glyphs | original SVG glyphs in the Plex palette (`src/apps/lib/icons.jsx`); every other app icon is the real Windows XP / Office 2003 art (assets-src/SOURCES.md section 13) |
 
-Not substitutions: Internet Explorer shows IE6's own offline page text ("The page cannot be
-displayed") for every address; Microsoft product names (Outlook, Word, Internet Explorer, Windows)
-appear as the brief allows.
+Not substitutions: Internet Explorer shows the linked sites' own 2003 home pages, archived copies
+from the Wayback Machine as the user asked (assets-src/SOURCES.md section 15; they carry those
+sites' news photos and ads as captured), and IE6's own offline page text ("The page cannot be
+displayed") for any other address; Microsoft product names (Outlook, Word, Internet Explorer,
+Windows) appear as the brief allows.

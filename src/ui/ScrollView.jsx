@@ -3,7 +3,7 @@
 // { id: `${id}:scroll`, value: px }.
 //
 //   <ScrollView id x y w h contentH? bar>{memoised content}</ScrollView>   (contentH: measured if omitted)
-//   <Scrollbar x y h viewH contentH pos onScroll />
+//   <Scrollbar x y h viewH contentH pos onScroll horizontal? />   (horizontal: h is its length)
 //   scrollOf(t, id), scrollTo(id, px)
 import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { emit } from '../core/events.js'
@@ -51,7 +51,7 @@ const ThumbFace = memo(function ThumbFace({ len, k }) {
   )
 })
 
-export function Scrollbar({ id, x, y, h, viewH, contentH, pos, onScroll, t: tProp }) {
+export function Scrollbar({ id, x, y, h, viewH, contentH, pos, onScroll, horizontal = false, t: tProp }) {
   const t0 = useTime()
   const t = tProp ?? t0
   const drag = useRef(null)
@@ -67,46 +67,51 @@ export function Scrollbar({ id, x, y, h, viewH, contentH, pos, onScroll, t: tPro
     onPointerEnter: (e) => emit('hover', { id: hid, on: true, ...pt(e) }),
     onPointerLeave: () => emit('hover', { id: hid, on: false }),
   })
+  // (horizontal: the same bar laid along x, its arrows and thumb grip turned a quarter)
+  const box = (along, across, l, w) => (horizontal ? { left: along, top: across, width: l, height: w } : { left: across, top: along, width: w, height: l })
+  const turn = (w, l) => (horizontal ? { position: 'absolute', left: (l - w) / 2, top: (w - l) / 2, width: w, height: l, transform: 'rotate(-90deg)' } : { position: 'absolute', left: 0, top: 0, width: w, height: l })
+  const at = (e) => (horizontal ? pt(e).x : pt(e).y)
   return (
-    <div style={{ position: 'absolute', left: x, top: y, width: BAR_W, height: h }} onPointerDown={(e) => e.stopPropagation()}>
+    <div style={{ position: 'absolute', left: x, top: y, ...(horizontal ? { width: h, height: BAR_W } : { width: BAR_W, height: h }) }} onPointerDown={(e) => e.stopPropagation()}>
       <div
         style={{
           position: 'absolute',
-          left: 3,
-          top: ARROW + 1,
-          width: 10,
-          height: h - 2 * ARROW - 2,
+          ...box(ARROW + 1, 3, h - 2 * ARROW - 2, 10),
           borderRadius: 5,
-          background: 'linear-gradient(90deg, rgba(200,214,236,0.55), rgba(246,250,255,0.85) 60%, rgba(220,230,246,0.6))',
+          background: `linear-gradient(${horizontal ? 180 : 90}deg, rgba(200,214,236,0.55), rgba(246,250,255,0.85) 60%, rgba(220,230,246,0.6))`,
         }}
         onPointerDown={(e) => {
           // page up / down towards the click
           const r = e.currentTarget.getBoundingClientRect()
-          const yy = (e.clientY - r.top) / stageScale() + ARROW + 1
+          const yy = (horizontal ? e.clientX - r.left : e.clientY - r.top) / stageScale() + ARROW + 1
           to(pos + (yy < top ? -1 : 1) * viewH * 0.9)
         }}
       />
-      <div {...hov(id + ':up')} style={{ position: 'absolute', left: 0, top: 0, width: 16, height: ARROW }} onPointerDown={() => to(pos - 40)}>
-        <Arrow k={kUp} />
+      <div {...hov(id + ':up')} style={{ position: 'absolute', ...box(0, 0, ARROW, 16) }} onPointerDown={() => to(pos - 40)}>
+        <div style={turn(16, ARROW)}>
+          <Arrow k={kUp} />
+        </div>
       </div>
-      <div {...hov(id + ':dn')} style={{ position: 'absolute', left: 0, top: h - ARROW, width: 16, height: ARROW }} onPointerDown={() => to(pos + 40)}>
-        <Arrow down k={kDn} />
+      <div {...hov(id + ':dn')} style={{ position: 'absolute', ...box(h - ARROW, 0, ARROW, 16) }} onPointerDown={() => to(pos + 40)}>
+        <div style={turn(16, ARROW)}>
+          <Arrow down k={kDn} />
+        </div>
       </div>
       {max > 0 && (
         <div
           {...hov(id + ':th')}
-          style={{ position: 'absolute', left: 1.5, top, width: 13, height: len }}
+          style={{ position: 'absolute', ...box(top, 1.5, len, 13) }}
           onPointerDown={(e) => {
             if (e.button !== 0) return
             e.stopPropagation()
             e.currentTarget.setPointerCapture?.(e.pointerId)
-            drag.current = { y: pt(e).y, pos }
+            drag.current = { y: at(e), pos }
             emit('press', { id: id + ':th', on: true })
           }}
           onPointerMove={(e) => {
             const d = drag.current
             if (!d) return
-            const dy = pt(e).y - d.y
+            const dy = at(e) - d.y
             to(d.pos + (dy * max) / Math.max(1, track - len))
           }}
           onPointerUp={(e) => {
@@ -116,7 +121,9 @@ export function Scrollbar({ id, x, y, h, viewH, contentH, pos, onScroll, t: tPro
             emit('press', { id: id + ':th', on: false })
           }}
         >
-          <ThumbFace len={len} k={kTh} />
+          <div style={turn(13, len)}>
+            <ThumbFace len={len} k={kTh} />
+          </div>
         </div>
       )}
     </div>
