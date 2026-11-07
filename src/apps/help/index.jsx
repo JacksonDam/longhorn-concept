@@ -9,15 +9,15 @@ import { Ico } from '../lib/icons.jsx'
 import { openWin, closeWin } from '../lib/common.js'
 
 export const TOPICS = [
-  { key: 'basics', title: 'Windows basics', icon: 'computer', body: ['Every program opens in its own window. Drag a window by its title bar to move it, and double-click the title bar to maximize it.', 'The three buttons at the top right of a window minimize it into its taskbar button, maximize it, or close it.', 'Click a button on the taskbar to restore a minimized window or to switch to it.'] },
-  { key: 'sidebar', title: 'Using the sidebar', icon: 'display', body: ['The sidebar on the right of the screen shows your name, the weather, your newest mail, what is playing, your buddies and a picture.', 'Click a mail subject to read it in Outlook, a buddy to send an instant message, or the media strip to see your music.', 'The arrow at the bottom right of the taskbar hides and shows the sidebar.'] },
-  { key: 'music', title: 'Playing music', icon: 'music', body: ['Open my Music from the Start menu or the sidebar to see your albums. Click an album to see its tracks, and click a track to play it.', 'Winamp3 and the sidebar media strip show the track that is playing. Use their buttons to pause, skip or go back.', 'Burn CD and Share Music are on the my Music window.'] },
-  { key: 'pictures', title: 'Pictures and videos', icon: 'picture', body: ['my Pictures & Videos groups your pictures by the day they were taken. Refine By Date narrows the list to a day, a month or a year.', 'Double-click a picture to see its details, then Edit to rotate it or adjust it. View Slide Show shows your pictures full screen.', 'Create an Album collects pictures into an album you can play as a slide show.'] },
-  { key: 'mail', title: 'E-mail with Outlook', icon: 'mailbig', body: ['Outlook shows your Inbox with a reading pane. Click a message to read it.', 'New, Reply and Forward open a message window. Click Send to send it; it is kept in Sent Items.', 'This computer is not connected to a network, so Send/Receive cannot reach the mail server.'] },
-  { key: 'word', title: 'Writing with Word', icon: 'doc', body: ['Click in the page and type. Select text, then use the buttons for bold, italic, underline, fonts, sizes, colors, alignment and bullets.', 'Click Save to keep your changes. Word asks before closing a document with unsaved changes.'] },
-  { key: 'internet', title: 'The Internet', icon: 'ie', body: ['Internet Explorer opens Web pages. Type an address in the Address bar and press Enter.', 'This computer is working offline: the network cable is unplugged, so every page shows "The page cannot be displayed".', 'See Network Connections in Control Panel for the connection status.'] },
-  { key: 'background', title: 'Changing the desktop background', icon: 'display', body: ['Right-click the desktop and click Properties, or open Display in Control Panel.', 'Pick a background in the list and click Apply or OK.'] },
-  { key: 'logoff', title: 'Logging off and shutting down', icon: 'users', body: ['Click your name at the top of the sidebar, or open the Start menu, and choose Log Off, Switch User or Shut Down.', 'Logging off returns to the welcome screen, where any user can log on.'] },
+  { key: 'basics', title: 'Windows basics', icon: 'computer', body: ['To move a window, drag its title bar.', 'To maximize a window, double-click its title bar, or click the Maximize button.', 'To minimize a window to a button on the taskbar, click the Minimize button. To restore it, click its taskbar button.'] },
+  { key: 'sidebar', title: 'Using the sidebar', icon: 'display', body: ['To read a message, click its subject under Mail.', 'To send an instant message, click a name under Buddies.', 'To hide or show the sidebar, click the arrow at the right end of the taskbar.'] },
+  { key: 'music', title: 'Playing music', icon: 'music', body: ['To play music, open my Music, click an album, and then click a track.', 'To copy music to a CD, click Burn CD in my Music.'] },
+  { key: 'pictures', title: 'Pictures and videos', icon: 'picture', body: ['To see the pictures taken on a certain day, month or year, click it under Refine By Date.', 'To see a larger view of a picture, double-click it.', 'To view your pictures as a slide show, click View Slide Show.'] },
+  { key: 'mail', title: 'E-mail with Outlook', icon: 'mailbig', body: ['To read a message, click it in the Inbox. The message appears in the Reading Pane.', 'To write a new message, click New. To reply to a message, click Reply.', 'Copies of the messages you send are saved in the Sent Items folder.'] },
+  { key: 'word', title: 'Writing with Word', icon: 'doc', body: ['To format text, select it, and then click Bold, Italic or Underline on the toolbar.', 'To save a document, click Save.'] },
+  { key: 'internet', title: 'The Internet', icon: 'ie', body: ['To go to a Web page, type its address in the Address bar, and then press ENTER.', 'To see the status of your network connection, open Network Connections in Control Panel.'] },
+  { key: 'background', title: 'Changing the desktop background', icon: 'display', body: ['Open Display in Control Panel, or right-click the desktop and click Properties.', 'On the Desktop tab, click a picture in the Background list, and then click OK.'] },
+  { key: 'logoff', title: 'Logging off and shutting down', icon: 'users', body: ['To log off, click Start, and then click Log Off.', 'To turn off the computer, click Start, and then click Shut Down.', 'You can also click your name at the top of the sidebar, and then click Switch User, Log Off or Shut Down.'] },
 ]
 
 function TopicList({ win, t, list, x, y }) {
@@ -118,12 +118,12 @@ function Help({ win, t, w, h }) {
             help <span style={{ fontWeight: 400, color: '#2c6cc4' }}>and support</span>
           </div>
           <div style={{ position: 'absolute', left: 24, top: top + 74, fontFamily: FONT, fontSize: 11, color: '#8b91a6' }} onPointerDown={(e) => e.button === 0 && focusField(id('q'))}>
-            {searched ? `${list.length} topic${list.length === 1 ? '' : 's'} found for "${searched}"` : 'Pick a help topic'}
+            {searched ? `${list.length} topic${list.length === 1 ? '' : 's'} found for "${searched}"` : 'Pick a Help topic'}
           </div>
           <TopicList win={win} t={t} list={list} x={24} y={top + 98} />
           <div onPointerDown={(e) => e.button === 0 && go(win, 'basics')} style={{ position: 'absolute', left: 360, top: top + 98, width: w - 390, padding: 14, borderRadius: 6, background: 'rgba(255,255,255,0.7)', boxShadow: `inset 0 0 0 1px ${C.borderLight}`, boxSizing: 'border-box' }}>
             <div style={{ fontFamily: HEAVY, fontSize: 12, color: '#3b7cc6', marginBottom: 6 }}>Did you know?</div>
-            <div style={{ fontFamily: FONT, fontSize: 11, lineHeight: '16px', color: C.text }}>You can right-click almost anything, the desktop, a file, a message or a picture, to see what you can do with it.</div>
+            <div style={{ fontFamily: FONT, fontSize: 11, lineHeight: '16px', color: C.text }}>Right-click an item to see the commands you can use with it.</div>
           </div>
         </>
       )}
