@@ -22,15 +22,14 @@ const TITLES = {
 }
 const txt = { fontFamily: FONT, fontSize: 11, color: C.text, lineHeight: '16px' }
 
-// the clock: the video's 11:31 am in the demo and captures, the real time otherwise
-const loadReal = new Date()
+// the clock: the video's 11:31 am in the demo and captures, the real time otherwise (the wall
+// clock, as the taskbar's: the app clock falls behind it by stalls and time in the background)
 function clockAt(t, win) {
   if (DEMO) {
     const s = 11 * 3600 + 31 * 60 + Math.max(0, t - win.openedAt)
     return { h: Math.floor(s / 3600) % 24, m: Math.floor(s / 60) % 60, s: Math.floor(s) % 60 }
   }
-  // the clock's t starts with the page, so the wall time is a pure function of t too
-  const d = new Date(loadReal.getTime() + t * 1000)
+  const d = new Date()
   return { h: d.getHours(), m: d.getMinutes(), s: d.getSeconds() }
 }
 
