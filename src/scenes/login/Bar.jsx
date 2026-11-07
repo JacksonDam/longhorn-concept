@@ -99,8 +99,12 @@ export function clockText(demo) {
   return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`
 }
 
+// The video's pill also has a lighter slanted band at its left end; it is left out (the user's
+// call), and the time is centred in the pill's body left of the cap, so a longer time ("12:07 AM")
+// keeps clear of the cap.
 export const Clock = memo(function Clock({ text }) {
   const { left, top, width, height } = CLOCK
+  const capX = width - 17.5 // the cap's left edge
   return (
     <div style={{ position: 'absolute', left, top, width, height }}>
       <svg width={width} height={height} style={{ position: 'absolute', left: 0, top: 0 }}>
@@ -114,10 +118,6 @@ export const Clock = memo(function Clock({ text }) {
             <stop offset="0.9" stopColor="#3e7cf1" />
             <stop offset="1" stopColor="#5a90f0" />
           </linearGradient>
-          <linearGradient id="ck-band" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#4a86ec" />
-            <stop offset="1" stopColor="#5293ef" />
-          </linearGradient>
           <linearGradient id="ck-cap" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#7cabf5" />
             <stop offset="0.6" stopColor="#5f97ef" />
@@ -126,14 +126,13 @@ export const Clock = memo(function Clock({ text }) {
         </defs>
         <rect x="0.5" y="0" width={width - 1} height={height} rx="5" fill="url(#ck-body)" />
         <rect x="1" y="0.5" width={width - 2} height={height - 1} rx="4.5" fill="none" stroke="#7aa8f4" strokeOpacity="0.45" />
-        <path d={`M5 0.5 H15.5 L20 ${height - 0.5} H5 Z`} fill="url(#ck-band)" opacity="0.8" />
-        <rect x={width - 17.5} y="2" width="15" height={height - 4.5} rx="3.5" fill="url(#ck-cap)" />
+        <rect x={capX} y="2" width="15" height={height - 4.5} rx="3.5" fill="url(#ck-cap)" />
       </svg>
       <div
         style={{
           position: 'absolute',
-          left: 16,
-          width: width - 32,
+          left: 0.5,
+          width: capX - 0.5,
           top: 4.5,
           textAlign: 'center',
           fontFamily: 'Libre Franklin',

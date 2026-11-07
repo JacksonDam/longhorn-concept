@@ -55,9 +55,10 @@ demo input: src/demo/login.js.
 - Shut Down orb: centre (65.2, 641.8), r 14.7: light rim, blue body lighter at the bottom,
   white top highlight, vertical power line y 637-646. Label "Shut Down" centred, y ~677,
   Franklin 600 12.5 px, rgb(214,232,255) with a soft dark drop shadow.
-- Clock pill: x 826-924, y 632-658; body #2b6fea -> #4c8bf2, lighter slanted band at the left
-  end, lighter rounded cap x 909-921; text "7:09 PM" (demo) / real time (interactive),
-  14.5 px rgb(90,156,255).
+- Clock pill: x 826-924, y 632-658; body #2b6fea -> #4c8bf2, lighter rounded cap x 909-921;
+  text "7:09 PM" (demo) / real time (interactive), 14.5 px rgb(90,156,255). The video's lighter
+  slanted band at the pill's left end is left out (the user's request), and the text is centred
+  in the body left of the cap (x 826-909), so longer times ("12:07 AM") keep clear of the cap.
 
 ## Tiles (Tile.jsx, TileRow.jsx)
 - 55.2 px squares, top 607.2, radius ~4.5; centres 363.2 + 100 i (5 tiles). After a selection
@@ -97,7 +98,10 @@ demo input: src/demo/login.js.
   blur and a small overshoot (offset keys -300, -175, -10, +55, +80, +60, +15, +2, 0 px).
 - Panel: "Sondra" Franklin 600 15.4 px at x 521, top ~301; "sondra_hsm@hotmail.com" 10.5 px at
   y 323-331; "Enter Password to begin" 7.8 px rgb(159,188,245) at y ~350-359; field x 516-666,
-  y 366-379 (white pill); go orb centre (688.5, 371) r 12 with a dark ring.
+  y 366-379 (white pill); go orb centre (688.5, 371) r 12 with a dark ring. Deliberate changes
+  from the video (the user's request): no light bridge between the field's end and the orb and no
+  light tail curving under them, and the orb's chevron (barely visible in the video) is white with
+  a soft deep-blue shadow, drawn above the hover glow.
 - Bullets: one per key at frames 395, 402, 409, 416, 423, 430 (no fade); centres x 528 + 13.4 i,
   y 372.6, glass blue spheres 9.4 px.
 

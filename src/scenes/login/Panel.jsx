@@ -77,10 +77,8 @@ const Field = memo(function Field() {
           <stop offset="1" stopColor="#8fd0ff" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {/* the light bridging the field's end to the orb, and the tail curving under into it */}
-      {/* (soft shapes drawn with gradients rather than SVG blur filters: cheap to rasterise) */}
-      <rect x="150" y="9" width="22" height="9" rx="4.5" fill="#6aa0ee" opacity="0.28" />
-      <path d="M152 22.5 C 162 26.5, 172 27, 182 23" stroke="#9fc4ff" strokeWidth="4" fill="none" opacity="0.3" strokeLinecap="round" />
+      {/* (the video also has a light bridge from the field's end to the orb and a light tail
+          curving under them; both are left out, the user's call) */}
       {/* the light rim around the field, then the field */}
       <rect x="4.6" y="4.1" width="153.3" height="18.8" rx="9.4" fill="#a9cdfa" opacity="0.35" />
       <rect x="6" y="5.5" width="150.5" height="16" rx="8" fill="url(#pw-field)" />
@@ -90,7 +88,6 @@ const Field = memo(function Field() {
         <circle r="12" fill="#1189f8" />
         <circle r="12" fill="url(#pw-orb)" />
         <ellipse cx="-0.5" cy="-4.2" rx="9" ry="6.8" fill="url(#pw-orb-top)" />
-        <path d="M-2 -3 L2.5 0.5 L-2 4" stroke="#9fe4ff" strokeWidth="1.3" fill="none" opacity="0.3" strokeLinecap="round" />
       </g>
     </svg>
   )
@@ -121,6 +118,26 @@ const GoPulse = memo(function GoPulse({ o }) {
       <circle r="12" fill="url(#pw-pulse)" />
       {/* the orb's highlight stays on top of the glow */}
       <ellipse cx="-0.5" cy="-4.2" rx="9" ry="6.8" fill="url(#pw-pulse-top)" />
+    </svg>
+  )
+})
+
+// The go button's arrow: the video's chevron is barely visible (a faint light-cyan stroke); here
+// it is white with a soft deep-blue shadow under it, so it reads on the orb's light highlight and
+// on its hover glow alike. Drawn after the glow (GoPulse), so the hover never covers it.
+const GoArrow = memo(function GoArrow() {
+  const d = 'M-2.1 -4.3 L2.5 0 L-2.1 4.3'
+  const line = { fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }
+  return (
+    <svg width="28" height="28" viewBox="-14 -14 28 28" style={{ position: 'absolute', left: 688.5 - P.left - 14, top: 371 - P.top - 14 }}>
+      <defs>
+        <linearGradient id="pw-arrow" x1="0" y1="-4.3" x2="0" y2="4.3" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#dff6ff" />
+        </linearGradient>
+      </defs>
+      <path d={d} {...line} stroke="#063e9e" strokeWidth="3.6" opacity="0.4" transform="translate(0.2 0.7)" />
+      <path d={d} {...line} stroke="url(#pw-arrow)" strokeWidth="2.1" />
     </svg>
   )
 })
@@ -192,6 +209,7 @@ export function Panel({ t, row, submitT }) {
     <>
       <PanelBody id={id} len={len} />
       {hovered && <GoPulse o={Math.round(pulseOpacity(t, hovered.t) * 100) / 100} />}
+      <GoArrow />
       <div
         title="Go"
         onPointerEnter={() => {
