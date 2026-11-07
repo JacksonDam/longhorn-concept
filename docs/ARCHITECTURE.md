@@ -166,7 +166,19 @@ OS in the same style. Everything still derives from (time, event log).
 - `src/os/media.js`: the silent media player shared by the sidebar strip, flyout, my Music, Winamp.
 - `src/core/tilt.js`: a surface turning toward the pointer (critically damped, deterministic from
   the pointer samples in the log): the selected login slab ('login.pointer' events, real input
-  only), my Music's slabs.
+  only), my Music's and my Pictures' header slabs ('ptr' events, apps/music/tilt.js). One rule
+  for all: a slab shows its own settled pose (the video's, with its idle sway / drift) until its
+  first pointer sample, then its orientation hands over to the pointer's alone (`takeover`,
+  0.4 s, eased): square to the camera with the pointer over its centre, turned toward it
+  elsewhere, flat when it leaves. ?demo / ?capture log no pointer, so they show the video's pose.
+  A header slab may also move to a place and size of its own with the takeover (HeaderSlab.jsx
+  `spec.pointer`): my Music's device stands 18 px left, so no pointer pose covers its title.
+- `src/apps/music/HeaderSlab.jsx`: an explorer header's glass slab (my Music's device and album
+  pages, my Pictures' photo frame): the slab and floor-reflection canvases on the shared slab
+  renderer, my Music's spin-in on open (`devicePoseTo` moves it to another header's resting
+  pose), the settled pose with the pointer tilt, drawn from the app's window Overlay. The swoosh's
+  intro (`SwooshIn`), the title's intro (`Title`) and the header buttons' pop-in (`PopIn`) are
+  shared from music/Header.jsx.
 - `src/os/xp.jsx`: real Windows XP / Office 2003 icon art from size-design sprites (`<XpIcon name size />`,
   built by tools/icons/xpicons.py; docs/desktop-spec.md "XP icon art"). Apps reach it through
   `<Ico kind>` (apps/lib/icons.jsx).
@@ -222,7 +234,8 @@ scenes, never an opacity group around them (see Glass).
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
 http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
-`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=every&` (every app
+`?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=tilt&` (the header slabs' pointer tilt,
+frames 1530-1850), `?apps=every&` (every app
 opened, minimised, restored, closed; `node tools/appbench.mjs --dpr 1.5` prints the per-app,
 per-phase costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
 Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ...] [--prefill

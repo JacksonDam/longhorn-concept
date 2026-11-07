@@ -16,13 +16,17 @@ import { lastOfType } from '../os/logIndex.js'
 let live = { x: -100, y: -100 }
 export const pointer = () => live
 
-// The pointer as input to visuals that follow it (my Music's slabs turn toward it): 'ptr' events
+// The pointer as input to visuals that follow it (the header slabs turn toward it): 'ptr' events
 // { x, y } (stage px) or { hidden }, logged from the real pointer's moves while something wants
 // them (wantPointer), one a frame at the frame's time. Never under ?demo / ?capture (the cursor
 // follows a path there and nothing is logged): those draw the video's input only.
+// (where the pointer is when something starts wanting it is logged too: moves made while nothing
+// did weren't, and a stale sample would stand for it until the next move)
 let wanted = 0
+let seen = false, left = false // (real pointer only: under ?demo / ?capture neither is set)
 export function wantPointer() {
   wanted++
+  if (seen) logPointer(left ? { hidden: true } : live)
   return () => wanted--
 }
 let queued = false
@@ -140,11 +144,16 @@ const LiveCursor = memo(function LiveCursor() {
       else add(e, off)
       const i = (count - 1) % RING
       live = { x: rx[i], y: ry[i] }
+      seen = true
+      left = false
       // (not while a button is down: a drag or a resize carries the pointer with the window, the
       // slabs it feeds don't turn, and a log event a frame would cost the drag)
       if (!e.buttons) logPointer(live)
     }
-    const out = () => logPointer({ hidden: true })
+    const out = () => {
+      left = true
+      logPointer({ hidden: true })
+    }
     addEventListener('pointermove', on)
     addEventListener('pointerdown', on)
     document.documentElement.addEventListener('pointerleave', out)

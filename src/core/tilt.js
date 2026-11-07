@@ -1,7 +1,7 @@
-// Pointer tilt: a surface (the selected login slab, my Music's slabs) turns its face toward the
-// pointer, eased by a critically damped spring, and settles back flat when the pointer leaves.
-// A pure function of (time, pointer samples): the samples come from the event log, so real time,
-// ?demo and ?capture agree and any seek order gives the same pose.
+// Pointer tilt: a surface (the selected login slab, my Music's and my Pictures' header slabs)
+// turns its face toward the pointer, eased by a critically damped spring, and settles back flat
+// when the pointer leaves. A pure function of (time, pointer samples): the samples come from the
+// event log, so real time, ?demo and ?capture agree and any seek order gives the same pose.
 //
 //   samples: [{ t, x, y } | { t, gone: true }] ascending by t, in stage px (gone: the pointer left)
 //   tiltAt(t, samples, centre) -> { yaw, pitch } in degrees
@@ -12,18 +12,33 @@
 //
 // Feel: the target is linear in the pointer's offset from the centre, MAX at REACH half-sizes
 // away and held beyond; the response to a step reaches 90% in SETTLE seconds with no overshoot.
+//
+// The rule every tilting surface follows: until its first pointer sample it shows its own
+// settled pose (the video's, with its idle sway or drift); from that sample its orientation hands
+// over to the pointer's alone over TAKEOVER s (takeover(): 0 .. 1, eased at both ends, so the
+// change is smooth), so with the pointer over its centre the face is square to the camera (no
+// rest yaw, pitch or roll left), and turned toward the pointer elsewhere. The spring starts flat
+// at that first sample.
 export const TILT = {
   max: 12, // deg at REACH and beyond
   reach: 1.5, // half-sizes of the surface from its centre to full tilt
   settle: 0.125, // s to 90% of a step (critically damped)
+  takeover: 0.4, // s from the first pointer sample until the orientation is the pointer's alone
 }
 // (1 + w t) e^(-w t) = 0.1 at w t = 3.8897
 export const OMEGA = 3.8897 / TILT.settle
 // inputs older than this have decayed below 1e-12 of their step: folding starts here, from rest
 // at the target in force then (exact to that error, and the cost per frame stays bounded)
-const WINDOW = 1
+export const WINDOW = 1
 
 const clamp1 = (v) => Math.max(-1, Math.min(1, v))
+
+// how far the pointer has taken a surface's orientation over, dt s after its first sample:
+// 0 (the surface's own settled pose) .. 1 (the pointer's alone)
+export function takeover(dt) {
+  const u = Math.max(0, Math.min(1, dt / TILT.takeover))
+  return u * u * (3 - 2 * u)
+}
 
 // the target angles for one sample: flat when the pointer has gone
 export function tiltTarget(s, c) {

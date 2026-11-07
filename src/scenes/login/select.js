@@ -91,8 +91,8 @@ const FLIGHT = [
 const col = (j) => FLIGHT.map((r) => [r[0], r[j]])
 const FX = col(1), FY = col(2), FS = col(3), FR = col(4), FB = col(5), FU = col(6), FA = col(7)
 
-// tilt (optional): { yaw, pitch } (deg) toward the pointer and sway (0..1) how much of the idle
-// sway remains (Selected.jsx: the pointer takes over from the video's sway)
+// tilt (optional): { yaw, pitch } (deg) toward the pointer and sway (0..1) how much of the slab's
+// own pose remains, its idle sway and resting roll (Selected.jsx: the pointer takes over from them)
 export function slabPose(k, i, t, from, tilt = null) {
   const tileY = TILE.top + TILE.size / 2
   const x0 = from ?? SLOTS5[i], y0 = tileY
@@ -116,7 +116,7 @@ export function slabPose(k, i, t, from, tilt = null) {
   const idle = idlePose(t, k)
   const sw = tilt ? tilt.sway : 1
   const yaw = tilt ? tilt.yaw : 0, pitch = tilt ? tilt.pitch : 0
-  const rz = REST_RZ * clamp((k - LAUNCH) / 8)
+  const rz = REST_RZ * clamp((k - LAUNCH) / 8) * sw
   // flight lighting until it lands, then the idle sway lighting (the light follows the turn;
   // yaw, like sway, is + for the right side toward the viewer, which is -ry here)
   let light = swayLight(idle.sway * sw + yaw)

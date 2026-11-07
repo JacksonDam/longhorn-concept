@@ -1,4 +1,4 @@
-// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus', 'every'): a demo-like event list for the apps, appended after the video's input (frames
+// ?apps=<name> ('all', 'pictures', 'mail', 'ie', 'word', 'media', 'opens', 'focus', 'every', 'tilt'): a demo-like event list for the apps, appended after the video's input (frames
 // 1530+), so tools/bench.mjs and tools/capture.mjs can step and measure the apps' windows on the
 // ?capture path:  node tools/bench.mjs 1530-1960 --url "http://localhost:5304/longhorn-concept/?apps=all"
 import { onEvents, getLog, emit } from '../../core/events.js'
@@ -60,6 +60,25 @@ function script(name) {
     at(1745, 'win.restore', { id: 'calc' })
     at(1770, 'win.close', { id: 'calc' })
     at(1790, 'win.focus', { id: 'inbox' })
+  }
+  if (name === 'tilt') {
+    // the header slabs' pointer tilt (apps/music/tilt.js): my Pictures opens over my Music (both
+    // at 45, 23) and its photo frame spins in; the pointer ('ptr', as core/Cursor.jsx logs it,
+    // one a frame) comes in, circles the frame's centre and leaves; my Pictures closes (its copies
+    // mount from 32 frames before, once the pointer has gone) and the pointer circles my Music's
+    // slab (the album page the video ends on), frames 1540-1850
+    const circle = (f0, f1, cx, cy, r) => {
+      for (let f = f0; f <= f1; f++) {
+        const a = ((f - f0) / 30) * 2 * Math.PI
+        const k = Math.min(1, (f - f0) / 10)
+        at(f, 'ptr', { x: Math.round((cx + 300 * (1 - k) + r * k * Math.cos(a)) * 10) / 10, y: Math.round((cy + r * k * Math.sin(a)) * 10) / 10 })
+      }
+      at(f1 + 1, 'ptr', { hidden: true })
+    }
+    at(1540, 'win.open', { id: 'pictures', app: 'pictures' })
+    circle(1630, 1700, 295, 232, 70)
+    at(1745, 'win.close', { id: 'pictures' })
+    circle(1775, 1845, 342, 230, 70)
   }
   if (name === 'every') {
     // every registered app in turn (EVERY, below): opens, settles, minimises, restores and
