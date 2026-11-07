@@ -128,7 +128,11 @@ demo input: src/demo/login.js.
   14 frames) while the bar reopens to 5 slots (k 2-10.5), then the new one runs the normal
   sequence. Escape or a click on the background: the slab flies back and the bar reopens.
 - Typing adds a bullet per key (max 10 shown), Backspace removes one, Enter or the go orb submits
-  (any password). Shut Down does nothing. The clock shows the real time (h:mm AM/PM).
+  (any password). Shut Down shuts down (Session flow). The clock shows the real time (h:mm AM/PM).
+- The go orb glows while the pointer is over it ('login.gohover' { on: true / false } on enter /
+  leave): the pulse shows at once at its level and fades out over 2 frames on leaving. The demo's
+  one event (frame 333, no `on`) keeps it on until the submit, as in the video. The panel's sweep
+  copies take no pointer input (32 overlapping go orbs, unmounted under a resting pointer).
 - Local verification aids: ?capture&refbg (reference frame behind the UI), ?capture&nobar
   (aurora without the bar, for tools/login/fit_bar.py), ?mb={...} (blur overrides),
   ?slab={...} (slab material overrides).

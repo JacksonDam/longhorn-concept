@@ -4,7 +4,7 @@
 // motion blur and a small overshoot; exit: fades.
 import { memo } from 'react'
 import { clamp } from '../../core/anim.js'
-import { FPS, CAPTURE } from '../../core/clock.js'
+import { FPS, CAPTURE, now } from '../../core/clock.js'
 import { emit, all } from '../../core/events.js'
 import { userById, passwordLength } from './state.js'
 import { panelExit } from './exit.js'
@@ -93,13 +93,35 @@ const Field = memo(function Field() {
   )
 })
 
-// The go button pulses once the pointer has been over it (the reference: from its hover at
-// frame 333 its cyan glow swings between two levels, a 60-frame period, 2 s): a cyan overlay
-// whose opacity follows a sine, 48 frames past the hover at its rising midpoint.
+// The go button pulses while the pointer is over it (the reference: from its hover at frame 333
+// its cyan glow swings between two levels, a 60-frame period, 2 s): a cyan overlay whose opacity
+// follows a sine, 48 frames past the hover at its rising midpoint. It shows at once on entering
+// and fades out over 2 frames on leaving (like the tiles' colour).
 const PULSE = { period: 60, lag: 48, mid: 0.5, amp: 0.2 }
+const GO_OUT = 2 // frames
 function pulseOpacity(t, since) {
   const f = (t - since) * FPS - PULSE.lag
   return PULSE.mid + PULSE.amp * Math.sin((2 * Math.PI * f) / PULSE.period)
+}
+// The go button's hover since this selection: 'login.gohover' { on } (the demo's one event has no
+// `on`: the pointer arrives and stays). { on: the event that started the current hover, off: the
+// one that ended it, or null }; an enter while hovered or a leave while not changes nothing.
+function goHover(t, since) {
+  let on = null, off = null
+  for (const e of all(t, (e) => e.type === 'login.gohover' && e.t >= since)) {
+    if (e.on === false) {
+      if (on && !off) off = e
+    } else if (!on || off) {
+      on = e
+      off = null
+    }
+  }
+  return { on, off }
+}
+function goGlow(t, { on, off }) {
+  if (!on) return 0
+  if (!off) return pulseOpacity(t, on.t)
+  return pulseOpacity(off.t, on.t) * (1 - clamp(((t - off.t) * FPS) / GO_OUT))
 }
 const GoPulse = memo(function GoPulse({ o }) {
   return (
@@ -203,17 +225,25 @@ export function Panel({ t, row, submitT }) {
     const d = stageScale() * (window.devicePixelRatio || 1)
     return { transform: `translateX(${(Math.round(sweep(kk) * d) / d).toFixed(3)}px)`, opacity: clamp((kk - 25.3) / 0.5) }
   }
-  // the first hover of the go button since this selection starts its pulse
-  const hovered = all(t, (e) => e.type === 'login.gohover' && e.t >= change.t)[0]
+  // the go button's glow while the pointer is over it; the handlers read the log at the event's
+  // own time (a render's t can be a frame old)
+  const glow = Math.round(goGlow(t, goHover(t, change.t)) * 100) / 100
+  const hoverNow = () => {
+    const h = goHover(now(), change.t)
+    return !!h.on && !h.off
+  }
   const body = (
     <>
       <PanelBody id={id} len={len} />
-      {hovered && <GoPulse o={Math.round(pulseOpacity(t, hovered.t) * 100) / 100} />}
+      {glow > 0 && <GoPulse o={glow} />}
       <GoArrow />
       <div
         title="Go"
         onPointerEnter={() => {
-          if (!CAPTURE && submitT == null && !hovered) emit('login.gohover', { id })
+          if (!CAPTURE && submitT == null && !hoverNow()) emit('login.gohover', { id, on: true })
+        }}
+        onPointerLeave={() => {
+          if (!CAPTURE && hoverNow()) emit('login.gohover', { id, on: false })
         }}
         onPointerDown={(e) => {
           e.stopPropagation()
@@ -227,14 +257,15 @@ export function Panel({ t, row, submitT }) {
   const layer = { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' }
   if (!moving) return <div style={box}><div style={{ ...layer, ...pose(t) }}>{body}</div></div>
   // the sweep's blur copies (like core/MotionBlur, each on its own layer), mounted a few per
-  // frame ahead of the sweep so no single frame rasterises all of them
+  // frame ahead of the sweep so no single frame rasterises all of them; they take no pointer
+  // input (32 overlapping go buttons, unmounted under a resting pointer, would leave a hover on)
   const { samples: n, shutter, phase } = blur('panel')
   const mounted = k >= 25.3 ? n : Math.min(n, Math.max(1, Math.ceil((k - PREMOUNT + 0.5) * (n / 4))))
   const layers = []
   for (let j = 0; j < mounted; j++) {
     const p = pose(t + shutter * ((j + 0.5) / n + phase))
     layers.push(
-      <div key={j} style={{ ...layer, ...layerHint, ...p, opacity: (p.opacity ?? 1) / n, mixBlendMode: 'plus-lighter' }}>
+      <div key={j} style={{ ...layer, ...layerHint, ...p, opacity: (p.opacity ?? 1) / n, mixBlendMode: 'plus-lighter', pointerEvents: 'none' }}>
         {body}
       </div>,
     )
