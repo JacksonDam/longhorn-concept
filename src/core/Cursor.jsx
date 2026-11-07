@@ -12,7 +12,7 @@ import { lastOfType } from '../os/logIndex.js'
 let live = { x: -100, y: -100 }
 export const pointer = () => live
 
-// The pointer as input to visuals that follow it (my Music's slabs turn toward it): 'ptr' events
+// The pointer as input to visuals that follow it (the header slabs turn toward it): 'ptr' events
 // { x, y } (stage px) or { hidden }, logged from the real pointer's moves while something wants
 // them (wantPointer), one a frame at the frame's time. Never under ?demo / ?capture (the cursor
 // follows a path there and nothing is logged): those draw the video's input only.
