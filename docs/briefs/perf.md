@@ -92,6 +92,8 @@ pays all of that under the black screen before the clock starts; keep it that wa
   (HTTP/2, gzip and the live site's cache headers; `vite preview` sends no-cache and no gzip):
   `npx vite build && node tools/pages.mjs --dir dist --port <your prod port>`, then
   `node tools/coldstart.mjs --url https://127.0.0.1:<port>/longhorn-concept/ --runs cold,warm`.
+  The real OS opens on the power button (ARCHITECTURE.md, Boot): coldstart presses it as soon as it
+  shows (phase `power`: the press until the welcome screen, at least one pass of the boot screen).
   A fresh `--user-data-dir` per cold run (cold HTTP cache, GPU program cache, V8 code cache), the
   real interactive flow at real speed (the tools/interact.mjs steps, then every app from the
   Start menu twice), per-phase frame stats: missed frames, frames over 25 / 50 ms, stall ms (the

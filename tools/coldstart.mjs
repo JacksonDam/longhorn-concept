@@ -34,6 +34,7 @@ import { get as httpsGet } from 'node:https'
 import { get as httpGet } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pressPower } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -331,6 +332,10 @@ async function play(cdp, runName) {
     await shot(name)
   }
 
+  // the power button (src/scenes/session/powerButton.js): the real OS opens on it and warms up
+  // under it; pressed as soon as it shows, the worst case (phase 'power': the press until the
+  // welcome screen, which shows after at least one pass of the boot screen)
+  if (await pressPower(send, evaluate)) await mark('power')
   // wait for the first visible frame of the login screen
   for (let i = 0; i < 1200; i++) {
     if (await evaluate('!!(window.__cs && window.__cs.visibleAt != null)').catch(() => false)) break

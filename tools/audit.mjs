@@ -15,6 +15,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PNG } from './lib/png.mjs'
+import { pressPower } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -94,6 +95,8 @@ function diffMask(a, b) {
 
 async function fresh() {
   await send('Page.navigate', { url: base })
+  // (the real OS opens on the power button: pressed)
+  await pressPower(send, evaluate)
   for (let i = 0; i < 300 && !(await evaluate('!!(window.__lh && window.__lh.emit)').catch(() => false)); i++) await sleep(100)
   await evaluate('window.__lh.ready()')
   // the boot fades the login screen in (os/session.js BOOT_DUR) and blocks input meanwhile

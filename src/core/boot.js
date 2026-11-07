@@ -19,6 +19,13 @@
 //  3. the start log (the real OS: 'session.boot' at t = 0, so the login screen fades in from
 //     black; ?demo: the video's input) and the clock starts at t = 0.
 //
+// The power button (scenes/session/powerButton.js): in real use the page opens on it, and the
+// steps above run while it waits. Its press shows the boot screen (index.html's, animated from
+// the press); the clock starts at the end of a pass of the boot screen's blocks once the boot is
+// done: after one full pass (the power button's boot from the off screen shows the same,
+// os/session.js BOOT_SCREEN), or later ones while it isn't. The deadline counts from the press
+// (the time on the button is free). ?nopower (and ?demo, ?scenario) start without it, as before.
+//
 // How much is rehearsed: everything on a browser's first boot of this build (and after a browser
 // update); later boots, whose GPU pipelines are cached on disk (the profile's and the system's
 // shader caches), rehearse the video's path only (per-session costs: first runs of code, first
@@ -34,6 +41,7 @@
 import ASSETS from 'virtual:boot-assets'
 import { asset, preload, preloaded } from './preload.js'
 import { seek, startClock, frameTime } from './clock.js'
+import { FADE, SWEEP } from '../scenes/session/bootScreen.js'
 import { setLog } from './events.js'
 import { texturesReady } from '../gl/slab.js'
 import { rehearsal } from './rehearsal.js'
@@ -45,8 +53,9 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(perform
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // ms from the boot's start (fonts, images, total), ms per rehearsal part (video, shell, apps,
-// session), states drawn; level: what was rehearsed
-export const bootStats = { level: null, assets: 0, rehearsal: 0, frames: 0, total: 0, timedOut: false, trace: params.has('boottrace') ? [] : null }
+// session), states drawn; level: what was rehearsed; pressed: ms to the power button's press
+// (null: no button), ready: ms until the warm-up was done
+export const bootStats = { level: null, assets: 0, rehearsal: 0, frames: 0, total: 0, timedOut: false, pressed: null, ready: 0, trace: params.has('boottrace') ? [] : null }
 
 // the first boot of this build in this browser rehearses everything (storage off: every boot)
 const KEY = 'longhorn.boot'
@@ -111,7 +120,7 @@ async function rehearse(lvl, deadline) {
   // pipelines would compile on first use later.
   let part = -1, t = performance.now()
   for (const f of frames) {
-    if (performance.now() > deadline || aborted) return false
+    if (performance.now() > deadline() || aborted) return false
     if (part + 1 < parts.length && f >= parts[part + 1].from) {
       if (part >= 0) bootStats[parts[part].name] = Math.round(performance.now() - t)
       part++
@@ -140,16 +149,24 @@ async function rehearse(lvl, deadline) {
 export async function boot(startLog) {
   const t0 = performance.now()
   const lvl = (bootStats.level = level())
+  // the page's power button (index.html), if it shows
+  const power = window.__lhPower || null
+  const deadline = () => (!power ? t0 + LIMIT : power.at == null ? Infinity : Math.max(t0, power.at) + LIMIT)
   const work = (async () => {
     await loadAssets()
     bootStats.assets = Math.round(performance.now() - t0)
-    const done = await rehearse(lvl, t0 + LIMIT)
+    const done = await rehearse(lvl, deadline)
     bootStats.rehearsal = Math.round(performance.now() - t0 - bootStats.assets)
     // anything the rehearsal started (pictures it showed) finishes too
     await preloaded()
     return done
   })()
-  const done = await Promise.race([work, sleep(LIMIT + 500).then(() => false)])
+  const watchdog = (async () => {
+    while (performance.now() < deadline() + 500) await sleep(100)
+    return false
+  })()
+  const done = await Promise.race([work, watchdog])
+  bootStats.ready = Math.round(performance.now() - t0)
   aborted = true
   // the fence's context goes with the boot (a WebGL context holds GPU memory of its own)
   // (false, not null: a rehearsal step still in flight then fences nothing)
@@ -157,6 +174,17 @@ export async function boot(startLog) {
   fenceGl = false
   bootStats.timedOut = !done
   if (done && lvl === 'all') remember()
+  if (power) {
+    // the press, then the end of a pass of the boot screen's blocks (the first pass, or the one
+    // under way when the boot is done), less the two frames below: there the blocks have left
+    // the bar (its last 80 ms position), and the screen goes black as the login fades in
+    const at = await power.done
+    bootStats.pressed = Math.round(at - t0)
+    const pass = SWEEP * 1000
+    const n = Math.max(1, Math.ceil((performance.now() + 60 - at - FADE * 1000) / pass))
+    const cut = at + FADE * 1000 + n * pass - 50
+    while (performance.now() < cut) await (cut - performance.now() > 30 ? sleep(cut - performance.now() - 20) : nextFrame())
+  }
   setLog(startLog)
   seek(0)
   await nextFrame()

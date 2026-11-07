@@ -16,6 +16,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pressPower } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -137,8 +138,17 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: DPR, mobile: false })
   await send('Page.navigate', { url })
   for (let i = 0; i < 150 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
+  // the real OS opens on the power button (src/scenes/session/powerButton.js): shown, then pressed
+  if (await evaluate(`!!document.querySelector('#lh-power .b')`)) {
+    await sleep(1400)
+    const s = await send('Page.captureScreenshot', { format: 'png' })
+    writeFileSync(join(out, `${String(++shotN).padStart(2, '0')}-power.png`), Buffer.from(s.data, 'base64'))
+    console.log(join(out, `${String(shotN).padStart(2, '0')}-power.png`))
+  }
+  await pressPower(send, evaluate)
   // the bundle may still be running after the load event: wait for the app's hooks, then for
-  // the boot (real time: the clock starts once everything is loaded and warmed up)
+  // the boot (real time: the clock starts once everything is loaded and warmed up, and the boot
+  // screen has had its pass)
   for (let i = 0; i < 300 && !(await evaluate('!!window.__lh')); i++) await sleep(100)
   await evaluate('window.__lh.ready()')
   await evaluate(`(() => { window.__ft = []; let l = performance.now(); const f = () => { const n = performance.now(); window.__ft.push(n - l); l = n; requestAnimationFrame(f) }; requestAnimationFrame(f) })()`)
