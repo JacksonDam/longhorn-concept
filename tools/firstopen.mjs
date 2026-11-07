@@ -16,7 +16,8 @@
 //        and closed with real clicks, twice; per step the frames drawn in the 0.8 s after its event,
 //        the frames that missed a display frame (an interval over 1.5 display frames: 144 Hz in
 //        Chrome, WebKit's own ~60 Hz timer) and the longest interval) [--loaf] (with --windows: the
-//        long-animation-frame entries around each interval over 40 ms; none = not main-thread work)
+//        long-animation-frame entries around each interval over 20 ms; none = not main-thread work)
+//        [--tilt] (with --windows: after each open the pointer circles the header slab for 2 s)
 // --trace (Chrome): writes a Chrome trace of the first Start menu open (for chrome://tracing)
 // Chrome runs unpaced (vsync off) with requestAnimationFrame paced to a --hz grid, as
 // tools/coldstart.mjs does; WebKit's own timer paces it.
@@ -39,6 +40,7 @@ const traceOut = opt('--trace', null)
 const hz = +opt('--hz', 144)
 const stall = +opt('--stall', 0)
 const loafOut = args.includes('--loaf')
+const tilt = args.includes('--tilt')
 const url = base + (query ? (base.includes('?') ? '&' : '?') + query : '')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 // popups: [name, event type, id, animation length in video frames]
@@ -297,7 +299,7 @@ try {
       }
       const missed = dts.filter((d) => d > frameMs * 1.5).length
       const mx = Math.max(...dts)
-      if (loafOut && mx > 40) {
+      if (loafOut && mx > 20) {
         const t1 = fr.find(([p], i) => i && p - fr[i - 1][0] === mx)?.[0] ?? 0
         const lo = await S.evaluate(`JSON.stringify(window.__fo.loaf.filter((e) => e.start > ${t1} - 200 && e.start < ${t1} + 20).map((e) => ({ ...e, start: Math.round(e.start - ${t1}), render: Math.round(e.render - e.start), style: Math.round(e.style - e.start), scripts: e.scripts.filter((s) => s.dur > 2) })))`)
         const at = fr.find(([p], i) => i && p - fr[i - 1][0] === mx)
@@ -319,6 +321,21 @@ try {
         await S.evaluate(`(window.__foBar = new Set([...document.querySelectorAll('#stage *')].filter((e) => !e.children.length && e.getBoundingClientRect().top > innerHeight - 50).map((e) => e.textContent.trim())), true)`)
         row.push(await step('win.open', id, () => S.evaluate(`(window.__wm.emit('win.open', ${JSON.stringify({ id, app, ...(PROPS[app] ? { props: PROPS[app] } : {}) })}), true)`)))
         await sleep(1200)
+        if (tilt) {
+          // the pointer circles the header slab (window px 276, 211: my Music's device) for 2 s
+          const w = await S.evaluate(`(() => { const d = [...document.querySelectorAll('#stage div')].filter((d) => d.style.mixBlendMode === 'plus-lighter' && d.style.pointerEvents === 'auto')[0]; const b = d.getBoundingClientRect(), st = document.getElementById('stage').getBoundingClientRect(), s = +document.getElementById('stage').dataset.s; return { x: (b.left - st.left) / s, y: (b.top - st.top) / s } })()`)
+          const n0 = await S.evaluate('window.__fo.frames.length')
+          for (let i = 0; i <= 120; i++) {
+            const a = (i / 60) * 2 * Math.PI
+            const p = P(w.x + 276 + 70 * Math.cos(a), w.y + 211 + 70 * Math.sin(a))
+            await S.mouse('mouseMoved', p.x, p.y)
+            await sleep(16)
+          }
+          at = P(w.x + 276 + 70, w.y + 211)
+          const fr = await S.evaluate(`window.__fo.frames.slice(${n0}).map((f) => f[0])`)
+          const dts = fr.slice(1).map((p, i) => p - fr[i])
+          console.log(`  ${app} tilt: ${dts.length} frames, ${dts.filter((d) => d > frameMs * 1.5).length} missed, max ${Math.max(...dts).toFixed(0)} ms`)
+        }
         let b = await hit('[data-hit="win.minimize"]')
         await hover(b)
         row.push(await step('win.minimize', id, () => click(b.x, b.y)))
