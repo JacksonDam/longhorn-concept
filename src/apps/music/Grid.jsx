@@ -66,19 +66,25 @@ const POP = table([
 ])
 const POP_END = 9
 
+// The video's frame at the default 49 px: a 58 px frame, 6 px of glass around a 46 px cover,
+// centred 1.5 px left of and 0.5 px above the thumbnail's centre. At other sizes the glass and
+// the cover scale with the thumbnail and the frame keeps that centre.
 const SelectedBody = memo(function SelectedBody({ album, s }) {
-  const f = s + 9 // frame: 58 px around a 49 px cover
+  const k = s / 49
+  const pad = 6 * k
+  const inner = Math.round(s - 3 * k)
+  const f = inner + 2 * pad
   return (
     <div
       style={{
-        position: 'absolute', left: -6 * (s / 49), top: -5 * (s / 49), width: f, height: f, boxSizing: 'border-box',
-        borderRadius: 3, padding: 6 * (s / 49) || 6,
+        position: 'absolute', left: s / 2 - 1.5 - f / 2, top: s / 2 - 0.5 - f / 2, width: f, height: f, boxSizing: 'border-box',
+        borderRadius: 3, padding: pad,
         background: 'linear-gradient(160deg, #e9f6ff 0%, #a9d4ff 35%, #c8e6ff 70%, #eef8ff 100%)',
         boxShadow: '0 0 0 1px rgba(150,190,235,0.9), 0 4px 8px rgba(40,80,160,0.35), inset 0 0 0 1px rgba(255,255,255,0.7)',
       }}
     >
-      <div style={{ position: 'relative', width: s - 3, height: s - 3, overflow: 'hidden' }}>
-        <Cover album={album} size={s - 3} />
+      <div style={{ position: 'relative', width: inner, height: inner, overflow: 'hidden' }}>
+        <Cover album={album} size={inner} />
         {/* blue glass over the cover (fitted on the reference: ~50% of rgb(30, 95, 170)) */}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(30, 95, 170, 0.48)' }} />
       </div>
@@ -182,6 +188,7 @@ const DetailHeader = memo(function DetailHeader({ w }) {
   )
 })
 
+const CLIP_L = 12
 // the album view: L = layout.gridLayout(...), sel = { key, t } | null, hover = album key | null
 export function AlbumView({ win, t, L, sel, hover }) {
   const scroll = gridScroll(t, win, L)
@@ -193,9 +200,10 @@ export function AlbumView({ win, t, L, sel, hover }) {
     setValue(wid(win, 'grid.scroll'), Math.max(0, Math.min(L.contentH - v.h, cur + e.deltaY)))
   }
   const visible = L.items.filter((it) => it.y + it.s >= lo && it.y <= hi)
+  // (the clip reaches CLIP_L px left of the view, so the first column's selection frame shows whole)
   return (
-    <div style={abs(v.x, v.y, v.w, v.h, { overflow: 'hidden' })} onWheel={onWheel} onClick={() => emit('music.album', { id: null })}>
-      <div style={{ position: 'absolute', left: 0, top: -scroll, width: v.w, height: L.contentH }}>
+    <div style={abs(v.x - CLIP_L, v.y, v.w + CLIP_L, v.h, { overflow: 'hidden' })} onWheel={onWheel} onClick={() => emit('music.album', { id: null })}>
+      <div style={{ position: 'absolute', left: CLIP_L, top: -scroll, width: v.w, height: L.contentH }}>
         {L.headers.map((g) => (
           <div key={g.label}>
             <Txt x={4} y={g.y + 15} size={12} w={400} f={HEAVY} sx={1} c="#5a84c4">
