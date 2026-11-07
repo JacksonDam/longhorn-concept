@@ -18,6 +18,7 @@ import {
   ControlIcon, HelpIcon, SearchIcon, RunIcon, TourIcon, DialogIcon, Xp, appXpIcon,
 } from './appIcons.jsx'
 import { XpIcon } from '../../os/xp.jsx'
+import { textWidth } from '../../ui/index.js'
 
 export const START = { x: 0, y: 281, w: 300, h: 418 }
 const HEAD = 80
@@ -25,6 +26,10 @@ const SPLIT = 152
 const font = "'Libre Franklin', Tahoma, sans-serif"
 const heavy = "'Franklin Gothic', 'Libre Franklin', sans-serif"
 const shadow = '0 1px 2px rgba(0,25,80,0.75)'
+// the user name's hover box: from x 70, clear of the picture (8-64 and its ring), as wide as the
+// name (text at x 72, 21 px Franklin Gothic) and never into the shut down / log off column (196)
+const NAME_X = 70
+const nameWidth = (name) => Math.min(192 - NAME_X, Math.ceil(textWidth(name || '', { size: 21, w: 400, f: heavy })) + 4)
 
 // Windows Tour: the Help and Support Center's tour page (reloading into ?demo would end the session)
 const tour = () => launch.help({ page: 'tour' })
@@ -48,7 +53,7 @@ const listFor = () => [
 ].slice(0, 6)
 const RIGHT = [
   { label: 'My Documents', Icon: DocumentsIcon, go: () => launch.documents() },
-  { label: 'My Pictures', Icon: PicturesIcon, go: () => launch.pictures(), bold: true },
+  { label: 'My Pictures', Icon: PicturesIcon, go: () => launch.pictures() },
   { label: 'My Videos', Icon: VideosIcon, go: () => openApp('documents', 'documents', { go: ['my Computer', 'my Documents', 'my Videos'] }) },
   { label: 'My Computer', Icon: ComputerIcon, go: () => launch.computer() },
   { label: 'Shared Documents', Icon: SharedIcon, go: () => openApp('computer', 'computer', { go: ['my Computer', 'Shared Documents'] }) },
@@ -76,7 +81,9 @@ function buildRows() {
     y += 26
   })
   out.push({ label: 'switch user', id: 'sm.switch', x: 70, y: 40, w: 70, h: 16, go: () => emit('session.switch'), plain: true })
-  out.push({ label: 'user', id: 'sm.user', x: 6, y: 8, w: 132, h: 30, go: () => launch.control({ applet: 'users' }), plain: true })
+  // the name (its width is the user's: nameWidth) and the picture, which opens the same and has no box
+  out.push({ label: 'user', id: 'sm.user', x: NAME_X, y: 10, w: 0, h: 28, go: () => launch.control({ applet: 'users' }), plain: true, name: true })
+  out.push({ label: 'user picture', id: 'sm.pic', x: 6, y: 10, w: 60, h: 56, go: () => launch.control({ applet: 'users' }), plain: true, nobox: true })
   out.push({ label: 'shut down', id: 'sm.shut', x: 196, y: 14, w: 98, h: 24, go: () => emit('session.shutdown'), round: '#d63d2e' })
   out.push({ label: 'log off', id: 'sm.logoff', x: 196, y: 44, w: 98, h: 24, go: () => emit('session.logoff'), round: '#e9a53a' })
   return out
@@ -154,8 +161,9 @@ const Panel = memo(function Panel({ user, list }) {
   )
 })
 
-function Live({ t }) {
+function Live({ t, nameW }) {
   return rows().map((r) => {
+    if (r.nobox) return null
     const lv = hover(t, r.id)
     if (lv <= 0) return null
     return (
@@ -165,23 +173,24 @@ function Live({ t }) {
           position: 'absolute',
           left: START.x + r.x,
           top: START.y + r.y,
-          width: r.w,
+          width: r.name ? nameW : r.w,
           height: r.h,
           opacity: lv,
-          borderRadius: r.round ? 12 : 2,
+          // (shut down / log off too: a square box like the rest, not a rounded pill)
+          borderRadius: r.round ? 0 : 2,
           background: 'rgba(170,210,255,0.2)',
-          boxShadow: r.round ? 'inset 0 0 0 1px rgba(255,255,255,0.7)' : 'inset 0 0 0 1px rgba(200,230,255,0.4)',
+          boxShadow: 'inset 0 0 0 1px rgba(200,230,255,0.4)',
         }}
       />
     )
   })
 }
 
-const Hits = memo(function Hits({ items }) {
+const Hits = memo(function Hits({ items, nameW }) {
   return items.map((r) => (
     <div
       key={r.id}
-      style={{ position: 'absolute', left: START.x + r.x, top: START.y + r.y, width: r.w, height: r.h, pointerEvents: 'auto' }}
+      style={{ position: 'absolute', left: START.x + r.x, top: START.y + r.y, width: r.name ? nameW : r.w, height: r.h, pointerEvents: 'auto' }}
       onPointerEnter={hoverOn(r.id)}
       onPointerLeave={hoverOff(r.id)}
       onPointerDown={(e) => {
@@ -231,6 +240,7 @@ function StartGlass({ t, dh = 0 }) {
 // dh: the stage's extra height (core/Stage.jsx): the menu stands on the taskbar, dh lower
 export function StartMenu({ t, user, dh = 0 }) {
   const items = rows()
+  const nameW = nameWidth(user?.name)
   return (
     <>
       <StartGlass t={t} dh={dh} />
@@ -241,11 +251,11 @@ export function StartMenu({ t, user, dh = 0 }) {
         n={10}
         box={BOX}
         offset={offsetY(dh)}
-        live={<Live t={t} />}
+        live={<Live t={t} nameW={nameW} />}
         hits={
           <>
             {eater}
-            <Hits items={items} />
+            <Hits items={items} nameW={nameW} />
           </>
         }
       >

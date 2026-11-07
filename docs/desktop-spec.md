@@ -168,7 +168,8 @@ first frame and 1.0 on the next.
   over the icon, peaking 1.4 frames later and decaying with tau 3.2 frames (1403-1412).
 
 ## Interactive mode
-Media strip click toggles the flyout; clicks elsewhere close it; flyout rows emit hover
+Media strip click toggles the flyout; clicks elsewhere close it (the Seattle tile toggles the
+weather flyout the same way: a click on the tile while it is open flies it out); flyout rows emit hover
 events; press/release on "Go to my Music" opens the window; the My Music task button
 minimises/restores. The clock shows the real time in the taskbar's format ("10:35 pm") outside
 ?demo / ?capture, from the entrance's first frame (the video's entrance shows the login's

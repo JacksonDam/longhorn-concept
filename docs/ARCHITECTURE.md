@@ -58,6 +58,12 @@ semi-transparent copies. Reproduce it the same way:
 - 3D tiles: `<Slab3D items=[{ slab, pose }] moving samples shutter phase>` (gl/Slab3D.jsx, gl/slab.js):
   glassy rounded slabs (picture face, glass edges, softbox reflection, fresnel rim) rendered by
   one shared three.js renderer, accumulated in half float, copied into a DOM canvas.
+- The cursor (core/Cursor.jsx): under ?demo / ?capture the video's path, 12 copies over 0.75 of a
+  video frame around the frame's time. The real pointer gets the same look from its own reports
+  (every coalesced pointermove with its timestamp, in a ring): the copies sit where it was over
+  the shutter up to its newest report, each a small will-change layer moved by a per-frame
+  callback (no React render); a still pointer is one painted arrow (a will-change layer under the
+  stage's scale rasterises soft). `node tools/dragbench.mjs --scenario cursor` measures it.
 
 ## Glass (sidebar, clock foot, taskbar, Start menu)
 The Plex glass is live, so it shows whatever is behind it: the wallpaper choice, windows dragged

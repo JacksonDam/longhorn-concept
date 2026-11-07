@@ -23,7 +23,9 @@ const buddyName = (b) => b.name || 'Jeff'
 
 export const ROWS = [
   { id: 'sb.user', x: X, y: 0, w: W, h: 24, go: () => openMenu('sb.user', true, besideSidebar(USER_MENU, 2)), tile: true },
-  { id: 'sb.weather', x: X, y: 25, w: W, h: 38, go: () => togglePopup('weather'), tile: true },
+  // (toggle: a click on the tile while its flyout is open closes it, like the media strip's;
+  // closing the popups first would reopen it, replaying the fly-in on every click)
+  { id: 'sb.weather', x: X, y: 25, w: W, h: 38, go: () => togglePopup('weather'), tile: true, toggle: true },
   { id: 'sb.mailhead', x: X, y: 66, w: W, h: 19, go: () => launch.email(), band: true },
   ...MAIL.map((m, i) => ({ id: 'sb.mail.' + i, x: X, y: MAIL_Y0 + i * MAIL_DY - 14.4, w: W, h: MAIL_DY, go: () => openMail(i, m.text), band: true })),
   { id: 'sb.budhead', x: X, y: 318, w: W, h: 19, go: () => openMenu('sb.status', true, besideSidebar(STATUS_MENU, 318)), band: true },
@@ -58,7 +60,7 @@ export const SidebarHits = memo(function SidebarHits() {
             if (e.button !== 0) return
             e.stopPropagation()
             closeFlyout()
-            closePopups()
+            if (!r.toggle) closePopups()
             r.go(e)
           }}
         />

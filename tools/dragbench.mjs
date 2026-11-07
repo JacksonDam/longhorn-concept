@@ -20,6 +20,8 @@
 //   idle       my Music open, no input
 //   minrestore my Music minimised (title bar) and restored (taskbar), the pointer resting 300 ms
 //              on each control first (minrestore0: clicked at once)
+//   cursor     no button: the pointer flicked across the desktop and Notepad at up to ~4800 stage
+//              px/s, so the live cursor draws its motion-blur streak every frame (core/Cursor.jsx)
 // --prefill N adds N 'win.move' events of the dragged window to the log first (a long session).
 // --trace adds a Chrome trace of the drag and prints where the frame time goes per thread.
 import { spawn } from 'node:child_process'
@@ -74,6 +76,8 @@ const SCEN = {
   // os/PlexWindow residency), or clicks at once (minrestore0: they mount with the animation)
   minrestore: { open: [['music', 'music']], drag: 'music', mode: 'minrestore', lead: 300 },
   minrestore0: { open: [['music', 'music']], drag: 'music', mode: 'minrestore', lead: 0 },
+  // (path: the pointer itself, stage px)
+  cursor: { open: [['notepad', 'notepad']], drag: 'notepad', mode: 'hover', path: (k) => ({ x: 450 + 380 * Math.sin(k * 2 * Math.PI * 6), y: 360 + 280 * Math.sin(k * 2 * Math.PI * 4) }) },
 }
 function loop(k, x0, y0, rx, ry) {
   const a = k * 2 * Math.PI
@@ -252,10 +256,11 @@ for (const dpr of dprs) {
               await sleep(500)
             }
           } else {
-            const grab = S.mode === 'resize' ? [rect.w - 8, rect.h - 8] : S.grab
-            const start = P(rect.x + grab[0], rect.y + grab[1])
+            const hover = S.mode === 'hover'
+            const grab = S.mode === 'resize' ? [rect.w - 8, rect.h - 8] : hover ? [0, 0] : S.grab
+            const start = hover ? P(S.path(0).x, S.path(0).y) : P(rect.x + grab[0], rect.y + grab[1])
             s.post('Input.dispatchMouseEvent', { type: 'mouseMoved', x: start.x, y: start.y })
-            s.post('Input.dispatchMouseEvent', { type: 'mousePressed', x: start.x, y: start.y, button: 'left', buttons: 1, clickCount: 1 })
+            if (!hover) s.post('Input.dispatchMouseEvent', { type: 'mousePressed', x: start.x, y: start.y, button: 'left', buttons: 1, clickCount: 1 })
             let next = performance.now()
             let last = start
             while (performance.now() - T0 < secs * 1000) {
@@ -264,16 +269,20 @@ for (const dpr of dprs) {
               if (S.mode === 'resize') {
                 const a = k * 2 * Math.PI * 2
                 p = P(rect.x + rect.w - 8 - 120 * (0.5 - 0.5 * Math.cos(a)), rect.y + rect.h - 8 - 90 * (0.5 - 0.5 * Math.cos(a)))
+              } else if (hover) {
+                const q = S.path(k)
+                p = P(q.x, q.y)
               } else {
                 const q = S.path(k)
                 p = P(q.x + grab[0], q.y + grab[1])
               }
-              mouse('mouseMoved', p)
+              if (hover) s.post('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y, button: 'none', buttons: 0 })
+              else mouse('mouseMoved', p)
               last = p
               next += dt
               while (performance.now() < next) await new Promise((r) => setImmediate(r))
             }
-            s.post('Input.dispatchMouseEvent', { type: 'mouseReleased', x: last.x, y: last.y, button: 'left', buttons: 0, clickCount: 1 })
+            if (!hover) s.post('Input.dispatchMouseEvent', { type: 'mouseReleased', x: last.x, y: last.y, button: 'left', buttons: 0, clickCount: 1 })
           }
           await sleep(300)
           let prof = null
