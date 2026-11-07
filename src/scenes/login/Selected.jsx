@@ -14,7 +14,7 @@ import { blur } from './blur.js'
 import { useStageScale, stageSize } from '../../core/Stage.jsx'
 import { frameOffset } from './layout.js'
 import { all, last } from '../../core/events.js'
-import { tiltAt } from '../../core/tilt.js'
+import { tiltAt, takeover } from '../../core/tilt.js'
 
 // warm the textures so the first click renders at once (and capture waits for them)
 for (const u of USERS) loadTexture(pic(u.id))
@@ -51,12 +51,12 @@ export const slabMaterial = (id) => ({
   ...OVERRIDE,
 })
 
-// After it has landed (k LANDED), the selected slab turns toward the pointer (core/tilt.js),
-// and the video's idle sway fades out over SWAY_OUT from the first pointer sample: the
-// 'login.pointer' samples since the landing, the last one before re-timed to the landing so a
-// mouse that is already still counts. None under ?demo / ?capture: the video's sway, untouched.
+// After it has landed (k LANDED), the selected slab turns toward the pointer (core/tilt.js), and
+// its own pose (the video's idle sway and resting roll) hands over to the pointer's from the
+// first pointer sample (core/tilt.js takeover): the 'login.pointer' samples since the landing,
+// the last one before re-timed to the landing so a mouse that is already still counts. None
+// under ?demo / ?capture: the video's sway, untouched.
 const LANDED = 30
-const SWAY_OUT = 0.3 // s
 function pointerTilt(rec, tt) {
   const land = rec.t0 + LANDED / FPS
   if (tt <= land) return null
@@ -68,8 +68,7 @@ function pointerTilt(rec, tt) {
   // the slab's resting centre and size (its idle drift is a few px: the rest pose is enough)
   const rest = slabPose(LANDED + 20, rec.index, tt, rec.xAt ? rec.xAt(tt) : rec.from)
   const { yaw, pitch } = tiltAt(tt, samples, { x: rest.x, y: rest.y, hw: rest.size / 2, hh: rest.size / 2 })
-  const u = clamp((tt - samples[0].t) / SWAY_OUT)
-  return { yaw, pitch, sway: 1 - u * u * (3 - 2 * u) }
+  return { yaw, pitch, sway: 1 - takeover(tt - samples[0].t) }
 }
 
 // where the stage's top right corner is past the frame's, in the slab's coordinates (the frame's

@@ -16,9 +16,13 @@ export const pointer = () => live
 // { x, y } (stage px) or { hidden }, logged from the real pointer's moves while something wants
 // them (wantPointer), one a frame at the frame's time. Never under ?demo / ?capture (the cursor
 // follows a path there and nothing is logged): those draw the video's input only.
+// (where the pointer is when something starts wanting it is logged too: moves made while nothing
+// did weren't, and a stale sample would stand for it until the next move)
 let wanted = 0
+let seen = false, left = false // (real pointer only: under ?demo / ?capture neither is set)
 export function wantPointer() {
   wanted++
+  if (seen) logPointer(left ? { hidden: true } : live)
   return () => wanted--
 }
 let queued = false
@@ -70,12 +74,17 @@ export function Cursor({ path }) {
     if (path) return
     const on = (e) => {
       live = toStage(e.clientX, e.clientY)
+      seen = true
+      left = false
       force((n) => n + 1)
       // (not while a button is down: a drag or a resize carries the pointer with the window, the
       // slabs it feeds don't turn, and a log event a frame would cost the drag)
       if (!e.buttons) logPointer(live)
     }
-    const out = () => logPointer({ hidden: true })
+    const out = () => {
+      left = true
+      logPointer({ hidden: true })
+    }
     addEventListener('pointermove', on)
     addEventListener('pointerdown', on)
     document.documentElement.addEventListener('pointerleave', out)
