@@ -70,7 +70,7 @@ function MusicContent({ win, t, live, w, h }) {
         </>
       )}
       {left === 'folders' && <FoldersPane A={A} />}
-      <GridBar s={s} dx={L.view.x - 200} dy={L.view.y - 362} A={A} win={win} />
+      <GridBar s={s} dx={L.view.x - 200} dy={L.view.y - 362} A={A} win={win} t={t} />
       <AlbumView win={win} t={t} L={L} sel={vs.sel} hover={live ? vs.hover : null} />
       <GridScrollbar win={win} t={t} L={L} x={W - 19} />
       <StatusBar text={status} w={W} h={H} />

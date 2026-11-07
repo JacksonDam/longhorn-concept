@@ -7,7 +7,7 @@ export { MenuBar, MenuPopup, ContextMenu, DropMenu, contextHandler, dropBelow, i
 export { Dialog, MessageIcon } from './Dialog.jsx'
 export { TextField, textOf, setText, focusField, fieldState } from './TextField.jsx'
 export { Checkbox, Radio, checkedOf } from './Check.jsx'
-export { Slider } from './Slider.jsx'
+export { Slider, WedgeKnob } from './Slider.jsx'
 export { ScrollView, Scrollbar, scrollOf, scrollTo, wheelPx, BAR_W } from './ScrollView.jsx'
 export { ListView, selectionOf, select, sortOf } from './ListView.jsx'
 export { Tabs, TabPanel, tabOf, TAB_H } from './Tabs.jsx'
