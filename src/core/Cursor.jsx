@@ -75,8 +75,7 @@ export function Cursor({ path }) {
 // ---- interactive -----------------------------------------------------------------------------
 // The pointer's reports: a ring of stage positions and times (ms, performance.now()'s clock: the
 // events' timeStamp, LiveCursor's on), every coalesced report of a move (a 1000 Hz mouse sends
-// several a frame).
-// 512 reports hold the shutter at an 8 kHz rate.
+// several a frame). 512 reports hold the shutter at an 8 kHz rate.
 const RING = 512
 const rx = new Float64Array(RING)
 const ry = new Float64Array(RING)
