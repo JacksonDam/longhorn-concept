@@ -42,7 +42,8 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
 - **Maximised.** A maximised window's body fills the work area exactly: from the top of the
   screen to the taskbar's top row (699) and across to the sidebar's edge (858) (os/frame.js
   `WORK`; its layer starts 3 px above the screen, `MAX_RECT`, so the rim's top edge is off-screen,
-  and the rim fades out with the maximise).
+  and it has no rim). The maximise and the restore down zoom the window: laid out once at the
+  rect they go to (square and rimless, or rounded with its rim), scaled from the rect they leave.
 - **Drop-down arrows** follow their label's measured width (ui/measure.js `textWidth`, a canvas
   measure equal to the SVG / HTML text) with a 6 px gap: the explorer breadcrumbs, my Music's
   Group / Arrange / View bar; flex rows in the ui kit already flow. Combo fields keep their arrow
@@ -55,7 +56,7 @@ first: every new feature must also run at 144 Hz with real-time/capture parity.
   window; the second video, ref2 f01490, shows the same kind of shadow). It is one layer per
   window that follows it (during motion blur: the pose at the middle of the shutter; the blur
   copies carry none, so their layers stay the window's size); nothing is blurred per frame. Maximised windows have square corners and no
-  shadow (they tile the work area; both tween with the maximise). Apps with `chrome: 'none'` or
+  shadow (they tile the work area; the shadow fades with the maximise). Apps with `chrome: 'none'` or
   `shadow: false` have none.
 - **Active / inactive.** The focused window keeps the video's look. Other windows are calmer:
   a pale cool wash over the title bar and the top chrome (lighter, less saturated, toolbar labels

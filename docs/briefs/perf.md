@@ -26,6 +26,19 @@ draws exactly what `?capture` draws for the same time.
   to the window instead (s = 1.5 at 1440x1080), `--query stage=zoom` measures Safari's zoom
   (ARCHITECTURE.md Stage) in Chrome.
 - `UNCAPPED=1 node tools/perf.mjs <base url>` plays `?demo` in real time with vsync off.
+- The bench renders one frame per video frame; real time renders ~4.8 at 144 Hz, and anything that
+  changes every display frame (a maximise's tween rect, a slab's tilt) costs that much more often.
+  Real-time checks at the user's screen: `node tools/firstopen.mjs --url <prod> --engine
+  chrome|webkit` (fresh profile; does the first Start menu / context menu open animate, `--stall
+  ms` adds a cold first use) and `--windows music,computer` (each window opened, minimised,
+  restored, maximised, restored down and closed with real clicks at 144 Hz: missed frames).
+- WebKit: `node tools/wkbench.mjs` (bench.mjs in Playwright WebKit: each frame's main-thread cost;
+  its rAF is timer-paced) and `tools/appbench.mjs --engine webkit`.
+- `node tools/frametrace.mjs <frames> --scaled --query apps=every` splits each bench frame into JS,
+  style, layout, paint, layerise, commit and GPU-process time (a Chrome trace).
+- `node tools/sharpness.mjs [--size 1920x993] [--realtime]`: a window's text at rest against a
+  fresh raster of it (RMSE and edge energy) after an open, a restore, a maximise and a restore
+  down; 1920x993 (a window, not full screen) gives the fractional stage scale 1.379.
 - Interactive features (new windows, menus, drags) must be benched too: add a short scripted
   input to the bench (or a demo-like event list behind a URL flag) for what you build, so its
   animations can be stepped and measured the same way.

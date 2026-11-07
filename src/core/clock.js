@@ -18,8 +18,38 @@ let speed = 1
 // real mode: held (at virtualT) until startClock()
 let running = false
 
+// Real mode: a stall doesn't count. A frame that takes far longer than the frames before it (a
+// first use the boot couldn't warm: Safari's boot rehearses nothing; a GC; the tab in the
+// background) would otherwise show its animations that much further on, and an animation shorter
+// than the stall (the Start menu rises in 4 video frames, a menu opens in 3) showed already
+// finished. So the frame after a stall shows one typical frame later than the one before it: the
+// animations started by the input that caused the stall play from their start. Everything still
+// follows the clock (events carry its times, so a log replays exactly); it only falls behind the
+// wall clock by the stalls. lastT: the time the last frame showed; between frames now() runs on
+// at most STALL past it (input handled after a stall gets a time no frame has passed yet).
+const STALL = 0.025 // s: a frame this long, and STALL_X times the typical one, is a stall
+const STALL_X = 3
+let lastT = 0 // the last frame's time
+let lastRead = 0 // the latest time now() has handed out
+let typical = 1 / 60 // s: a frame's usual length (smoothed)
+
 export function now() {
-  return CAPTURE || !running ? virtualT : ((performance.now() - origin) / 1000) * speed
+  if (CAPTURE || !running) return virtualT
+  const raw = ((performance.now() - origin) / 1000) * speed
+  const t = Math.min(raw, lastT + STALL)
+  if (t > lastRead) lastRead = t
+  return t
+}
+// the clock loop, once a frame (real mode): this frame's time
+function frameTime_() {
+  const raw = ((performance.now() - origin) / 1000) * speed
+  const dt = raw - lastT
+  let t = raw
+  if (dt > STALL && dt > STALL_X * typical) t = Math.max(lastT + typical, lastRead)
+  else typical += (Math.min(0.034, Math.max(0.004, dt)) - typical) * 0.1
+  // (the time skipped is taken out of the clock: raw time is t now)
+  origin += ((raw - t) / speed) * 1000
+  lastT = lastRead = t
 }
 
 // real mode: the boot is done, time starts now at t = 0
@@ -27,6 +57,7 @@ export function startClock() {
   if (CAPTURE || running) return
   virtualT = 0
   origin = performance.now()
+  lastT = lastRead = 0
   running = true
   tick()
 }
@@ -66,7 +97,10 @@ function loop() {
       bench = null
       done.resolve(done.out)
     }
-  } else if (!CAPTURE) tick()
+  } else if (!CAPTURE) {
+    if (running) frameTime_()
+    tick()
+  }
   requestAnimationFrame(loop)
 }
 requestAnimationFrame(loop)
@@ -86,7 +120,10 @@ export function runBench(frames) {
 // capture / debugging hooks
 export function seek(t) {
   if (CAPTURE || !running) virtualT = t
-  else origin = performance.now() - (t / speed) * 1000
+  else {
+    origin = performance.now() - (t / speed) * 1000
+    lastT = lastRead = t
+  }
   tick()
 }
 export function setSpeed(s) {
