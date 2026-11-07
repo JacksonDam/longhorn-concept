@@ -65,6 +65,12 @@ function Marquee({ x, y, w, text, t, playing }) {
   )
 }
 
+// The transport row: 34 px buttons 4 px apart (14-200), the eject 12 px further (212-246), then
+// the speaker's 26 px box and the volume slider, 100 px wide at the right edge, or what is left
+// after the eject (6 px on) when the window is narrower: no hover box overlaps its neighbour.
+const EJECT_END = 246
+const volX = (w) => Math.max(w - 116, EJECT_END + 6 + 30)
+
 function Winamp({ win, t, w, h, active }) {
   const id = (n) => wid(win, n)
   const m = mediaState(t)
@@ -75,6 +81,7 @@ function Winamp({ win, t, w, h, active }) {
   const viz = valueOf(t, id('viz'), 0) // bars, thin bars, off
   const showList = valueOf(t, id('list'), true)
   const top = appTopHeight()
+  const vx = volX(w)
   const ctl = (k, icon, tip, fn, x, on) => (
     <span key={k}>
       <ToolButton id={id('b.' + k)} x={x} y={top + 128} w={34} h={30} icon={<Ico kind={icon} size={20} />} onClick={fn} active={on} />
@@ -127,12 +134,9 @@ function Winamp({ win, t, w, h, active }) {
       {ctl('stop', 'stopm', 'Stop', () => emit('media.stop'), 128)}
       {ctl('next', 'next', 'Next', () => emit('media.next'), 166)}
       {ctl('eject', 'eject', 'Open my Music', () => openMusic(), 212)}
-      <div style={{ position: 'absolute', left: w - 140, top: top + 135 }}>
-        <span onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('vol'), value: vol > 0 ? 0 : 0.8 })}>
-          <Ico kind="volume" size={18} />
-        </span>
-      </div>
-      <Slider id={id('vol')} x={w - 116} y={top + 137} w={100} variant="chrome" def={0.8} />
+      {/* the speaker (mute) and the volume slider at the right, after the eject's box (VOL) */}
+      <ToolButton id={id('b.mute')} x={vx - 30} y={top + 128} w={26} h={30} icon={<Ico kind="volume" size={18} />} onClick={() => emit('ui.value', { id: id('vol'), value: vol > 0 ? 0 : 0.8 })} />
+      <Slider id={id('vol')} x={vx} y={top + 137} w={w - 16 - vx} variant="chrome" def={0.8} />
       <Tooltip forId={id('vol')} text={`Volume ${Math.round(vol * 100)}%`} />
       {showList && (
         <>
