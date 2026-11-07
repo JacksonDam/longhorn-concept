@@ -286,7 +286,7 @@ const START_BTN = [30, 710]
 const APPS = [
   ['Outlook', [76, 387]], ['Word', [76, 431]], ['Internet Explorer', [76, 475]], ['Winamp', [60, 519]],
   ['Notepad', [60, 569]], ['Paint', [60, 594]], ['Solitaire', [60, 619]],
-  ['My Documents', [224, 381]], ['My Pictures', [224, 407]], ['My Computer', [224, 459]], ['Search', [224, 521]],
+  ['my Documents', [224, 381]], ['my Pictures', [224, 407]], ['my Computer', [224, 459]], ['Search', [224, 521]],
   ['Control Panel', [224, 547]], ['Help and Support', [224, 573]], ['Run', [224, 599]], ['All Programs', [76, 681]],
   // Messenger opens from the sidebar's buddy list: the same 'win.open' the buddy's click emits
   ['Messenger', { id: 'im:Hank', app: 'im', props: { buddy: 'Hank' } }],

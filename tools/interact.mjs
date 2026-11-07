@@ -8,7 +8,7 @@
 // --size: the window's CSS size (default 1280x960, the frame's 4:3: the stage is the frame). At
 // another shape the stage is wider or taller than the frame (core/Stage.jsx) and the script's
 // frame coordinates move with what they hit: window buttons are found by their data-hit (the
-// window's other targets move with it), the taskbar's My Music button by its text, the sidebar
+// window's other targets move with it), the taskbar's my Music button by its text, the sidebar
 // and its flyout follow the right edge (x + dw), the login screen is taken as centred
 // (+ dw / 2, + dh / 2). The stage's geometry comes from #stage's data-s/x/y/w/h. --anchor frame
 // keeps the frame coordinates (a build whose shell and login still sit at the frame's left).
@@ -174,7 +174,7 @@ try {
   await click(771, 33, winBtn('win.minimize', 771, 33)) // title-bar minimise
   await sleep(1800)
   await shot('minimised')
-  await click(460, 710, taskBtn('My Music', 460, 710)) // taskbar My Music button
+  await click(460, 710, taskBtn('my Music', 460, 710)) // taskbar my Music button
   await sleep(1800)
   await shot('restored')
   await click(805, 33, winBtn('win.close', 805, 33)) // title-bar close

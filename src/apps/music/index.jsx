@@ -167,7 +167,7 @@ function MusicSearch({ win, t, x = 389, w = 777 }) {
 const music = {
   id: 'music',
   title: () => 'my Music',
-  taskbarLabel: () => 'My Music',
+  taskbarLabel: () => 'my Music',
   icon: asset('img/desktop/ic-mymusic.webp'),
   size: { w: 777, h: 654 },
   position: { x: 45, y: 23 },

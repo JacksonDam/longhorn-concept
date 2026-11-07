@@ -709,7 +709,7 @@ function clearFilters(win) {
 const pictures = {
   id: 'pictures',
   title: () => 'my Pictures & Videos',
-  taskbarLabel: () => 'My Pictures & Videos',
+  taskbarLabel: () => 'my Pictures & Videos',
   icon: null,
   size: { w: 777, h: 654 },
   position: { x: 45, y: 23 },

@@ -52,10 +52,10 @@ const listFor = () => [
   ...OPTIONAL.filter((o) => hasApp(o.app)).map((o) => ({ label: o.label, Icon: appXpIcon(o.app) || DialogIcon, go: () => openApp(o.app, o.app) })),
 ].slice(0, 6)
 const RIGHT = [
-  { label: 'My Documents', Icon: DocumentsIcon, go: () => launch.documents() },
-  { label: 'My Pictures', Icon: PicturesIcon, go: () => launch.pictures() },
-  { label: 'My Videos', Icon: VideosIcon, go: () => openApp('documents', 'documents', { go: ['my Computer', 'my Documents', 'my Videos'] }) },
-  { label: 'My Computer', Icon: ComputerIcon, go: () => launch.computer() },
+  { label: 'my Documents', Icon: DocumentsIcon, go: () => launch.documents() },
+  { label: 'my Pictures', Icon: PicturesIcon, go: () => launch.pictures() },
+  { label: 'my Videos', Icon: VideosIcon, go: () => openApp('documents', 'documents', { go: ['my Computer', 'my Documents', 'my Videos'] }) },
+  { label: 'my Computer', Icon: ComputerIcon, go: () => launch.computer() },
   { label: 'Shared Documents', Icon: SharedIcon, go: () => openApp('computer', 'computer', { go: ['my Computer', 'Shared Documents'] }) },
   { sep: true },
   { label: 'Search', Icon: SearchIcon, go: () => launch.search() },

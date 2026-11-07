@@ -258,7 +258,7 @@ function Programs({ win, t, w, h, live }) {
 export default {
   id: 'programs',
   title: () => 'my Programs & Services',
-  taskbarLabel: () => 'My Programs & Services',
+  taskbarLabel: () => 'my Programs & Services',
   icon: null,
   size: { w: 777, h: 600 },
   position: { x: 60, y: 40 },

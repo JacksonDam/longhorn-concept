@@ -15,7 +15,7 @@ function Playlist({ win, t, w, h }) {
   const set = new Set(picked)
   const toggle = (title) => emit('ui.value', { id: id('picked'), value: set.has(title) ? picked.filter((x) => x !== title) : [...picked, title] })
   const create = () => {
-    const name = textOf(t, id('name'), 'My Playlist 1').trim() || 'My Playlist 1'
+    const name = textOf(t, id('name'), 'my Playlist 1').trim() || 'my Playlist 1'
     const tracks = TRACKS.filter((tr) => set.has(tr.title))
     emit('music.playlist', { name, tracks: tracks.map((tr) => tr.title) })
     if (valueOf(t, id('play'), true)) emit('media.play', { playlist: tracks, track: 0 })
@@ -28,7 +28,7 @@ function Playlist({ win, t, w, h }) {
         create <span style={{ fontWeight: 500, color: C.heading }}>playlist</span>
       </div>
       <div onPointerDown={(e) => e.button === 0 && focusField(id('name'))} style={{ position: 'absolute', left: 16, top: 46, fontFamily: FONT, fontSize: 11, color: C.text }}>Playlist name:</div>
-      <TextField id={id('name')} def="My Playlist 1" x={100} y={43} w={w - 116} h={20} />
+      <TextField id={id('name')} def="my Playlist 1" x={100} y={43} w={w - 116} h={20} />
       <div onPointerDown={(e) => e.button === 0 && emit('ui.value', { id: id('picked'), value: set.size === TRACKS.length ? [] : TRACKS.map((tr) => tr.title) })} style={{ position: 'absolute', left: 16, top: 74, fontFamily: FONT, fontSize: 11, color: C.text }}>Tracks:</div>
       <ListView
         id={id('list')}

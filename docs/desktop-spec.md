@@ -160,6 +160,8 @@ first frame and 1.0 on the next.
   while R jumps back to the screen edge (`CLOSE_L/CLOSE_R`).
 
 ## My Music task button (from 'music.open' + 8 frames = 701.5)
+- Label: the video writes "My Music"; the build writes "my Music" (the user's choice, 2026-11-07:
+  every "my" place is lower-case, as in the windows' titles).
 - Group edges tracked per frame (50 % crossings) and icon template matches: the left
   buttons slide by OFF_L (+64 -> -95, hold 709-712.4, -> 0 at 716 with a +5 overshoot),
   the right ones by OFF_R (-55 -> +84 -> 0, -5 overshoot); 1-frame shutter, 12 samples.
