@@ -18,6 +18,7 @@ import { memo, useLayoutEffect, useRef } from 'react'
 import { ErrorBoundary } from './ErrorBoundary.jsx'
 import { emit, getLog, getVersion, getEpoch } from '../core/events.js'
 import { eventsOf } from './logIndex.js'
+import { getWindow } from './wm.js'
 import { FPS, now, CAPTURE } from '../core/clock.js'
 import { nextFrame } from '../core/time.jsx'
 import { toStage, seam, useStageScale, stageScale, STAGE_MODE } from '../core/Stage.jsx'
@@ -587,39 +588,90 @@ const upTo = (a, t) => {
   }
   return lo
 }
-// dragged or resized in the last MOVE_HOLD s (its 'win.move' / 'win.resize' events come one a
-// frame while the pointer drags): its layers keep the transform hint meanwhile, as a layer without
-// it is re-rasterised whenever its screen position's fraction of a device pixel changes
+// dragged in the last MOVE_HOLD s (its 'win.move' events come one a frame while the pointer
+// drags), or resized ('win.resize')
 const MOVE_HOLD = 0.25
-function dragging(win, t) {
-  for (const type of ['win.move', 'win.resize']) {
-    const a = eventsOf(type, win.id)
-    const i = upTo(a, t) - 1
-    if (i >= 0 && t - a[i].t < MOVE_HOLD) return true
-  }
-  return false
+function movedLately(win, t, type) {
+  const a = eventsOf(type, win.id)
+  const i = upTo(a, t) - 1
+  return i >= 0 && t - a[i].t < MOVE_HOLD
+}
+// Maximise and restore down: the window is laid out once, at the rect it tweens to, and the
+// tween scales and moves it (the group's transform: compositor work on every frame but the
+// first), as a compositing window manager zooms a window's image. Relaying it out at each tween
+// rect re-laid out, repainted and re-rasterised the whole window on every display frame: at 144 Hz
+// my Computer missed 13-17 of the tween's ~34 frames in Chrome, my Music 11-16. The tween's
+// frames squeeze (maximise) or stretch (restore down) the target's layout; the last is exact.
+function zooming(win, m, t) {
+  return win.maximizedAt != null && !m.pose && toRel(t, win.maximizedAt) < MAX_FRAMES
+}
+// Whether the live layer (and its content's layers, os/text.jsx LiveLayers) carries the transform
+// hint at t. While it moves (a pose animation or a drag) it must: without it Chrome re-rasterises a
+// layer whenever its scale or its position's fraction of a device pixel changes, every frame. At
+// rest it must not: Chrome keeps a will-change: transform layer at the raster scale and the raster
+// translation it was first drawn at, so a window first drawn mid-zoom, or whose layers moved by a
+// fraction of a device pixel (a maximise or a resize at a fractional stage scale: 1920x993 is
+// 1.379), stays soft until the hint goes. Each change of the hint re-rasterises the window, so it
+// changes outside the motions: the hint comes with the need for copies (os/PlexWindow residency:
+// a prepare, the pointer on the minimise or close button or on the taskbar button, ahead of the
+// click; or the animation's own trigger, an open, a tap) and stays until the window is at rest
+// again (its copies unmounted; after an open, once its content has settled too, app.settle),
+// so the re-rasterisation lands on still frames. A resize runs without it (the window's size
+// changes every frame, which re-rasterises it anyway); a maximise or restore down scales the
+// window laid out at its target (zooming) with it, and drops it once still.
+function hinted(win, app, t, m, mounted) {
+  if (zooming(win, m, t)) return true
+  if (movedLately(win, t, 'win.resize')) return false
+  if (m.pose || mounted > restingLayers(win) || movedLately(win, t, 'win.move')) return true
+  if (win.lastAction === 'open' && t < win.openedAt + (OPEN_DELAY + OPEN_END + 3) / FPS + (app.settle ?? DEFAULT_SETTLE)) return true
+  return needFrom(win, t) != null
 }
 // The prepare signals of a window: its 'win.prepare' events and its taskbar button's hovers.
 // -> the start of the run of signals that keeps it prepared at t (each holds PREP_HOLD s, a hover
-// as long as the pointer stays), or null
-function prepStart(win, t) {
+// as long as the pointer stays), or null. after: only the signals since then count (the start
+// of the window's last animation, which the signals before it prepared), except the taskbar
+// button's hover if the pointer still rests there: that prepares its next click from then on.
+function prepStart(win, t, after = -Infinity) {
   let start = null
-  for (const a of [eventsOf('win.prepare', win.id), eventsOf('hover', 'tb.' + win.id)]) {
+  for (const [a, button] of [[eventsOf('win.prepare', win.id), false], [eventsOf('hover', 'tb.' + win.id), true]]) {
     let i = upTo(a, t) - 1
     if (i < 0) continue
     const live = (k) => (a[k].on === true ? Infinity : a[k].t + PREP_HOLD)
     if (live(i) <= t) continue
-    let s0 = a[i].t
-    while (i > 0 && live(i - 1) >= a[i].t) s0 = a[--i].t
+    let s0
+    if (a[i].t > after) {
+      s0 = a[i].t
+      while (i > 0 && a[i - 1].t > after && live(i - 1) >= a[i].t) s0 = a[--i].t
+    } else if (button && a[i].on === true) s0 = after
+    else continue
     if (start == null || s0 < start) start = s0
   }
   return start
 }
-// a prepare not used up by an animation: one that started after the window's last animation began
+// a prepare not used up by an animation: the signals since the window's last animation began
+// (a run of them that started before it prepared that animation; what came after it, even
+// within PREP_HOLD of the earlier ones, prepares the next: the taskbar button hovered right after
+// a minimise)
 function prepared(win, t) {
   const p = prepStart(win, t)
   const span = animSpan(win)
-  return p != null && !(span && span[0] <= t && p <= span[0]) ? p : null
+  if (p == null || !(span && span[0] <= t && p <= span[0])) return p
+  return prepStart(win, t, span[0])
+}
+// the prepare that led into the animation starting at s: what prepared() said just before it,
+// for the window as it was then (its earlier animation used up the signals before that began)
+// (it depends on the log before s only: cached while the log only grows at its end)
+const intoCache = new Map()
+function prepInto(win, s) {
+  const key = win.id + '|' + s
+  const ep = getEpoch()
+  const c = intoCache.get(key)
+  if (c && c.ep === ep) return c.v
+  const prev = getWindow(s - 1e-9, win.id)
+  const v = prev ? prepared(prev, s - 1e-9) : prepStart(win, s)
+  if (intoCache.size > 200) intoCache.clear()
+  intoCache.set(key, { ep, v })
+  return v
 }
 // When the last run of prepare signals ended (each holds PREP_HOLD s after it, a hover until its
 // leave), if it has ended by t
@@ -640,12 +692,11 @@ function needFrom(win, t) {
   const inAnim = span && t >= span[0] && t < span[1]
   let from = prepared(win, t)
   if (inAnim) {
-    const p = prepStart(win, span[0])
-    from = Math.min(span[0], p ?? Infinity)
+    from = Math.min(span[0], prepInto(win, span[0]) ?? Infinity)
   } else if (from != null && span && from < span[1]) {
     // prepared during the last animation (a restore prepared while the minimise plays): its
     // layers stay mounted from then on, none unmounts in between
-    from = Math.min(from, span[0], prepStart(win, span[0]) ?? Infinity)
+    from = Math.min(from, span[0], prepInto(win, span[0]) ?? Infinity)
   }
   return from
 }
@@ -728,7 +779,13 @@ export function quietKey(win, app, t) {
 function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   useStageScale() // (redraws on a new stage scale: the group's corner below is snapped for it)
   const m = motion(win, app, t)
-  const r = m.rect(t)
+  // the window's rect (tweened while it maximises or restores down) and the rect it is laid out at
+  // (while zooming, see there: the rect it tweens to, the group scaled to the tween's rect)
+  const R = m.rect(t)
+  const zoom = zooming(win, m, t)
+  const r = zoom ? (win.maximized ? maxRect() : rectAt(win, app, t)) : R
+  // (a zoom draws its target's frame: square corners and no rim when maximised; the shadow fades)
+  const mkZoom = zoom ? (win.maximized ? 1 : 0) : null
   const N = blurs ? copyCount(app, normalRect(win, app)) : 1
   const { mounted, laid, ready } = residency(win, app, t, N)
   const nEff = Math.min(m.n, ready)
@@ -768,10 +825,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   const chromeTop = app.chrome === 'none' ? 0 : typeof app.chromeTop === 'function' ? app.chromeTop(win, r.w) : app.chromeTop ?? topH
   const layers = []
   let key1 = null
-  // no pose animation or drag: the live layer and its content's layers drop their transform hint
-  // (os/text.jsx LiveLayers), so Chrome re-rasterises them at the scale they show at once the
-  // motion settles
-  const still = !m.pose && !dragging(win, t)
+  const busy = hinted(win, app, t, m, mounted)
   for (let k = 0; k < mounted; k++) {
     let style
     let tt = t
@@ -785,14 +839,16 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
     } else if (k === 0 && !m.hidden) {
       const p = m.pose ? m.pose(t) : null
       style = p && p.op <= 0 ? rest : { ...(p ? poseCss(p) : null), opacity: p ? p.op : 1 }
-    } else if (m.warm && k <= Math.floor((rel - 0.5) * N / 4)) {
+    } else if (m.warm && k > 0 && k <= Math.floor((rel - 0.5) * N / 4)) {
       // before the open is visible: copies are rasterised in their first visible pose, all but
       // invisible (spread over the four frames after the open's own, N / 4 a frame), so the first
-      // blurred frame finds their rasters ready
+      // blurred frame finds their rasters ready. (The live layer waits at rest, on the window's
+      // rect: it is first rasterised at the scale it shows at once the open has settled, and
+      // keeps it through the open, see hinted.)
       style = { ...poseCss(m.warm), opacity: 1e-4 }
     } else style = rest
     const rr = blur && k < nEff ? m.rect(tt) : r
-    const mk = m.maxK(blur && k < nEff ? tt : t)
+    const mk = mkZoom ?? m.maxK(blur && k < nEff ? tt : t)
     const radius = radiiAt(mk)
     // (while closing, the live content holds the time of the close)
     let ct = liveContentT(win, app, m.closing ? Math.min(t, win.changedAt) : t)
@@ -825,14 +881,14 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
         key={k}
         style={{
           position: 'absolute', left: rr.x - r.x, top: rr.y - r.y, width: rr.w, height: rr.h,
-          ...style, mixBlendMode: 'plus-lighter', willChange: k === 0 && still ? 'opacity' : 'transform, opacity',
+          ...style, mixBlendMode: 'plus-lighter', willChange: k === 0 && !busy ? 'opacity' : 'transform, opacity',
           contentVisibility: k >= laid ? 'hidden' : undefined,
           visibility: waiting ? 'hidden' : undefined,
           pointerEvents: k === 0 && !blur && visible && win.state === 'open' ? 'auto' : 'none',
         }}
         onPointerDownCapture={k === 0 && !active ? () => emit('win.focus', { id: win.id }) : undefined}
       >
-        <LiveLayers.Provider value={k === 0 && (still ? 'rest' : true)}>
+        <LiveLayers.Provider value={k === 0 && (busy || 'rest')}>
           {body}
         </LiveLayers.Provider>
         {Overlay && <OverlayLayer Overlay={Overlay} win={win} t={live} skip={!visible} hidden={false} />}
@@ -844,7 +900,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
   }
   // the inactive look's chrome wash over the live window, shown at rest only (os/look.jsx)
   const atRest = !blur && !m.hidden && !m.pose && win.state === 'open'
-  const mk = m.maxK(t)
+  const mk = mkZoom ?? m.maxK(t)
   const wash = chromeTop > 0 && mounted > 0 && (
     <LookLayer key="look" x={0} y={0} w={r.w} h={chromeTop} th={app.explorer ? 24 : TITLE_H} r={radiiAt(mk).top} op={atRest ? inactive : 0} />
   )
@@ -865,11 +921,11 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
       style={{
         position: 'absolute', left: sh.rr.x - r.x, top: sh.rr.y - r.y, width: sh.rr.w, height: sh.rr.h, pointerEvents: 'none',
         transform: sh.style.transform, transformOrigin: sh.style.transformOrigin,
-        opacity: sh.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)), mixBlendMode: 'plus-lighter',
+        opacity: sh.style.opacity * (1 - inactive * (1 - INACTIVE_SHADOW)) * (zoom ? 1 - m.maxK(t) : 1), mixBlendMode: 'plus-lighter',
         willChange: 'transform, opacity',
       }}
     >
-      <WindowShadow w={sh.rr.w} h={sh.rr.h} op={1 - sh.mk} />
+      <WindowShadow w={sh.rr.w} h={sh.rr.h} op={zoom ? 1 : 1 - sh.mk} />
     </div>
   )
   return (
@@ -879,7 +935,7 @@ function PlexWindowImpl({ win, app, t, active, look = 1, z, blurs = true }) {
           window changes one transform, no layout or paint (the layers' left / top stay); its
           corner on a whole device pixel (seam): under the stage's zoom WebKit composites a layer
           offset by a fractional translate resampled, so the window's text went soft */}
-      <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transform: `translate(${seam(r.x)}px, ${seam(r.y)}px)` }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, isolation: 'isolate', transformOrigin: '0 0', transform: zoom ? `translate(${R.x}px, ${R.y}px) scale(${R.w / r.w}, ${R.h / r.h})` : `translate(${seam(r.x)}px, ${seam(r.y)}px)` }}>
         {shadow}
         {layers}
         {wash}
