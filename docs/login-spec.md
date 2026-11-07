@@ -98,7 +98,10 @@ demo input: src/demo/login.js.
   blur and a small overshoot (offset keys -300, -175, -10, +55, +80, +60, +15, +2, 0 px).
 - Panel: "Sondra" Franklin 600 15.4 px at x 521, top ~301; "sondra_hsm@hotmail.com" 10.5 px at
   y 323-331; "Enter Password to begin" 7.8 px rgb(159,188,245) at y ~350-359; field x 516-666,
-  y 366-379 (white pill); go orb centre (688.5, 371) r 12 with a dark ring.
+  y 366-379 (white pill); go orb centre (688.5, 371) r 12 with a dark ring. Deliberate changes
+  from the video (the user's request): no light bridge between the field's end and the orb and no
+  light tail curving under them, and the orb's chevron (barely visible in the video) is white with
+  a soft deep-blue shadow, drawn above the hover glow.
 - Bullets: one per key at frames 395, 402, 409, 416, 423, 430 (no fade); centres x 528 + 13.4 i,
   y 372.6, glass blue spheres 9.4 px.
 
