@@ -29,6 +29,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { memorySampler } from './lib/memory.mjs'
+import { pressPower } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -169,6 +170,8 @@ for (const dpr of dprs) {
         try {
           for (let attempt = 0; ; attempt++) {
             await s.send('Page.navigate', { url: base })
+            // (the real OS opens on the power button: pressed)
+            await pressPower(s.send, s.evaluate)
             for (let i = 0; i < 300 && !(await s.evaluate('!!(window.__lh && window.__lh.emit && window.__wm)').catch(() => false)); i++) await sleep(100)
             await sleep(500)
             if (await s.evaluate('window.__lh.ready()').catch(() => false)) break

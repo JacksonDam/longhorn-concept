@@ -1,12 +1,14 @@
 // Shut Down and boot, after the second reference video (ref2 f02775-f02888, see os/session.js):
-// the login screen fades linearly to black; the off screen is black with a glass power button
-// (the machine has to be switchable back on); booting fades the login screen back in from black.
-import { memo } from 'react'
+// the login screen fades linearly to black; the off screen is black with the power button (the
+// machine has to be switchable back on; the page opens on the same, powerButton.js); booting
+// shows the boot screen, then fades the login screen back in from black.
+import { useEffect } from 'react'
 import { clamp } from '../../core/anim.js'
 import { CAPTURE } from '../../core/clock.js'
-import { emit } from '../../core/events.js'
+import { emit, last } from '../../core/events.js'
 import { SHUTDOWN_HOLD, SHUTDOWN_FADE, BOOT_DUR, bootScreenDur } from '../../os/session.js'
 import { logoSVG, BLOCKS_SVG, FADE, INTERIOR, BLOCKS_X0, GROUP, sweepOffset } from './bootScreen.js'
+import { orbSVG, ORB, HIT, HOVER, PRESS, FADE_IN } from './powerButton.js'
 import { useStageScale } from '../../core/Stage.jsx'
 import { centreOffset } from '../login/layout.js'
 
@@ -30,44 +32,30 @@ export function Black({ level, block }) {
   return <div style={{ ...fill, background: '#000', opacity: level, pointerEvents: block ? 'auto' : 'none' }} />
 }
 
-const PowerOrb = memo(function PowerOrb() {
-  return (
-    <svg width="84" height="84" viewBox="-42 -42 84 84" style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}>
-      <defs>
-        <radialGradient id="pw-glow" r="0.5">
-          <stop offset="0.55" stopColor="#3d7bff" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#3d7bff" stopOpacity="0" />
-        </radialGradient>
-        <radialGradient id="pw-body" cx="0.5" cy="0.75" r="0.65">
-          <stop offset="0" stopColor="#4f8cff" />
-          <stop offset="0.6" stopColor="#1f4fd0" />
-          <stop offset="1" stopColor="#0d2a8a" />
-        </radialGradient>
-        <linearGradient id="pw-top" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#e6eeff" stopOpacity="0.85" />
-          <stop offset="1" stopColor="#a9c4ff" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="pw-rim" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#c8d8ff" />
-          <stop offset="1" stopColor="#5b86e6" />
-        </linearGradient>
-      </defs>
-      <circle r="42" fill="url(#pw-glow)" />
-      <circle r="27" fill="none" stroke="url(#pw-rim)" strokeWidth="2" />
-      <circle r="25.5" fill="url(#pw-body)" />
-      <ellipse cx="0" cy="-11" rx="19" ry="12" fill="url(#pw-top)" />
-      <path d="M -7.5 -6.5 A 10.5 10.5 0 1 0 7.5 -6.5" fill="none" stroke="#bfe0ff" strokeWidth="2.6" strokeLinecap="round" />
-      <line x1="0" y1="-12" x2="0" y2="-1" stroke="#bfe0ff" strokeWidth="2.6" strokeLinecap="round" />
-    </svg>
-  )
-})
+// the power button's orb: the login's Shut Down orb scaled up (powerButton.js, the same drawing as
+// the page's own power-on screen in index.html)
+const ORB_EL = <div style={{ position: 'absolute', inset: 0 }} dangerouslySetInnerHTML={{ __html: orbSVG('pwo') }} />
 
-// the off screen: black, with the power button fading in and breathing slowly
+// The off screen: black, with the power button fading in, as the page opens on in real use
+// (index.html, powerButton.js). Hover ('power.hover') brightens it, a press ('power.press') sinks
+// it, and the click (or Enter / Space) boots: the boot screen, then the welcome screen.
 export function OffScreen({ t0, t, hover }) {
   const c = centreOffset(useStageScale())
   const k = t - t0
-  const show = clamp((k - 0.4) / 0.8)
-  const pulse = 0.85 + 0.15 * Math.sin(k * ((2 * Math.PI) / 3))
+  const show = clamp((k - FADE_IN.delay) / FADE_IN.dur)
+  const pe = last(t, (e) => e.type === 'power.press' && e.t >= t0)
+  const fx = pe?.on ? PRESS : hover ? HOVER : null
+  useEffect(() => {
+    if (CAPTURE) return
+    const key = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      e.preventDefault()
+      emit('session.boot')
+    }
+    addEventListener('keydown', key)
+    return () => removeEventListener('keydown', key)
+  }, [])
+  const press = (on) => () => !CAPTURE && emit('power.press', { on })
   return (
     <div style={{ ...fill, background: '#000', pointerEvents: 'auto' }}>
       <div
@@ -75,24 +63,36 @@ export function OffScreen({ t0, t, hover }) {
         aria-label="Turn on"
         onPointerDown={(e) => {
           e.stopPropagation()
-          if (!CAPTURE) emit('session.boot')
+          if (e.button === 0) press(true)()
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (CAPTURE) return
+          emit('power.press', { on: false })
+          emit('session.boot')
         }}
         onPointerEnter={() => !CAPTURE && emit('power.hover', { on: true })}
-        onPointerLeave={() => !CAPTURE && emit('power.hover', { on: false })}
-        style={{
-          position: 'absolute',
-          left: c.x + 480 - 42,
-          top: c.y + 360 - 42,
-          width: 84,
-          height: 84,
-          borderRadius: 42,
-          cursor: 'pointer',
-          opacity: show * (hover ? 1 : pulse),
-          transform: `scale(${hover ? 1.06 : 1})`,
-          filter: hover ? 'brightness(1.25)' : undefined,
+        onPointerLeave={() => {
+          if (CAPTURE) return
+          if (pe?.on) emit('power.press', { on: false })
+          emit('power.hover', { on: false })
         }}
+        style={{ position: 'absolute', left: c.x + 480 - HIT / 2, top: c.y + 360 - HIT / 2, width: HIT, height: HIT, borderRadius: HIT / 2, cursor: 'pointer' }}
       >
-        <PowerOrb />
+        <div
+          style={{
+            position: 'absolute',
+            left: (HIT - ORB) / 2,
+            top: (HIT - ORB) / 2,
+            width: ORB,
+            height: ORB,
+            opacity: show,
+            transform: fx ? `scale(${fx.scale})` : undefined,
+            filter: fx ? `brightness(${fx.brightness})` : undefined,
+          }}
+        >
+          {ORB_EL}
+        </div>
       </div>
     </div>
   )

@@ -24,6 +24,7 @@ import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pressPower, pressPowerPage } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -144,6 +145,8 @@ async function chromeSession() {
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: dpr, mobile: false })
   await send('Page.addScriptToEvaluateOnNewDocument', { source: RECORDER })
   await send('Page.navigate', { url })
+  // (the real OS opens on the power button: pressed)
+  await pressPower(send, evaluate)
   const mouse = (type, x, y, button = 'none') => send('Input.dispatchMouseEvent', { type, x, y, button, clickCount: type === 'mouseMoved' ? 0 : 1 })
   const escape = async () => {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
@@ -176,6 +179,7 @@ async function webkitSession() {
   page.on('pageerror', (e) => errors.push(String(e)))
   await page.addInitScript(RECORDER)
   await page.goto(url)
+  await pressPowerPage(page)
   const btn = { left: 'left', right: 'right', none: undefined }
   return {
     evaluate: (expr) => page.evaluate(expr),

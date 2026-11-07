@@ -200,6 +200,16 @@ OS in the same style. Everything still derives from (time, event log).
 
 ## Boot (real time only)
 `core/boot.js`, started by App.jsx; `?capture` / `?bench` never boot (they wait on `__lh.ready()`).
+Power button: in real use the page opens on a black screen with the power button centred
+(`scenes/session/powerButton.js`: the login's Shut Down orb scaled up, with hover and press states;
+index.html inlines its markup, CSS and a small script, so it shows from the first paint). Everything
+below runs under it while it waits (same 0.999 opacity). Its press (a click, Enter or Space) is the
+user's first gesture: it unlocks the sounds (os/sounds.js) and shows the boot screen, animated from
+the press; the clock starts at the end of a pass of the boot screen's blocks once the warm-up is
+done (at least one full pass, like the off screen's power button, `BOOT_SCREEN`), and the boot's
+deadline counts from the press. The off screen after Shut Down shows the same button. Never under
+?capture, ?bench, ?demo or ?scenario=; `?nopower` boots straight away as before. Tools that load
+the real app press it with real input (`tools/lib/power.mjs`).
 What shows is the Longhorn boot screen of builds 4015-4029 (`scenes/session/bootScreen.js`, sources
 in assets-src/SOURCES.md section 10): vite.config.js inlines it into index.html, so it is on screen
 from the first paint, before the bundle has loaded, and its fade-in and progress blocks are CSS
@@ -239,6 +249,16 @@ session's own black element: a separate cover changed the layers enough that the
 pipelines on the first frames of the fade-in. Nothing in the rehearsal may persist: it only
 emits into the event log, which the boot replaces. The boot black is an overlay on top of the
 scenes, never an opacity group around them (see Glass).
+
+## Sound
+`os/sounds.js`: the Longhorn / Vista-beta system sounds (public/sounds, `tools/sounds/encode.py`)
+for the OS's own events, the way Windows maps them (log on, log off, shut down, the welcome screen
+after a boot, message boxes by icon, a delete to the Recycle Bin); docs/sounds.md has the table.
+One listener on the event log, no sound calls in scenes or apps; it plays only for events appended
+while the clock runs (a replaced or replayed log is silent) and never under ?capture, ?bench, ?demo
+or ?scenario. One AudioContext, unlocked by the power button's press (index.html) or the first
+gesture; a sound that can't start within 250 ms is dropped, never played late. Volume and mute are
+the Sounds and Audio Devices applet's (`sys.volume`, `sys.mute`).
 
 ## Performance (144 Hz)
 See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite preview --port

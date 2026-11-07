@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PNG } from './lib/png.mjs'
+import { pressPower } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (name, def) => {
@@ -114,6 +115,8 @@ try {
   await send('Runtime.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: dpr, mobile: false })
   await send('Page.navigate', { url: realtime ? base : base + '?bench&scaled&apps=every' })
+  // (the real OS opens on the power button: pressed)
+  if (realtime) await pressPower(send, evaluate)
   for (let i = 0; i < 600 && !events.some((e) => e.method === 'Page.loadEventFired'); i++) await sleep(100)
   for (let i = 0; i < 600 && !(await evaluate('!!(window.__lh && window.__lh.seekFrame)')); i++) await sleep(100)
   await evaluate('window.__lh.ready()')

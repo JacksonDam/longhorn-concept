@@ -15,6 +15,7 @@
 //                then wait --wait ms
 //   --all:       every layer over 0.5 MB, not just the groups
 import { webkit } from 'playwright'
+import { pressPowerPage } from './lib/power.mjs'
 
 const args = process.argv.slice(2)
 const opt = (n, d) => {
@@ -34,6 +35,8 @@ const b = await webkit.launch({ headless: true })
 const ctx = await b.newContext({ viewport: { width: DEV[0], height: DEV[1] }, deviceScaleFactor: DEV[2], isMobile: true, hasTouch: true })
 const page = await ctx.newPage()
 await page.goto(base + (base.includes('?') ? '&' : '?') + query)
+// (the real OS opens on the power button: tapped)
+await pressPowerPage(page, { touch: true })
 for (let i = 0; i < 300 && !(await page.evaluate(() => !!(window.__lh && window.__lh.booted)).catch(() => false)); i++) await sleep(100)
 for (let i = 0; i < 1200 && (await page.evaluate(() => window.__lh.now())) < at; i++) await sleep(50)
 if (emit) await page.evaluate(emit), await sleep(wait)
