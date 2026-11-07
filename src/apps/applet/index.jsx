@@ -8,6 +8,7 @@ import { scoped, wid, valueOf, Tabs, TabPanel, Button, Checkbox, Slider, ListVie
 import { USERS, userPicture, currentUser } from '../../os/session.js'
 import { Ico } from '../lib/icons.jsx'
 import { closeWin, messageBox } from '../lib/common.js'
+import { VOLUME, MUTE, DEFAULT_VOLUME } from '../../os/sounds.js'
 import { LAND, MAP_W, MAP_H } from './worldMap.js'
 
 const DEMO = CAPTURE || new URLSearchParams(location.search).has('demo')
@@ -183,10 +184,12 @@ function DateTime({ win, t, w, h }) {
   )
 }
 
+// the device volume and Mute are the system's (os/sounds.js plays through them), so they hold
+// from one opening of the applet to the next
 function Sound({ win, t, w, h }) {
   const id = (n) => wid(win, n)
-  const vol = valueOf(t, id('vol'), 0.7)
-  const mute = valueOf(t, id('mute'), false)
+  const vol = valueOf(t, VOLUME, DEFAULT_VOLUME)
+  const mute = valueOf(t, MUTE, false)
   return (
     <>
       <Tabs id={id('tab')} tabs={[{ key: 'vol', label: 'Volume' }]} x={10} y={8} w={w - 20} />
@@ -197,9 +200,9 @@ function Sound({ win, t, w, h }) {
         <div style={{ position: 'absolute', left: 64, top: 22, ...txt }}>Speakers (built-in audio)</div>
         <div style={{ position: 'absolute', left: 14, top: 72, ...txt, fontFamily: HEAVY, color: '#3b7cc6' }}>Device volume</div>
         <div style={{ position: 'absolute', left: 14, top: 98, ...txt, color: '#8b91a6' }}>Low</div>
-        <Slider id={id('vol')} x={44} y={100} w={w - 120} def={0.7} disabled={mute} />
+        <Slider id={VOLUME} x={44} y={100} w={w - 120} def={DEFAULT_VOLUME} disabled={mute} />
         <div style={{ position: 'absolute', left: w - 68, top: 98, ...txt, color: '#8b91a6' }}>High</div>
-        <Checkbox id={id('mute')} label="Mute" x={44} y={130} />
+        <Checkbox id={MUTE} label="Mute" x={44} y={130} />
         <Checkbox id={id('tray')} label="Place volume icon in the taskbar" x={44} y={152} def />
         <div style={{ position: 'absolute', left: 14, top: 190, right: 14, ...txt, color: '#8b91a6' }}>Volume: {mute ? 'muted' : `${Math.round(vol * 100)}%`}</div>
       </TabPanel>
