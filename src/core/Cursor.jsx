@@ -74,7 +74,8 @@ export function Cursor({ path }) {
 
 // ---- interactive -----------------------------------------------------------------------------
 // The pointer's reports: a ring of stage positions and times (ms, performance.now()'s clock: the
-// events' timeStamp), every coalesced report of a move (a 1000 Hz mouse sends several a frame).
+// events' timeStamp, LiveCursor's on), every coalesced report of a move (a 1000 Hz mouse sends
+// several a frame).
 // 512 reports hold the shutter at an 8 kHz rate.
 const RING = 512
 const rx = new Float64Array(RING)
@@ -117,9 +118,12 @@ function shutterPositions(tEnd) {
 
 // The streak: each copy is its own small compositing layer (will-change), so moving it is a
 // compositor transform, not a repaint (and a layerisation) of whatever it passes over; hidden
-// ones are visibility: hidden. The still arrow is painted, not a layer: Chrome rasterises a
-// will-change layer under the stage's scale soft (the arrow measured blurred at 1920 x 1080).
-const LAYER = { position: 'absolute', left: 0, top: 0, willChange: 'transform', mixBlendMode: 'plus-lighter', transform: 'translate(-100px, -100px)', opacity: 1 / SAMPLES, visibility: 'hidden' }
+// ones are visibility: hidden. A copy's 1 / SAMPLES opacity is painted into its layer (an inner
+// element): WebKit drew plus-lighter layers at full strength with the opacity on the layer. The
+// still arrow is painted, not a layer: Chrome rasterises a will-change layer under the stage's
+// scale soft (the arrow measured blurred at 1920 x 1080).
+const LAYER = { position: 'absolute', left: 0, top: 0, willChange: 'transform', mixBlendMode: 'plus-lighter', transform: 'translate(-100px, -100px)', visibility: 'hidden' }
+const FAINT = { position: 'absolute', left: 0, top: 0, opacity: 1 / SAMPLES }
 const STILL = { position: 'absolute', left: 0, top: 0, transform: 'translate(-100px, -100px)' }
 const GROUP = { position: 'absolute', left: 0, top: 0, width: 0, height: 0, isolation: 'isolate' }
 const KEYS = Array.from({ length: SAMPLES }, (_, k) => k)
@@ -128,9 +132,13 @@ const LiveCursor = memo(function LiveCursor() {
   const els = useRef([]) // the copies, then the still arrow (els[SAMPLES])
   useEffect(() => {
     const on = (e) => {
+      // (WebKit stamps events on another clock, a system one: there an event counts as handled
+      // now, and its coalesced reports keep their spacing)
+      const now = performance.now()
+      const off = Math.abs(now - e.timeStamp) > 1000 ? now - e.timeStamp : 0
       const list = e.getCoalescedEvents ? e.getCoalescedEvents() : null
-      if (list && list.length) for (const c of list) add(c)
-      else add(e)
+      if (list && list.length) for (const c of list) add(c, off)
+      else add(e, off)
       const i = (count - 1) % RING
       live = { x: rx[i], y: ry[i] }
       // (not while a button is down: a drag or a resize carries the pointer with the window, the
@@ -183,7 +191,9 @@ const LiveCursor = memo(function LiveCursor() {
       <div style={GROUP}>
         {KEYS.map((k) => (
           <div key={k} ref={(e) => (els.current[k] = e)} style={LAYER}>
-            <Arrow />
+            <div style={FAINT}>
+              <Arrow />
+            </div>
           </div>
         ))}
       </div>
@@ -193,9 +203,9 @@ const LiveCursor = memo(function LiveCursor() {
     </div>
   )
 })
-const add = (e) => {
+const add = (e, off) => {
   const p = toStage(e.clientX, e.clientY)
-  report(p.x, p.y, e.timeStamp)
+  report(p.x, p.y, e.timeStamp + off)
 }
 
 // ---- demo ------------------------------------------------------------------------------------
