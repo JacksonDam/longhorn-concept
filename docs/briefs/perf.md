@@ -54,9 +54,12 @@ draws exactly what `?capture` draws for the same time.
   layer (`will-change: transform`) and keep its content static during the move, so a frame is a
   composite, not a repaint. If copies must show changing content, render it to a texture once
   per frame and draw the copies in WebGL instead.
-- Slabs (gl/slab.js): render once per frame per distinct slab and share the result between DOM
-  copies; crop canvases to the slab's bounds; keep accumulation samples only where the video
-  shows blur.
+- Slabs (gl/slab.js): render once per frame per distinct slab; keep accumulation samples only
+  where the video shows blur. Never copy a GL render into a 2D canvas, nor upload a canvas into
+  GL, on a frame that animates: in Safari both wait on the GPU process, which paints the page's
+  layers too (my Music's open: 4-50 ms a frame). A window's copies get the slab from one visible
+  GL canvas over the window (`SlabView`, drawn once per layer with its transform), faces that
+  change are drawn on the GPU (music/device.js `deviceFace`).
 - Full resolution has a cost (the stage's zoom in Safari, ARCHITECTURE.md Stage): layers are
   backed at the shown size (Playwright WebKit, desktop 1440x1080, scale 1.5: peak 1.3-1.5 GB against
   0.77 GB under the transform, more long frames while every app opens). Chrome keeps the transform:
