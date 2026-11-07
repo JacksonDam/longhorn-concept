@@ -37,6 +37,10 @@ Vite + React app deployed to GitHub Pages (base `/longhorn-concept/`).
 ## Time, events, determinism
 - `core/clock.js`: `now()` is the only time source. `?capture` freezes it; the capture tool seeks it.
   In real time (`?demo` included) it is held at 0 until the boot starts it (`startClock()`, see Boot).
+  A stall doesn't count: a frame much longer than the ones before it (over 25 ms and 3x the
+  typical frame: a first use the boot couldn't warm, a GC, a background tab) moves the clock one
+  typical frame, so an animation its input started still plays from its start (a long first frame
+  had shown the Start menu already risen). Events carry clock times, so a log replays exactly.
   **Never use CSS transitions/animations, setTimeout-driven visuals or Date.now() for visuals**:
   every visual must be a pure function of (time, event log).
 - `core/events.js`: an append-only time-stamped event log. User input calls `emit(type, data)`;
@@ -151,7 +155,13 @@ OS in the same style. Everything still derives from (time, event log).
   every bar and edge panel inside runs square and flush. `src/os/shadow.jsx`: the drop shadow
   fitted on the video (pre-rendered nine-slice strips on one layer per window that follows the
   window, during motion blur at the shutter's middle pose; blur copies carry none; nothing is
-  blurred per frame); maximised windows are square with no shadow.
+  blurred per frame); maximised windows are square with no shadow. Maximise and restore down lay
+  the window out once at the rect they tween to and scale the window's group (`zooming`): relaying
+  it out at every tween rect cost a repaint and re-raster of the whole window per display frame.
+  The live layer's transform hint (`hinted`): on while it moves and from a prepare on (so adding
+  it, which re-rasterises the window, never lands on a motion's first frame), off at rest (Chrome
+  keeps a hinted layer at the raster scale and translation it was first drawn at: soft text after
+  a maximise at a fractional stage scale).
   `src/os/focus.js`: which windows look active (`activeIds`: hand-over rules for open, close and
   minimise) and the 4-frame cross-fade of the look (`activeLevels`), pure functions of the log;
   `src/os/look.jsx`: the inactive look (a wash over the window's top chrome, `app.chromeTop` px,
@@ -217,8 +227,9 @@ See docs/briefs/perf.md. Bench the production build: `npx vite build && npx vite
 5398 --strictPort --host 127.0.0.1`, then `node tools/bench.mjs 1-1529 --url
 http://127.0.0.1:5398/longhorn-concept/` (scripted interaction benches: `?wmbench&`, `?apps=all&`,
 `?apps=opens&`, `?apps=focus&` (focus switches, frames 1530-1800), `?apps=every&` (every app
-opened, minimised, restored, closed; `node tools/appbench.mjs --dpr 1.5` prints the per-app,
-per-phase costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
+opened, minimised, restored, maximised, restored down, closed; `node tools/appbench.mjs --size
+1920x1080 --dpr 1 --scaled [--engine webkit] [--apps music,ie]` prints the per-app, per-phase
+costs), `?scenario=shell&`, `?scenario=session&` with frames past the video's end).
 Real input: `node tools/dragbench.mjs --dpr 1.5,2 --rate 144,1000 [--scenario ...] [--prefill
 5000,20000] [--trace|--profile]` drags windows with CDP mouse events at a mouse's report rate in
 the real-time app (vsync off) and prints each run's frame-cost percentiles. bench, appbench and
