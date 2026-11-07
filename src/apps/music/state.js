@@ -34,6 +34,8 @@ export function pageAt(t, t0) {
     cur = { album, t: start, prev: curAlbum, prevSince: cur ? cur.t : null }
   }
   if (!cur && nextOnly) return { none: true, next: nextOnly }
+  // (fwd: where Forward goes, the page Back left)
+  if (cur && leftByBack && leftByBack !== cur.album) cur = { ...cur, fwd: leftByBack }
   return cur
 }
 

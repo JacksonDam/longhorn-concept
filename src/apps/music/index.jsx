@@ -19,7 +19,7 @@ import { HEADER, smoothRamp, toRel } from './timeline.js'
 import { TWEET_COVER } from './albums.js'
 import { warmSlabs } from './SlabCanvas.jsx'
 import { DEFAULTS, settings, gridLayout } from './layout.js'
-import { viewState } from './state.js'
+import { viewState, pageAt } from './state.js'
 import { musicActions, openT } from './actions.js'
 import { normalRect } from '../../os/PlexWindow.jsx'
 import { eventsOf } from '../../os/logIndex.js'
@@ -192,6 +192,11 @@ const music = {
     crumbs: ['my Computer', 'my Pictures'],
     crumbMenus: [PLACES, PLACES],
     Search: MusicSearch,
+    // Back returns from an album page to the device page, Forward goes to the page Back left
+    nav: (win, t) => {
+      const p = pageAt(t, openT(win))
+      return { back: !!p?.album, forward: !!p?.fwd }
+    },
     commands: (win, t) => {
       const A = musicActions(win)
       const s = settings(t, win)

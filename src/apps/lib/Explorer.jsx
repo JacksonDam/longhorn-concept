@@ -510,6 +510,10 @@ export function makeExplorer({ id, title, taskbar, root, view = 'tiles', positio
     explorer: {
       crumbs: (win, t) => crumbsOf(navOf(t, win, root).path),
       crumbMenus: (win, t) => crumbMenusOf(win, t, navOf(t, win, root).path),
+      nav: (win, t) => {
+        const n = navOf(t, win, root)
+        return { back: n.canBack, forward: n.canFwd }
+      },
       menus: (win, t) => explorerModel(win, t, root, view).menus,
       search: search ?? 'search for…',
       commands: [
