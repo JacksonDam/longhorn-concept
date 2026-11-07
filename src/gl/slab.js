@@ -316,8 +316,9 @@ const STEP_PX = 256
 const KEEP = 3
 function targets(gl, pw, ph, slot = 0) {
   const rtCache = gl.rt // size -> { sample, accum: [per slot], w, h }, most recently used last
-  const w = Math.min(MAX, Math.ceil(pw / STEP_PX) * STEP_PX)
-  const h = Math.min(MAX, Math.ceil(ph / STEP_PX) * STEP_PX)
+  // (a slab view's box keeps its size: its targets fit it exactly)
+  const w = gl.exact ? pw : Math.min(MAX, Math.ceil(pw / STEP_PX) * STEP_PX)
+  const h = gl.exact ? ph : Math.min(MAX, Math.ceil(ph / STEP_PX) * STEP_PX)
   const key = w + 'x' + h
   let t = rtCache.get(key)
   if (t) rtCache.delete(key)
@@ -587,6 +588,7 @@ export class SlabView {
     this.canvas = c
     this.gl = makeGl(c)
     this.gl.sample8 = true
+    this.gl.exact = true
     this.scenes = [new SlabScene(), new SlabScene()]
     this.img = null
     this.size = null // { pw, ph, uv: [u, v] } of the image
@@ -734,15 +736,18 @@ export class SlabView {
 // compiling its programs stalls a frame). warmSlabView makes and warms the first at load.
 const viewPool = []
 export const acquireSlabView = () => viewPool.pop() || new SlabView()
-// (a released view keeps its context and programs, not its memory: its targets and its face
-// targets go, and its canvas shrinks; a window minimised or closed takes its view's with it)
-export const releaseSlabView = (v) => {
+// (free: a released view keeps its context and programs, not its memory: its targets and its
+// face targets go, and its canvas shrinks, so a window minimised or closed takes its view's memory
+// with it; on a phone. A desktop keeps them: making them again cost the next open's first frames)
+export const releaseSlabView = (v, free) => {
   v.canvas.remove()
-  v.release()
+  if (free) v.release()
   viewPool.push(v)
 }
-// (two: my Music and my Pictures can show at once; each draws `slabs` once, uploading their
-// pictures, a canvas face's too, and again once the image files have loaded)
+// (two: my Music and my Pictures can show at once; each draws `slabs` once, compiling its
+// programs and uploading their pictures, a face's too, and again once the image files have
+// loaded: their textures only, not every slab picture, which the login's slabs load too; a view
+// holds its own copy of each texture it draws)
 export function warmSlabView(slabs) {
   if (typeof document === 'undefined' || viewPool.length) return
   for (let i = 0; i < 2; i++) {
@@ -751,12 +756,10 @@ export function warmSlabView(slabs) {
     const draw = () => {
       v.image(items, [0], { cw: 8, ch: 8, scale: 1, P: 900 }, { items, op: 0.2, mask: [0, 4, 8] })
       v.draw([{ m: new DOMMatrix(), op: 1, shade: 0.1 }], 8, 8, 1, { w: 8, h: 8 }, { col: [0, 0, 0], ramps: [0, 1, 0, 1], at: { x: 0, y: 0 } })
+      v.release()
     }
     draw()
-    texturesReady().then(() => {
-      draw()
-      for (const tex of texCache.values()) if (tex.userData.ready) v.gl.renderer.initTexture(tex)
-    })
+    texturesReady().then(draw)
     viewPool.push(v)
   }
 }

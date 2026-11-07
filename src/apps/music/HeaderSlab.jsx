@@ -130,7 +130,7 @@ export function Slabs({ spec, t, items, spin = false, copy = false, reflection =
     view.current = v
     return () => {
       view.current = null
-      releaseSlabView(v)
+      releaseSlabView(v, COARSE)
     }
   }, [])
   useLayoutEffect(() => {
